@@ -68,6 +68,10 @@ export interface AppealListFilters {
   mode?: string;
   assigneeId?: string;
   search?: string;
+  /** Открыто/На проверке + без назначенного — конкретное подмножество, не "весь список". */
+  backlogOnly?: boolean;
+  /** Оценка 1-2 (FR-EVL-005), не точное совпадение как ratingScore. */
+  lowRatingOnly?: boolean;
 }
 
 export function useAppeals(filters: AppealListFilters) {

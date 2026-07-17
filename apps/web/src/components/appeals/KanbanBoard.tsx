@@ -10,6 +10,17 @@ import { useAppeals, useChangeStatusAny, type AppealDTO } from "@/hooks/api";
 
 const COLUMNS: AppealStatus[] = ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "CLOSED"];
 
+/** Колонки отличаются по цвету — visual cue стадии воронки (SRS не требует
+ * дословно, но так быстрее читается доска: где новое, где ждёт, где в работе,
+ * где закрыто). Акцент только в верхней полосе и счётчике — не в фоне карточек,
+ * чтобы не конкурировать с фиолетовым маркером конфиденциальности. */
+const COLUMN_STYLES: Record<AppealStatus, { border: string; badge: string }> = {
+  OPEN: { border: "border-t-slate-400", badge: "bg-slate-200 text-slate-700" },
+  UNDER_REVIEW: { border: "border-t-warning", badge: "bg-warning/15 text-warning" },
+  IN_PROGRESS: { border: "border-t-primary", badge: "bg-primary/15 text-primary" },
+  CLOSED: { border: "border-t-success", badge: "bg-success/15 text-success" },
+};
+
 function AppealCard({ appeal }: { appeal: AppealDTO }) {
   const ageDays = Math.floor((Date.now() - new Date(appeal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
   return (
@@ -47,9 +58,10 @@ function KanbanColumn({
   onDrop: (appealId: string, toStatus: AppealStatus) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
+  const style = COLUMN_STYLES[status];
   return (
     <div
-      className={`flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-border bg-background p-3 ${dragOver ? "ring-2 ring-primary" : ""}`}
+      className={`flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-t-4 border-border bg-background p-3 ${style.border} ${dragOver ? "ring-2 ring-primary" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
         setDragOver(true);
@@ -64,7 +76,9 @@ function KanbanColumn({
     >
       <div className="flex items-center justify-between px-1">
         <h2 className="text-sm font-semibold">{APPEAL_STATUS_LABELS[status]}</h2>
-        <span className="text-xs text-muted-foreground">{appeals.length}</span>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${style.badge}`}>
+          {appeals.length}
+        </span>
       </div>
       <div className="flex flex-col gap-2">
         {appeals.map((a) => (
@@ -75,9 +89,11 @@ function KanbanColumn({
   );
 }
 
-export function KanbanPage() {
-  // API ограничивает pageSize максимумом 100 (защита от больших выгрузок) — для MVP-масштаба
-  // (до ~200 сотрудников) этого достаточно, чтобы показать весь актуальный backlog на доске.
+/** Kanban — просто другое визуальное представление того же реестра обращений
+ * (см. AppealsPage), не отдельный раздел с собственными данными. */
+export function KanbanBoard() {
+  // API ограничивает pageSize максимумом 100 — для MVP-масштаба (до ~200 сотрудников)
+  // этого достаточно, чтобы показать весь актуальный backlog на доске.
   const { data } = useAppeals({ channel: "EMPLOYEE", page: 1, pageSize: 100 });
   const changeStatus = useChangeStatusAny();
   const [pendingCloseId, setPendingCloseId] = useState<string | null>(null);
@@ -108,7 +124,6 @@ export function KanbanPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Kanban</h1>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMNS.map((status) => (
           <KanbanColumn

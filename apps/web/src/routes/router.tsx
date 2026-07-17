@@ -5,7 +5,6 @@ import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { AppealsRegistryPage } from "@/pages/AppealsRegistryPage";
 import { AppealDetailPage } from "@/pages/AppealDetailPage";
-import { KanbanPage } from "@/pages/KanbanPage";
 import { ReportsPage } from "@/pages/ReportsPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { DirectoriesPage } from "@/pages/DirectoriesPage";
@@ -26,7 +25,7 @@ export const router = createBrowserRouter([
           { path: "/dashboard", element: <DashboardPage /> },
           { path: "/appeals", element: <AppealsRegistryPage /> },
           { path: "/appeals/:id", element: <AppealDetailPage /> },
-          { path: "/kanban", element: <KanbanPage /> },
+          { path: "/kanban", element: <Navigate to="/appeals?view=kanban" replace /> },
           { path: "/reports", element: <ReportsPage /> },
           {
             element: <RequirePermission permission="user.manage" />,

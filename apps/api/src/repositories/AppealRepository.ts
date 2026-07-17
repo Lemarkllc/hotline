@@ -35,6 +35,11 @@ export interface AppealListFilters {
   createdTo?: Date;
   search?: string;
   ratingScore?: number;
+  /** Открыто/На проверке + без активного назначения — конкретное подмножество,
+   * а не синоним "весь список" (см. обсуждение семантики бэклога с пользователем). */
+  backlogOnly?: boolean;
+  /** Оценка 1-2 (FR-EVL-005 порог "низкая оценка"), а не точное совпадение как ratingScore. */
+  lowRatingOnly?: boolean;
   page: number;
   pageSize: number;
 }
@@ -134,6 +139,10 @@ export class AppealRepository {
           }
         : {}),
       ...(filters.ratingScore ? { rating: { score: filters.ratingScore } } : {}),
+      ...(filters.lowRatingOnly ? { rating: { score: { lte: 2 } } } : {}),
+      ...(filters.backlogOnly
+        ? { status: { in: ["OPEN", "UNDER_REVIEW"] }, assignments: { none: { unassignedAt: null } } }
+        : {}),
       ...(filters.search
         ? {
             OR: [

@@ -21,6 +21,10 @@ export const listAppealsQuerySchema = paginationSchema.extend({
   createdFrom: z.coerce.date().optional(),
   createdTo: z.coerce.date().optional(),
   ratingScore: z.coerce.number().int().min(1).max(5).optional(),
+  /** Бэклог = ещё не разобранные обращения: Открыто/На проверке и без назначенного
+   * (не "любой список", а конкретное подмножество — см. обсуждение с пользователем). */
+  backlogOnly: z.coerce.boolean().optional(),
+  lowRatingOnly: z.coerce.boolean().optional(),
 });
 
 export const myAppealsQuerySchema = paginationSchema.extend({
