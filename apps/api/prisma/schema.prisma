@@ -1,0 +1,415 @@
+// HotLineBot — модель данных (SRS §19, PLAN.md §3 и §6)
+//
+// Правила: UUID PK, все даты в UTC, soft delete (deletedAt) — физическое удаление
+// обращений запрещено (FR-APP-014). `channel` заложен с первого дня, чтобы канал
+// CUSTOMER (Фаза 7, PLAN.md §6) не потребовал миграции данных задним числом.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Channel {
+  EMPLOYEE
+  CUSTOMER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  BLOCKED
+  ARCHIVED
+}
+
+enum AppealMode {
+  OPEN
+  CONFIDENTIAL
+}
+
+enum AppealStatus {
+  OPEN
+  UNDER_REVIEW
+  IN_PROGRESS
+  CLOSED
+}
+
+enum CommentVisibility {
+  INTERNAL
+  PUBLIC
+}
+
+enum NotificationChannel {
+  TELEGRAM
+  WEB
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum AttachmentKind {
+  PHOTO
+  VIDEO
+}
+
+/// Роли — фиксированный набор (EMPLOYEE/MANAGER/ADMINISTRATOR/HRD), но права
+/// хранятся как отдельные строки в RolePermission, а не enum'ом — соответствует
+/// явному списку permission-строк из SRS §21.
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  permissions RolePermission[]
+  userRoles   UserRole[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("roles")
+}
+
+model RolePermission {
+  id         String @id @default(uuid())
+  roleId     String
+  permission String
+  role       Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission])
+  @@map("role_permissions")
+}
+
+/// Внутренний пользователь (сотрудник). Одна и та же таблица покрывает и
+/// Telegram-идентификацию (FR-AUTH-001), и веб-аккаунты HRD/менеджеров/админов
+/// (SRS §4.1: "для Web панели регистрация отдельная") — телефон/пароль просто
+/// не заполнены у обычного сотрудника, который есть только в боте.
+model User {
+  id           String     @id @default(uuid())
+  telegramId   BigInt?    @unique
+  fullName     String
+  status       UserStatus @default(PENDING)
+
+  email               String?   @unique
+  passwordHash        String?
+  mustChangePassword  Boolean   @default(false)
+  totpSecret          String?
+  totpEnabled         Boolean   @default(false)
+  privacyAcceptedAt   DateTime?
+  blockReason         String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  userRoles             UserRole[]
+  channelAccess         UserChannelAccess[]
+  createdAppeals        Appeal[]              @relation("AppealAuthor")
+  assignments           AppealAssignment[]    @relation("AssignedUser")
+  comments              AppealComment[]
+  statusChanges         AppealStatusHistory[] @relation("ChangedBy")
+  ratings               Rating[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+  accessRequest         AccessRequest?
+  decidedAccessRequests AccessRequest[]       @relation("DecidedBy")
+
+  @@index([status])
+  @@map("users")
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+/// Доступ к каналу — отдельно от роли (PLAN.md §6). Permission из роли действует
+/// только в каналах, на которые у пользователя есть грант здесь.
+model UserChannelAccess {
+  id        String   @id @default(uuid())
+  userId    String
+  channel   Channel
+  grantedBy String?
+  grantedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel])
+  @@map("user_channel_access")
+}
+
+/// Заявка на подтверждение сотрудника администратором (SRS §5, FR-USR-001..003).
+model AccessRequest {
+  id             String     @id @default(uuid())
+  userId         String     @unique
+  telegramId     BigInt
+  fullName       String
+  status         UserStatus @default(PENDING)
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionReason String?
+  createdAt      DateTime   @default(now())
+
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("DecidedBy", fields: [decidedById], references: [id])
+
+  @@map("access_requests")
+}
+
+/// Внешний контакт (клиент) — канал CUSTOMER, Фаза 7. Заведено уже сейчас, чтобы
+/// Appeal.externalContactId существовал в схеме с первого дня (PLAN.md §6).
+/// Без approval-флоу access_requests — вместо него обязательное согласие на
+/// обработку персональных данных (consentAt/consentVersion).
+model ExternalContact {
+  id             String    @id @default(uuid())
+  telegramId     BigInt    @unique
+  fullName       String?
+  phone          String?
+  orderNumber    String?
+  consentAt      DateTime?
+  consentVersion String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  appeals Appeal[]
+
+  @@map("external_contacts")
+}
+
+/// Справочник эпиков — раздельный per channel (PLAN.md §6): у сотрудников и
+/// клиентов разные тематические списки, один и тот же механизм администрирования.
+model Epic {
+  id        String   @id @default(uuid())
+  channel   Channel  @default(EMPLOYEE)
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appeals Appeal[]
+
+  @@unique([channel, name])
+  @@map("epics")
+}
+
+model Appeal {
+  id           String       @id @default(uuid())
+  publicNumber String       @unique
+  channel      Channel      @default(EMPLOYEE)
+
+  /// Строка, а не Postgres enum — намеренно: канал CUSTOMER получит свой
+  /// набор типов отдельным справочником (PLAN.md §6), без миграции колонки.
+  /// Для канала EMPLOYEE валидируется Zod-схемой из @hotline/shared (EMPLOYEE_APPEAL_TYPES).
+  type   String
+  mode   AppealMode
+  status AppealStatus @default(OPEN)
+
+  authorUserId      String?
+  externalContactId String?
+  epicId            String?
+
+  originalText String
+  workingEdit  String?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  closedAt         DateTime?
+  deletedAt        DateTime?
+  reopenDeadlineAt DateTime?
+
+  author          User?            @relation("AppealAuthor", fields: [authorUserId], references: [id])
+  externalContact ExternalContact? @relation(fields: [externalContactId], references: [id])
+  epic            Epic?            @relation(fields: [epicId], references: [id])
+
+  assignments   AppealAssignment[]
+  comments      AppealComment[]
+  messages      AppealMessage[]
+  attachments   AppealAttachment[]
+  statusHistory AppealStatusHistory[]
+  rating        Rating?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([status])
+  @@index([channel])
+  @@index([createdAt])
+  @@index([epicId])
+  @@index([authorUserId])
+  @@map("appeals")
+}
+
+model AppealAssignment {
+  id           String    @id @default(uuid())
+  appealId     String
+  userId       String
+  isPrimary    Boolean   @default(true)
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+
+  appeal Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  user   User   @relation("AssignedUser", fields: [userId], references: [id])
+
+  @@index([appealId])
+  @@index([userId])
+  @@map("appeal_assignments")
+}
+
+/// Внутренние (HRD/менеджер) и пользовательские (PUBLIC) комментарии — разделены
+/// полем visibility (FR-COM-001/002): PUBLIC-комментарий уходит автору как AppealMessage,
+/// здесь же остаётся как запись для карточки.
+model AppealComment {
+  id            String            @id @default(uuid())
+  appealId      String
+  authorId      String
+  visibility    CommentVisibility
+  text          String
+  isFinalAnswer Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  editedAt      DateTime?
+  deletedAt     DateTime?
+
+  appeal Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([appealId])
+  @@map("appeal_comments")
+}
+
+/// Переписка с автором через бота (SRS §4.4 сценарий "Запросить уточнение").
+model AppealMessage {
+  id        String   @id @default(uuid())
+  appealId  String
+  fromHrd   Boolean
+  text      String
+  createdAt DateTime @default(now())
+
+  appeal Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+
+  @@index([appealId])
+  @@map("appeal_messages")
+}
+
+/// Загружается ботом ДО создания обращения (черновик) — appealId проставляется
+/// при отправке (FR-DRF-006: вложения черновика удаляются по истечении срока,
+/// поэтому uploadedByUserId/draftExpiresAt нужны независимо от appealId).
+model AppealAttachment {
+  id                String         @id @default(uuid())
+  appealId          String?
+  uploadedByUserId  String?
+  storageKey        String
+  mimeType          String
+  fileSize          Int
+  kind              AttachmentKind
+  createdAt         DateTime       @default(now())
+  draftExpiresAt    DateTime?
+  deletedAt         DateTime?
+
+  appeal Appeal? @relation(fields: [appealId], references: [id], onDelete: Cascade)
+
+  @@index([appealId])
+  @@index([uploadedByUserId])
+  @@index([draftExpiresAt])
+  @@map("appeal_attachments")
+}
+
+/// Append-only история статусов (FR-WF-008) — строки никогда не изменяются и не удаляются.
+model AppealStatusHistory {
+  id          String        @id @default(uuid())
+  appealId    String
+  fromStatus  AppealStatus?
+  toStatus    AppealStatus
+  changedById String?
+  reason      String?
+  createdAt   DateTime      @default(now())
+
+  appeal    Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  changedBy User?  @relation("ChangedBy", fields: [changedById], references: [id])
+
+  @@index([appealId])
+  @@map("appeal_status_history")
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  appealId  String   @unique
+  authorId  String
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appeal Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@map("ratings")
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String?
+  appealId  String?
+  channel   NotificationChannel
+  status    NotificationStatus  @default(PENDING)
+  payload   Json
+  attempts  Int                 @default(0)
+  lastError String?
+  createdAt DateTime            @default(now())
+  sentAt    DateTime?
+
+  user   User?   @relation(fields: [userId], references: [id])
+  appeal Appeal? @relation(fields: [appealId], references: [id])
+
+  @@index([status])
+  @@map("notifications")
+}
+
+/// Append-only на уровне приложения (SRS §37) — сервисный слой не предоставляет update/delete.
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String
+  objectType String
+  objectId   String?
+  appealId   String?
+  requestId  String?
+  ipAddress  String?
+  userAgent  String?
+  result     String
+  metadata   Json?
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  actor  User?   @relation(fields: [actorId], references: [id])
+  appeal Appeal? @relation(fields: [appealId], references: [id])
+
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+/// Атомарный счётчик для генерации publicNumber (ключ вида "EMPLOYEE:2026").
+/// Отдельная модель вместо подсчёта строк appeals — подсчёт по COUNT() гонится
+/// при конкурентной записи и ломается на soft-deleted строках.
+model NumberSequence {
+  key   String @id
+  value Int    @default(0)
+
+  @@map("number_sequences")
+}

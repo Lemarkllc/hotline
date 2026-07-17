@@ -1,0 +1,23 @@
+{
+  "types": [
+    { "type": "feat", "section": "Новые возможности" },
+    { "type": "fix", "section": "Исправления" },
+    { "type": "perf", "section": "Производительность" },
+    { "type": "refactor", "section": "Рефакторинг" },
+    { "type": "docs", "section": "Документация" },
+    { "type": "chore", "hidden": true },
+    { "type": "test", "hidden": true },
+    { "type": "build", "hidden": true },
+    { "type": "ci", "hidden": true },
+    { "type": "style", "hidden": true }
+  ],
+  "packageFiles": [{ "filename": "package.json", "type": "json" }],
+  "bumpFiles": [
+    { "filename": "package.json", "type": "json" },
+    { "filename": "apps/api/package.json", "type": "json" },
+    { "filename": "apps/bot-employee/package.json", "type": "json" },
+    { "filename": "apps/web/package.json", "type": "json" },
+    { "filename": "packages/shared/package.json", "type": "json" },
+    { "filename": "packages/bot-core/package.json", "type": "json" }
+  ]
+}
