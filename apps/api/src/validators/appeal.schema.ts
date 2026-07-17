@@ -1,0 +1,55 @@
+import { z } from "zod";
+import { APPEAL_STATUSES, createEmployeeAppealSchema, paginationSchema } from "@hotline/shared";
+
+export { ratingSchema, createCommentSchema } from "@hotline/shared";
+
+const telegramIdField = z.union([z.string(), z.number()]).transform((v) => String(v));
+
+/** Обращение всегда создаётся ботом от имени конкретного Telegram-пользователя. */
+export const createAppealBotSchema = createEmployeeAppealSchema.extend({
+  telegramId: telegramIdField,
+});
+
+export const listAppealsQuerySchema = paginationSchema.extend({
+  channel: z.enum(["EMPLOYEE", "CUSTOMER"]).default("EMPLOYEE"),
+  status: z.enum(APPEAL_STATUSES).optional(),
+  type: z.string().optional(),
+  epicId: z.string().uuid().optional(),
+  mode: z.enum(["OPEN", "CONFIDENTIAL"]).optional(),
+  assigneeId: z.string().uuid().optional(),
+  search: z.string().optional(),
+  createdFrom: z.coerce.date().optional(),
+  createdTo: z.coerce.date().optional(),
+  ratingScore: z.coerce.number().int().min(1).max(5).optional(),
+});
+
+export const myAppealsQuerySchema = paginationSchema.extend({
+  telegramId: telegramIdField,
+});
+
+/** Закрытие требует итогового ответа (FR-WF-005) — валидируется в сервисе, не только здесь. */
+export const changeStatusSchema = z.object({
+  toStatus: z.enum(APPEAL_STATUSES),
+  reason: z.string().trim().max(1000).optional(),
+  finalAnswer: z.string().trim().max(4000).optional(),
+});
+
+export const assignSchema = z.object({
+  userId: z.string().uuid(),
+});
+
+export const workingEditSchema = z.object({
+  workingEdit: z.string().trim().min(1).max(8000),
+});
+
+export const setEpicSchema = z.object({
+  epicId: z.string().uuid().nullable(),
+});
+
+export const createMessageSchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+});
+
+export const botCreateMessageSchema = createMessageSchema.extend({
+  telegramId: telegramIdField,
+});
