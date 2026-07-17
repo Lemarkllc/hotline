@@ -1,4 +1,16 @@
 import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Activity,
+  CheckCircle2,
+  CircleDot,
+  FilePlus2,
+  Inbox,
+  Star,
+  Timer,
+  TrendingDown,
+  type LucideIcon,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -11,25 +23,84 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { APPEAL_STATUS_LABELS, EMPLOYEE_APPEAL_TYPE_LABELS, type EmployeeAppealType } from "@hotline/shared";
+import {
+  APPEAL_STATUS_LABELS,
+  EMPLOYEE_APPEAL_TYPE_LABELS,
+  type AppealStatus,
+  type EmployeeAppealType,
+} from "@hotline/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { useReportSummary } from "@/hooks/api";
 
-const CHART_COLORS = ["#2563EB", "#7C3AED", "#16A34A", "#D97706", "#DC2626"];
+const TYPE_CHART_COLORS = ["#2563EB", "#7C3AED", "#16A34A", "#D97706", "#DC2626"];
 
-function KpiCard({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-5">
+/** Тот же цветовой язык, что и в Kanban-колонках (KanbanBoard.tsx) — воронка
+ * читается одинаково что на доске, что на дашборде. */
+const STATUS_COLORS: Record<AppealStatus, string> = {
+  OPEN: "#94A3B8",
+  UNDER_REVIEW: "#D97706",
+  IN_PROGRESS: "#2563EB",
+  CLOSED: "#16A34A",
+};
+
+type Accent = "slate" | "primary" | "success" | "warning" | "destructive";
+
+const ACCENT_STYLES: Record<Accent, { icon: string; ring: string }> = {
+  slate: { icon: "bg-slate-100 text-slate-600", ring: "hover:border-slate-400" },
+  primary: { icon: "bg-primary/10 text-primary", ring: "hover:border-primary" },
+  success: { icon: "bg-success/10 text-success", ring: "hover:border-success" },
+  warning: { icon: "bg-warning/10 text-warning", ring: "hover:border-warning" },
+  destructive: { icon: "bg-destructive/10 text-destructive", ring: "hover:border-destructive" },
+};
+
+function KpiCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  accent,
+  to,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  icon: LucideIcon;
+  accent: Accent;
+  to?: string;
+}) {
+  const style = ACCENT_STYLES[accent];
+  const content = (
+    <CardContent className="flex items-start gap-3 p-5">
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-md", style.icon)}>
+        <Icon className="size-5" />
+      </span>
+      <div>
         <p className="text-sm text-muted-foreground">{label}</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
         {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      </CardContent>
-    </Card>
+      </div>
+    </CardContent>
+  );
+
+  if (!to) return <Card>{content}</Card>;
+
+  return (
+    <Link
+      to={to}
+      className={cn(
+        "block rounded-lg border border-border bg-surface shadow-sm transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        style.ring,
+      )}
+    >
+      {content}
+    </Link>
   );
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const [days] = useState(30);
   const { from, to } = useMemo(() => {
     const now = new Date();
@@ -44,10 +115,12 @@ export function DashboardPage() {
   }
 
   const statusData = Object.entries(data.byStatus).map(([status, count]) => ({
-    name: APPEAL_STATUS_LABELS[status as keyof typeof APPEAL_STATUS_LABELS] ?? status,
+    key: status,
+    name: APPEAL_STATUS_LABELS[status as AppealStatus] ?? status,
     value: count,
   }));
   const typeData = Object.entries(data.byType).map(([type, count]) => ({
+    key: type,
     name: EMPLOYEE_APPEAL_TYPE_LABELS[type as EmployeeAppealType] ?? type,
     value: count,
   }));
@@ -60,20 +133,54 @@ export function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <KpiCard label="Создано" value={data.created} />
-        <KpiCard label="Открыто" value={data.byStatus.OPEN ?? 0} />
-        <KpiCard label="В работе" value={data.byStatus.IN_PROGRESS ?? 0} />
-        <KpiCard label="Закрыто" value={data.byStatus.CLOSED ?? 0} />
-        <KpiCard label="Средняя оценка" value={data.avgRating?.toFixed(1) ?? "—"} />
+        <KpiCard label="Создано" value={data.created} icon={FilePlus2} accent="slate" to="/appeals" />
+        <KpiCard
+          label="Открыто"
+          value={data.byStatus.OPEN ?? 0}
+          icon={CircleDot}
+          accent="slate"
+          to="/appeals?status=OPEN"
+        />
+        <KpiCard
+          label="В работе"
+          value={data.byStatus.IN_PROGRESS ?? 0}
+          icon={Activity}
+          accent="primary"
+          to="/appeals?status=IN_PROGRESS"
+        />
+        <KpiCard
+          label="Закрыто"
+          value={data.byStatus.CLOSED ?? 0}
+          icon={CheckCircle2}
+          accent="success"
+          to="/appeals?status=CLOSED"
+        />
+        <KpiCard
+          label="Средняя оценка"
+          value={data.avgRating?.toFixed(1) ?? "—"}
+          icon={Star}
+          accent="primary"
+        />
         <KpiCard
           label="Низкие оценки"
           value={data.lowRatingShare !== null ? `${data.lowRatingShare.toFixed(0)}%` : "—"}
+          icon={TrendingDown}
+          accent="destructive"
+          to="/appeals?lowRatingOnly=true"
         />
         <KpiCard
           label="Реакция (ср.)"
           value={data.avgFirstResponseMinutes !== null ? `${Math.round(data.avgFirstResponseMinutes / 60)} ч` : "—"}
+          icon={Timer}
+          accent="slate"
         />
-        <KpiCard label="Backlog" value={data.backlogAtPeriodEnd} />
+        <KpiCard
+          label="Backlog"
+          value={data.backlogAtPeriodEnd}
+          icon={Inbox}
+          accent="warning"
+          to="/appeals?backlogOnly=true"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -88,7 +195,16 @@ export function DashboardPage() {
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#2563EB" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="value"
+                  radius={[4, 4, 0, 0]}
+                  cursor="pointer"
+                  onClick={(entry) => navigate(`/appeals?status=${entry.key}`)}
+                >
+                  {statusData.map((d) => (
+                    <Cell key={d.key} fill={STATUS_COLORS[d.key as AppealStatus]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -101,9 +217,17 @@ export function DashboardPage() {
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={typeData} dataKey="value" nameKey="name" outerRadius={90} label>
-                  {typeData.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                <Pie
+                  data={typeData}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={90}
+                  label
+                  cursor="pointer"
+                  onClick={(entry) => navigate(`/appeals?type=${entry.key}`)}
+                >
+                  {typeData.map((d, i) => (
+                    <Cell key={d.key} fill={TYPE_CHART_COLORS[i % TYPE_CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
