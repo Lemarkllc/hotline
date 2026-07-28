@@ -81,6 +81,9 @@ export function useAppeals(filters: AppealListFilters) {
       apiRequest<{ items: AppealDTO[]; total: number }>("/appeals", {
         query: filters as unknown as Record<string, string | number | boolean | undefined>,
       }),
+    // Новые обращения и смена статуса (список/Канбан) не толкаются с бэкенда —
+    // страница должна сама подтягивать их, иначе видно только после ручного обновления.
+    refetchInterval: 5000,
   });
 }
 
@@ -89,6 +92,10 @@ export function useAppeal(id: string | undefined) {
     queryKey: ["appeal", id],
     queryFn: () => apiRequest<AppealDTO>(`/appeals/${id}`),
     enabled: Boolean(id),
+    // Переписка (SRS §35.10) не толкается с бэкенда — открытая карточка обращения
+    // должна сама подтягивать новые сообщения, иначе HRD видит их только после
+    // ручного обновления страницы.
+    refetchInterval: 5000,
   });
 }
 
