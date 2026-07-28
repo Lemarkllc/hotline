@@ -46,7 +46,9 @@ interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = new URL(`${BASE_URL}${path}`);
+  // BASE_URL может быть относительным (/api/v1 за Caddy в проде, same-origin) —
+  // new URL() без base падает на относительной строке, поэтому передаём origin явно.
+  const url = new URL(`${BASE_URL}${path}`, window.location.origin);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
