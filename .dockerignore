@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+.git
+.turbo
+**/*.tsbuildinfo
+CHANGELOG.md
+PLAN.md
+Lemark_HotLineBot_SRS_v1.0.md

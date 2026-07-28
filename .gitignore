@@ -11,3 +11,4 @@ apps/web/dist/
 generated/
 .pnpm-store/
 *.tsbuildinfo
+.claude/

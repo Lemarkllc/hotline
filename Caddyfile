@@ -1,0 +1,14 @@
+{$DOMAIN} {
+	encode gzip
+
+	# same-origin с web — CORS между панелью и API не нужен вообще
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	handle {
+		root * /usr/share/caddy
+		try_files {path} /index.html
+		file_server
+	}
+}
