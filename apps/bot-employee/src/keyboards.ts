@@ -35,6 +35,8 @@ export function skipAllKeyboard(): InlineKeyboard {
   return new InlineKeyboard().text("Пропустить и написать своими словами", "skip_all");
 }
 
+export const MAX_ATTACHMENTS = 10;
+
 /** Telegram-бот не может сам открыть галерею на телефоне пользователя — фото/видео
  * прикладываются обычной отправкой файла в чат (через скрепку в интерфейсе Telegram).
  * Поэтому кнопки "Добавить ещё" тут нет: она не выполняет никакого действия и только

@@ -36,7 +36,12 @@ export async function downloadTelegramMedia(
   const file = await api.getFile(fileId);
   if (!file.file_path) return null;
   const url = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
-  const res = await fetch(url);
+  // Без таймаута зависший fetch (сеть/DNS/Telegram) вешает разговор навсегда без
+  // единой ошибки в логах — именно так выглядел баг "бот завис после фото".
+  const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  if (!res.ok) {
+    throw new Error(`Telegram file download failed: HTTP ${res.status}`);
+  }
   const arrayBuffer = await res.arrayBuffer();
 
   return {

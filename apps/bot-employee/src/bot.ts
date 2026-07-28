@@ -6,9 +6,10 @@ import { apiClient } from "./api.js";
 import { config } from "./config.js";
 import { registration } from "./conversations/registration.js";
 import { newAppeal } from "./conversations/newAppeal.js";
-import { MAIN_MENU_KEYBOARD } from "./keyboards.js";
+import { attachmentsKeyboard, MAIN_MENU_KEYBOARD, MAX_ATTACHMENTS } from "./keyboards.js";
 import { renderAppealDetail, renderMyAppealsPage } from "./myAppeals.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
+import { downloadTelegramMedia } from "./telegramFile.js";
 import type { BotContext, SessionData } from "./types.js";
 
 const WELCOME_TEXT =
@@ -25,7 +26,10 @@ const PRIVACY_TEXT =
   "фиксируется в журнале аудита.";
 
 export function createBot(): Bot<BotContext> {
-  const bot = new Bot<BotContext>(config.telegramBotToken);
+  // grammy сам по себе не ставит таймаут исходящим вызовам Bot API (ctx.reply,
+  // answerCallbackQuery, getFile...) — зависший вызов вешает разговор навсегда без
+  // единой ошибки в логах (ровно баг "бот завис после фото"/"после Перейти дальше").
+  const bot = new Bot<BotContext>(config.telegramBotToken, { client: { timeoutSeconds: 30 } });
 
   // grammy обрабатывает апдейты из одного getUpdates-батча конкурентно — если
   // пользователь шлёт две фотографии почти одновременно (Telegram-альбом),
@@ -41,6 +45,52 @@ export function createBot(): Bot<BotContext> {
       storage: createRedisSessionStorage(redis, SESSION_PREFIX),
     }),
   );
+
+  // Приём фото/видео при сборе вложений обрабатывается ЗДЕСЬ, обычными хендлерами,
+  // а не через conversation.waitFor()+external() внутри newAppeal — у @grammyjs/conversations
+  // известная проблема с повторным external() в цикле, намертво вешающая механизм повтора
+  // разговора (https://github.com/grammyjs/conversations/issues/32; ровно баг "бот виснет
+  // после второго фото"). Регистрируются ДО conversations()/createConversation(newAppeal),
+  // чтобы конверсация (не parallel) не успела молча проглотить апдейт как несовпавший.
+  // Присутствие ctx.session.draftAttachmentIds — сигнал "сейчас идёт сбор вложений",
+  // выставляется/снимается самой newAppeal через conversation.external().
+  bot.on(["message:photo", "message:video"], async (ctx, next) => {
+    if (!ctx.session.draftAttachmentIds) {
+      await next();
+      return;
+    }
+    const ids = ctx.session.draftAttachmentIds;
+    if (ids.length >= MAX_ATTACHMENTS) {
+      await ctx.reply(`Достигнут лимит ${MAX_ATTACHMENTS} файлов. Нажмите «Перейти дальше».`);
+      return;
+    }
+    const telegramId = String(ctx.from!.id);
+    try {
+      const media = await downloadTelegramMedia(ctx.api, ctx.message);
+      if (!media) return;
+      const uploaded = await apiClient.uploadDraftAttachment(telegramId, media.blob, media.filename);
+      ids.push(uploaded.id);
+      await ctx.reply(`Добавлено ${ids.length} из ${MAX_ATTACHMENTS} файлов.`, {
+        reply_markup: attachmentsKeyboard(ids.length),
+      });
+    } catch {
+      await ctx.reply("Не удалось загрузить файл, попробуйте отправить его ещё раз.", {
+        reply_markup: attachmentsKeyboard(ids.length),
+      });
+    }
+  });
+
+  bot.callbackQuery("attach_remove_last", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const ids = ctx.session.draftAttachmentIds;
+    if (!ids?.length) return;
+    const last = ids.pop()!;
+    await apiClient.removeDraftAttachment(String(ctx.from!.id), last);
+    await ctx.reply(`Вложение удалено. Добавлено ${ids.length} из ${MAX_ATTACHMENTS} файлов.`, {
+      reply_markup: attachmentsKeyboard(ids.length),
+    });
+  });
+
   bot.use(conversations());
   bot.use(createConversation(registration));
   bot.use(createConversation(newAppeal));

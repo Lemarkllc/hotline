@@ -32,6 +32,8 @@ export class ApiClient {
     extraHeaders?: Record<string, string>,
   ): Promise<T> {
     const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+    // Без таймаута зависший запрос к API вешает разговор в боте навсегда без единой
+    // ошибки в логах (не throw, а вечный await) — ставим потолок в 30 сек.
     const res = await fetch(`${this.options.baseUrl}${path}`, {
       method,
       headers: {
@@ -40,6 +42,7 @@ export class ApiClient {
         ...extraHeaders,
       },
       body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
     });
 
     const text = await res.text();

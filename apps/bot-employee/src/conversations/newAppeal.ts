@@ -4,18 +4,16 @@ import { apiClient } from "../api.js";
 import { GUIDED_QUESTIONS, URGENT_VIOLATION_WARNING } from "../guidedQuestions.js";
 import {
   attachmentsKeyboard,
+  MAIN_MENU_KEYBOARD,
   MODE_EXPLANATION,
   modeKeyboard,
   previewKeyboard,
   skipAllKeyboard,
   typeKeyboard,
 } from "../keyboards.js";
-import { downloadTelegramMedia } from "../telegramFile.js";
 import type { BotConversation } from "../types.js";
 import type { Context } from "grammy";
 import { InlineKeyboard } from "grammy";
-
-const MAX_ATTACHMENTS = 10;
 
 /** SRS §9, §35.4-35.8 — пошаговое создание обращения с предпросмотром и редактированием. */
 export async function newAppeal(conversation: BotConversation, ctx: Context): Promise<void> {
@@ -44,14 +42,18 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
   }
 
   async function collectText(type: EmployeeAppealType): Promise<string | "cancel"> {
+    // Кнопка пропуска висит один раз на вводном сообщении, а не на каждом вопросе —
+    // иначе выглядит так, будто кнопка это вариант ответа на конкретный вопрос, а не
+    // общий пропуск всех вопросов сразу (путало пользователя).
     await ctx.reply(
       "Дальше — несколько наводящих вопросов, необязательных. Ответ на первый уже и есть " +
         "суть обращения, остальные просто помогают её дополнить.",
+      { reply_markup: skipAllKeyboard() },
     );
 
     const answers: string[] = [];
     for (const question of GUIDED_QUESTIONS[type]) {
-      await ctx.reply(question, { reply_markup: skipAllKeyboard() });
+      await ctx.reply(question);
       const result = await conversation.waitFor(["message:text", "callback_query:data"]);
       if (result.callbackQuery) {
         await result.answerCallbackQuery();
@@ -90,82 +92,52 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
     return [...answers, ...freeform].join("\n\n").trim();
   }
 
+  // Приём самих фото/видео живёт вне conversation — обычными хендлерами в bot.ts,
+  // читающими/пишущими ctx.session.draftAttachmentIds напрямую. Причина: повторный
+  // conversation.external() внутри цикла на КАЖДОЕ вложение — известное больное место
+  // @grammyjs/conversations (https://github.com/grammyjs/conversations/issues/32),
+  // намертво вешающее механизм повтора разговора после второго файла. Здесь конверсация
+  // только включает/выключает режим сбора и ждёт финальную кнопку.
   async function collectAttachments(): Promise<string[] | "cancel"> {
-    const attachmentIds: string[] = [];
+    await conversation.external((c) => {
+      c.session.draftAttachmentIds = [];
+    });
     await ctx.reply(
       "Можно приложить до 10 фото или видео — просто отправьте их сюда файлом (через скрепку), " +
         "как обычное сообщение. Когда закончите — нажмите «Перейти дальше».",
-      { reply_markup: attachmentsKeyboard(attachmentIds.length) },
+      { reply_markup: attachmentsKeyboard(0) },
     );
-    for (;;) {
-      const result = await conversation.waitFor([
-        "message:photo",
-        "message:video",
-        "callback_query:data",
-      ]);
-
-      if (result.callbackQuery) {
-        await result.answerCallbackQuery();
-        const data = result.callbackQuery.data;
-        if (data === "cancel") return "cancel";
-        if (data === "attach_done") break;
-        if (data === "attach_remove_last" && attachmentIds.length) {
-          const last = attachmentIds.pop()!;
-          await conversation.external(() => apiClient.removeDraftAttachment(telegramId, last));
-          await ctx.reply(`Вложение удалено. Добавлено ${attachmentIds.length} из ${MAX_ATTACHMENTS} файлов.`, {
-            reply_markup: attachmentsKeyboard(attachmentIds.length),
-          });
-        }
-        continue;
-      }
-
-      if (attachmentIds.length >= MAX_ATTACHMENTS) {
-        await ctx.reply(`Достигнут лимит ${MAX_ATTACHMENTS} файлов. Нажмите «Перейти дальше».`);
-        continue;
-      }
-
-      try {
-        const media = await conversation.external(() => downloadTelegramMedia(ctx.api, result.message!));
-        if (!media) continue;
-        const uploaded = await conversation.external(() =>
-          apiClient.uploadDraftAttachment(telegramId, media.blob, media.filename),
-        );
-        attachmentIds.push(uploaded.id);
-        await ctx.reply(`Добавлено ${attachmentIds.length} из ${MAX_ATTACHMENTS} файлов.`, {
-          reply_markup: attachmentsKeyboard(attachmentIds.length),
-        });
-      } catch {
-        // Сетевой сбой при скачивании из Telegram или загрузке в хранилище — не даём
-        // диалогу тихо зависнуть, просим прислать файл ещё раз.
-        await ctx.reply("Не удалось загрузить файл, попробуйте отправить его ещё раз.", {
-          reply_markup: attachmentsKeyboard(attachmentIds.length),
-        });
-      }
-    }
-    return attachmentIds;
+    const answer = await conversation.waitForCallbackQuery(["attach_done", "cancel"]);
+    await answer.answerCallbackQuery();
+    const ids = await conversation.external((c) => {
+      const result = c.session.draftAttachmentIds ?? [];
+      c.session.draftAttachmentIds = undefined;
+      return result;
+    });
+    return answer.callbackQuery.data === "cancel" ? "cancel" : ids;
   }
 
   let type = await pickType();
   if (type === "cancel") {
-    await ctx.reply("Создание обращения отменено.");
+    await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
     return;
   }
 
   let mode = await pickMode();
   if (mode === "cancel") {
-    await ctx.reply("Создание обращения отменено.");
+    await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
     return;
   }
 
   let originalText = await collectText(type);
   if (originalText === "cancel") {
-    await ctx.reply("Создание обращения отменено.");
+    await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
     return;
   }
 
   let attachmentIds = await collectAttachments();
   if (attachmentIds === "cancel") {
-    await ctx.reply("Создание обращения отменено.");
+    await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
     return;
   }
 
@@ -188,14 +160,14 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
     await answer.answerCallbackQuery();
 
     if (answer.callbackQuery.data === "cancel") {
-      await ctx.reply("Создание обращения отменено.");
+      await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
       return;
     }
     if (answer.callbackQuery.data === "submit") break;
     if (answer.callbackQuery.data === "edit_text") {
       const result = await collectText(type);
       if (result === "cancel") {
-        await ctx.reply("Создание обращения отменено.");
+        await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
         return;
       }
       originalText = result;
@@ -203,7 +175,7 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
     if (answer.callbackQuery.data === "edit_mode") {
       const result = await pickMode();
       if (result === "cancel") {
-        await ctx.reply("Создание обращения отменено.");
+        await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
         return;
       }
       mode = result;
@@ -211,7 +183,7 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
     if (answer.callbackQuery.data === "edit_attachments") {
       const result = await collectAttachments();
       if (result === "cancel") {
-        await ctx.reply("Создание обращения отменено.");
+        await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
         return;
       }
       attachmentIds = result;
@@ -225,5 +197,6 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
   await ctx.reply(
     `Обращение зарегистрировано под номером ${created.publicNumber}.\n` +
       "Вы получите уведомление, когда появятся новости.",
+    { reply_markup: MAIN_MENU_KEYBOARD },
   );
 }
