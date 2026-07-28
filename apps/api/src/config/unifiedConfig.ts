@@ -56,4 +56,10 @@ export const config = {
   cors: {
     origins: optional("CORS_ORIGINS", "http://localhost:5173").split(","),
   },
+
+  webPush: {
+    vapidPublicKey: optional("VAPID_PUBLIC_KEY", ""),
+    vapidPrivateKey: optional("VAPID_PRIVATE_KEY", ""),
+    vapidSubject: optional("VAPID_SUBJECT", "mailto:admin@example.com"),
+  },
 } as const;

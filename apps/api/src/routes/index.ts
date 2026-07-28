@@ -5,6 +5,7 @@ import { auditRoutes } from "@/routes/auditRoutes.js";
 import { authRoutes } from "@/routes/authRoutes.js";
 import { epicRoutes } from "@/routes/epicRoutes.js";
 import { notificationRoutes } from "@/routes/notificationRoutes.js";
+import { pushRoutes } from "@/routes/pushRoutes.js";
 import { reportRoutes } from "@/routes/reportRoutes.js";
 import { userRoutes } from "@/routes/userRoutes.js";
 
@@ -17,4 +18,5 @@ apiV1Router.use("/attachments", attachmentRoutes);
 apiV1Router.use("/epics", epicRoutes);
 apiV1Router.use("/reports", reportRoutes);
 apiV1Router.use("/notifications", notificationRoutes);
+apiV1Router.use("/push", pushRoutes);
 apiV1Router.use("/audit", auditRoutes);

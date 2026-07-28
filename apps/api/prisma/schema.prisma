@@ -117,9 +117,26 @@ model User {
   auditLogs             AuditLog[]
   accessRequest         AccessRequest?
   decidedAccessRequests AccessRequest[]       @relation("DecidedBy")
+  pushSubscriptions     PushSubscription[]
 
   @@index([status])
   @@map("users")
+}
+
+/// Веб-push подписка браузера (Web Push API). Один пользователь может иметь несколько
+/// подписок (разные браузеры/устройства) — endpoint уникален и служит естественным ключом.
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model UserRole {

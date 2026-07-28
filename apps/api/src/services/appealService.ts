@@ -165,7 +165,7 @@ export class AppealService {
     }
 
     await appealRepository.changeStatus(id, toStatus, user.id, reason);
-    await notificationService.notifyStatusChanged(id, toStatus);
+    await notificationService.notifyStatusChanged(id, toStatus, toStatus === "CLOSED" ? finalAnswer : undefined);
 
     const updated = await appealRepository.findById(id);
     return this.serializeForStaffWithAudit(updated!, user);

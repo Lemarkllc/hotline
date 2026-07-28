@@ -2,6 +2,7 @@ import type { Bot } from "grammy";
 import { patchSession } from "@hotline/bot-core";
 import type { PendingNotification } from "@hotline/bot-core";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
+import { ratingKeyboard } from "./keyboards.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
 import type { BotContext, SessionData } from "./types.js";
 
@@ -16,7 +17,20 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
     switch (payload.type) {
       case "status_changed": {
         const label = APPEAL_STATUS_LABELS[payload.toStatus as AppealStatus] ?? String(payload.toStatus);
-        await bot.api.sendMessage(telegramId, `Статус обращения ${payload.publicNumber} изменён: ${label}.`);
+        const finalAnswer = typeof payload.finalAnswer === "string" ? payload.finalAnswer : undefined;
+        const text = finalAnswer
+          ? `Статус обращения ${payload.publicNumber} изменён: ${label}.\n\nИтоговый ответ:\n${finalAnswer}`
+          : `Статус обращения ${payload.publicNumber} изменён: ${label}.`;
+        await bot.api.sendMessage(telegramId, text);
+        // Проактивный запрос оценки (FR-EVL-001) — не ждём, пока автор сам зайдёт в
+        // "Мои обращения"; там оценка тоже доступна как запасной путь, если пропустил это сообщение.
+        if (payload.toStatus === "CLOSED" && notification.appealId) {
+          await bot.api.sendMessage(
+            telegramId,
+            "Оцените, пожалуйста, насколько результат решил вопрос.",
+            { reply_markup: ratingKeyboard(notification.appealId) },
+          );
+        }
         break;
       }
       case "hrd_message": {
