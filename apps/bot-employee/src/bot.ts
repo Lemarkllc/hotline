@@ -1,4 +1,5 @@
 import { Bot, session } from "grammy";
+import { sequentialize } from "@grammyjs/runner";
 import { conversations, createConversation } from "@grammyjs/conversations";
 import { ApiError, createRedisSessionStorage } from "@hotline/bot-core";
 import { apiClient } from "./api.js";
@@ -25,6 +26,14 @@ const PRIVACY_TEXT =
 
 export function createBot(): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.telegramBotToken);
+
+  // grammy обрабатывает апдейты из одного getUpdates-батча конкурентно — если
+  // пользователь шлёт две фотографии почти одновременно (Telegram-альбом),
+  // оба апдейта одновременно читают и перезаписывают одну и ту же Redis-сессию,
+  // теряя прогресс разговора (ровно баг "подгрузилась 1 фото из 2, дальше бот
+  // завис"). sequentialize сериализует апдейты одного чата, не трогая остальных.
+  const sessionKey = (ctx: BotContext) => ctx.chat?.id.toString();
+  bot.use(sequentialize(sessionKey));
 
   bot.use(
     session<SessionData, BotContext>({

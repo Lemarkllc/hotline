@@ -44,6 +44,11 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
   }
 
   async function collectText(type: EmployeeAppealType): Promise<string | "cancel"> {
+    await ctx.reply(
+      "Дальше — несколько наводящих вопросов, необязательных. Ответ на первый уже и есть " +
+        "суть обращения, остальные просто помогают её дополнить.",
+    );
+
     const answers: string[] = [];
     for (const question of GUIDED_QUESTIONS[type]) {
       await ctx.reply(question, { reply_markup: skipAllKeyboard() });
@@ -55,16 +60,28 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
       answers.push(`${question}\n${result.message!.text}`);
     }
 
-    await ctx.reply(
-      "Опишите ситуацию своими словами одним или несколькими сообщениями. Когда закончите — нажмите «Готово».",
-      { reply_markup: new InlineKeyboard().text("Готово", "text_done").text("Отменить", "cancel") },
-    );
+    // Если уже что-то ответили — вопросы формируют описание, дальше только
+    // опционально дополнить. Если пропустили всё — текст обязателен (FR-APP-004).
+    const closingText = answers.length
+      ? "Если хотите что-то добавить своими словами — напишите. Если ответов выше достаточно, " +
+        "сразу нажмите «Готово»."
+      : "Опишите ситуацию своими словами одним или несколькими сообщениями. Когда закончите — нажмите «Готово».";
+
+    await ctx.reply(closingText, {
+      reply_markup: new InlineKeyboard().text("Готово", "text_done").text("Отменить", "cancel"),
+    });
     const freeform: string[] = [];
     for (;;) {
       const result = await conversation.waitFor(["message:text", "callback_query:data"]);
       if (result.callbackQuery) {
         await result.answerCallbackQuery();
         if (result.callbackQuery.data === "cancel") return "cancel";
+        // Текст обязателен (FR-APP-004) — нельзя нажать «Готово», не ответив ни на один
+        // наводящий вопрос и не написав ничего своими словами.
+        if (!answers.length && !freeform.length) {
+          await ctx.reply("Опишите обращение хотя бы одним сообщением, прежде чем продолжить.");
+          continue;
+        }
         break; // text_done
       }
       freeform.push(result.message!.text);
@@ -76,7 +93,8 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
   async function collectAttachments(): Promise<string[] | "cancel"> {
     const attachmentIds: string[] = [];
     await ctx.reply(
-      "Можно приложить до 10 фото или видео. Отправьте файлы сообщением или нажмите «Перейти дальше».",
+      "Можно приложить до 10 фото или видео — просто отправьте их сюда файлом (через скрепку), " +
+        "как обычное сообщение. Когда закончите — нажмите «Перейти дальше».",
       { reply_markup: attachmentsKeyboard(attachmentIds.length) },
     );
     for (;;) {
@@ -106,15 +124,23 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
         continue;
       }
 
-      const media = await conversation.external(() => downloadTelegramMedia(ctx.api, result.message!));
-      if (!media) continue;
-      const uploaded = await conversation.external(() =>
-        apiClient.uploadDraftAttachment(telegramId, media.blob, media.filename),
-      );
-      attachmentIds.push(uploaded.id);
-      await ctx.reply(`Добавлено ${attachmentIds.length} из ${MAX_ATTACHMENTS} файлов.`, {
-        reply_markup: attachmentsKeyboard(attachmentIds.length),
-      });
+      try {
+        const media = await conversation.external(() => downloadTelegramMedia(ctx.api, result.message!));
+        if (!media) continue;
+        const uploaded = await conversation.external(() =>
+          apiClient.uploadDraftAttachment(telegramId, media.blob, media.filename),
+        );
+        attachmentIds.push(uploaded.id);
+        await ctx.reply(`Добавлено ${attachmentIds.length} из ${MAX_ATTACHMENTS} файлов.`, {
+          reply_markup: attachmentsKeyboard(attachmentIds.length),
+        });
+      } catch {
+        // Сетевой сбой при скачивании из Telegram или загрузке в хранилище — не даём
+        // диалогу тихо зависнуть, просим прислать файл ещё раз.
+        await ctx.reply("Не удалось загрузить файл, попробуйте отправить его ещё раз.", {
+          reply_markup: attachmentsKeyboard(attachmentIds.length),
+        });
+      }
     }
     return attachmentIds;
   }
