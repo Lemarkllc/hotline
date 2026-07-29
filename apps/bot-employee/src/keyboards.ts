@@ -70,6 +70,12 @@ export function ratingKeyboard(appealId: string): InlineKeyboard {
   return kb;
 }
 
+export function accessRequestKeyboard(requestId: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Подтвердить", `accreq_approve:${requestId}`)
+    .text("Отклонить", `accreq_reject:${requestId}`);
+}
+
 export const MAIN_MENU_KEYBOARD = new InlineKeyboard()
   .text("Создать обращение", "menu:new")
   .row()

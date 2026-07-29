@@ -20,7 +20,10 @@ import {
   useBlockUser,
   useCreateWebAccount,
   useRejectAccessRequest,
+  useResetPassword,
+  useUpdateUser,
   useUsers,
+  type UserDTO,
 } from "@/hooks/api";
 
 function CreateWebAccountDialog() {
@@ -87,12 +90,83 @@ function CreateWebAccountDialog() {
   );
 }
 
+/** SRS §4.5 "Управлять ролями": раньше роль/ФИО/привязку Telegram можно было задать
+ * только один раз при создании веб-аккаунта — теперь Администратор может их поправить. */
+function EditUserDialog({ user }: { user: UserDTO }) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState(user.fullName);
+  const [telegramId, setTelegramId] = useState(user.telegramId ?? "");
+  const [role, setRole] = useState(user.roleNames?.[0] ?? "MANAGER");
+  const update = useUpdateUser();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await update.mutateAsync({
+      id: user.id,
+      fullName,
+      telegramId: telegramId.trim() ? telegramId.trim() : null,
+      roleNames: [role],
+    });
+    setOpen(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          Изменить
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>Изменить пользователя</DialogTitle>
+        <DialogDescription>ФИО, привязка Telegram-аккаунта и роль.</DialogDescription>
+        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="editFullName">ФИО</Label>
+            <Input id="editFullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="editTelegramId">Telegram ID</Label>
+            <Input
+              id="editTelegramId"
+              value={telegramId}
+              onChange={(e) => setTelegramId(e.target.value)}
+              placeholder="не привязан"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="editRole">Роль</Label>
+            <select
+              id="editRole"
+              className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              {ROLE_NAMES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={update.isPending}>
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function UsersPage() {
   const { data: requests } = useAccessRequests();
   const { data: users } = useUsers();
   const approve = useApproveAccessRequest();
   const reject = useRejectAccessRequest();
   const block = useBlockUser();
+  const resetPassword = useResetPassword();
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,18 +225,34 @@ export function UsersPage() {
                 </Badge>
               </TableCell>
               <TableCell>
-                {u.status === "ACTIVE" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const reason = window.prompt("Причина блокировки:");
-                      if (reason) block.mutate({ id: u.id, reason });
-                    }}
-                  >
-                    Заблокировать
-                  </Button>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  <EditUserDialog user={u} />
+                  {u.email && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={resetPassword.isPending}
+                      onClick={async () => {
+                        const { temporaryPassword } = await resetPassword.mutateAsync(u.id);
+                        window.alert(`Новый временный пароль для ${u.fullName}: ${temporaryPassword}`);
+                      }}
+                    >
+                      Сбросить пароль
+                    </Button>
+                  )}
+                  {u.status === "ACTIVE" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const reason = window.prompt("Причина блокировки:");
+                        if (reason) block.mutate({ id: u.id, reason });
+                      }}
+                    >
+                      Заблокировать
+                    </Button>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}

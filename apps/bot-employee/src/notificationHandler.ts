@@ -2,7 +2,7 @@ import type { Bot } from "grammy";
 import { patchSession } from "@hotline/bot-core";
 import type { PendingNotification } from "@hotline/bot-core";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
-import { ratingKeyboard } from "./keyboards.js";
+import { accessRequestKeyboard, ratingKeyboard } from "./keyboards.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
 import type { BotContext, SessionData } from "./types.js";
 
@@ -54,6 +54,17 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
       }
       case "access_rejected": {
         await bot.api.sendMessage(telegramId, "Ваша заявка отклонена администратором.");
+        break;
+      }
+      case "access_request_pending": {
+        const fullName = typeof payload.fullName === "string" ? payload.fullName : "Сотрудник";
+        const requestId = typeof payload.requestId === "string" ? payload.requestId : undefined;
+        if (!requestId) break;
+        await bot.api.sendMessage(
+          telegramId,
+          `Новая заявка на доступ к HotLineBot: ${fullName}.`,
+          { reply_markup: accessRequestKeyboard(requestId) },
+        );
         break;
       }
       default:

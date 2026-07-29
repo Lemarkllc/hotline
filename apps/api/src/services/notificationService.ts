@@ -12,8 +12,16 @@ import { pushService } from "@/services/pushService.js";
  * а не наоборот) и даёт ретраи "из коробки" (attempts/lastError).
  */
 export class NotificationService {
-  private async hrdRecipients(channel: "EMPLOYEE" | "CUSTOMER") {
-    return userRepository.findByRoleAndChannel("HRD", channel);
+  /** HRD + Administrator (последний — с тех пор как ему выдан appeal.read_all ради
+   * ОБТ, см. packages/shared/permissions.ts): оба "наблюдают" за потоком обращений,
+   * поэтому оба должны видеть колокольчик/push, а не только HRD. */
+  private async interestedStaffRecipients(channel: "EMPLOYEE" | "CUSTOMER") {
+    const [hrd, admins] = await Promise.all([
+      userRepository.findByRoleAndChannel("HRD", channel),
+      userRepository.findByRoleAndChannel("ADMINISTRATOR", channel),
+    ]);
+    const seen = new Set<string>();
+    return [...hrd, ...admins].filter((u) => (seen.has(u.id) ? false : (seen.add(u.id), true)));
   }
 
   /** WEB-уведомление всегда дублируется браузерным push'ем тем же получателям —
@@ -31,7 +39,7 @@ export class NotificationService {
   async notifyHrdNewAppeal(appealId: string): Promise<void> {
     const appeal = await appealRepository.findById(appealId);
     if (!appeal) return;
-    const recipients = await this.hrdRecipients(appeal.channel);
+    const recipients = await this.interestedStaffRecipients(appeal.channel);
     await Promise.all(
       recipients.map((r) =>
         this.createWebNotification(
@@ -80,7 +88,7 @@ export class NotificationService {
   async notifyHrdAuthorReplied(appealId: string): Promise<void> {
     const appeal = await appealRepository.findById(appealId);
     if (!appeal) return;
-    const recipients = await this.hrdRecipients(appeal.channel);
+    const recipients = await this.interestedStaffRecipients(appeal.channel);
     await Promise.all(
       recipients.map((r) =>
         this.createWebNotification(
@@ -96,7 +104,7 @@ export class NotificationService {
   async notifyLowRating(appealId: string, score: number): Promise<void> {
     const appeal = await appealRepository.findById(appealId);
     if (!appeal) return;
-    const recipients = await this.hrdRecipients(appeal.channel);
+    const recipients = await this.interestedStaffRecipients(appeal.channel);
     await Promise.all(
       recipients.map((r) =>
         this.createWebNotification(
@@ -109,12 +117,40 @@ export class NotificationService {
     );
   }
 
+  /** TELEGRAM-уведомление с кнопками Подтвердить/Отклонить (см. bot-employee
+   * notificationHandler.ts) — только HRD с уже привязанным telegramId получат его,
+   * доставка по TELEGRAM-каналу иначе адресовать некому (см. NotificationRepository). */
+  async notifyHrdNewAccessRequest(requestId: string, fullName: string): Promise<void> {
+    // Только HRD, не Administrator — подтверждение из бота осталось HRD-эксклюзивной
+    // фичей (Administrator подтверждает с web-панели, как и раньше).
+    const recipients = (await userRepository.findByRoleAndChannel("HRD", "EMPLOYEE")).filter(
+      (r) => r.telegramId !== null,
+    );
+    await Promise.all(
+      recipients.map((r) =>
+        notificationRepository.create({
+          userId: r.id,
+          channel: "TELEGRAM",
+          payload: { type: "access_request_pending", requestId, fullName },
+        }),
+      ),
+    );
+  }
+
   async notifyAccessDecision(userId: string, approved: boolean): Promise<void> {
     await notificationRepository.create({
       userId,
       channel: "TELEGRAM",
       payload: { type: approved ? "access_approved" : "access_rejected" },
     });
+  }
+
+  unreadCountsByAppeal(userId: string, appealIds: string[]): Promise<Map<string, number>> {
+    return notificationRepository.countPendingByAppeal(userId, appealIds);
+  }
+
+  markAppealRead(userId: string, appealId: string): Promise<void> {
+    return notificationRepository.markAllReadForAppeal(userId, appealId).then(() => undefined);
   }
 
   listPendingForBot(channel: "TELEGRAM" | "WEB" = "TELEGRAM") {

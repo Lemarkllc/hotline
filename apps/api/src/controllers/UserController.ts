@@ -53,6 +53,44 @@ export class UserController extends BaseController {
     }
   }
 
+  async update(req: Request, res: Response): Promise<void> {
+    try {
+      const user = await userService.updateUser(req.user!, pathParam(req, "id"), req.body);
+      this.handleSuccess(res, user);
+    } catch (error) {
+      this.handleError(error, res, "update");
+    }
+  }
+
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const result = await userService.resetPassword(req.user!, pathParam(req, "id"));
+      this.handleSuccess(res, result);
+    } catch (error) {
+      this.handleError(error, res, "resetPassword");
+    }
+  }
+
+  async approveFromBot(req: Request, res: Response): Promise<void> {
+    try {
+      const { telegramId } = req.body as { telegramId: string };
+      await userService.approveAccessRequestFromBot(BigInt(telegramId), pathParam(req, "id"));
+      this.handleSuccess(res, { ok: true });
+    } catch (error) {
+      this.handleError(error, res, "approveFromBot");
+    }
+  }
+
+  async rejectFromBot(req: Request, res: Response): Promise<void> {
+    try {
+      const { telegramId, reason } = req.body as { telegramId: string; reason?: string };
+      await userService.rejectAccessRequestFromBot(BigInt(telegramId), pathParam(req, "id"), reason);
+      this.handleSuccess(res, { ok: true });
+    } catch (error) {
+      this.handleError(error, res, "rejectFromBot");
+    }
+  }
+
   async block(req: Request, res: Response): Promise<void> {
     try {
       const { reason } = req.body as { reason: string };

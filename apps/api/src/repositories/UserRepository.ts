@@ -7,6 +7,13 @@ export class UserRepository {
     return prisma.user.findFirst({ where: { id, deletedAt: null } });
   }
 
+  findByIdWithRoles(id: string) {
+    return prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      include: { userRoles: { include: { role: true } } },
+    });
+  }
+
   findByTelegramId(telegramId: bigint): Promise<User | null> {
     return prisma.user.findFirst({ where: { telegramId, deletedAt: null } });
   }
@@ -76,6 +83,30 @@ export class UserRepository {
     });
   }
 
+  /** Сброс администратором — в отличие от setPassword (смена самим пользователем),
+   * принудительно требует смены при следующем входе. */
+  resetPassword(id: string, passwordHash: string): Promise<User> {
+    return prisma.user.update({
+      where: { id },
+      data: { passwordHash, mustChangePassword: true },
+    });
+  }
+
+  updateProfile(id: string, data: { fullName?: string; telegramId?: bigint | null }): Promise<User> {
+    return prisma.user.update({ where: { id }, data });
+  }
+
+  /** Полная замена набора ролей (SRS §4.5 "Управлять ролями"). */
+  async setRoles(id: string, roleNames: string[]): Promise<void> {
+    const roles = await prisma.role.findMany({ where: { name: { in: roleNames } } });
+    await prisma.$transaction([
+      prisma.userRole.deleteMany({ where: { userId: id } }),
+      prisma.userRole.createMany({
+        data: roles.map((role) => ({ userId: id, roleId: role.id })),
+      }),
+    ]);
+  }
+
   setTotpSecret(id: string, totpSecret: string): Promise<User> {
     return prisma.user.update({ where: { id }, data: { totpSecret, totpEnabled: false } });
   }
@@ -96,9 +127,10 @@ export class UserRepository {
     });
   }
 
-  list(status?: string): Promise<User[]> {
+  list(status?: string) {
     return prisma.user.findMany({
       where: { deletedAt: null, ...(status ? { status: status as never } : {}) },
+      include: { userRoles: { include: { role: true } } },
       orderBy: { createdAt: "desc" },
     });
   }

@@ -19,3 +19,18 @@ export const createWebAccountSchema = z.object({
 export const listUsersQuerySchema = z.object({
   status: z.string().optional(),
 });
+
+export const updateUserSchema = z.object({
+  fullName: z.string().trim().min(1).max(200).optional(),
+  telegramId: z
+    .union([z.string(), z.number()])
+    .transform(String)
+    .nullable()
+    .optional(),
+  roleNames: z.array(z.enum(ROLE_NAMES)).min(1).optional(),
+});
+
+export const botDecideAccessRequestSchema = z.object({
+  telegramId: z.union([z.string(), z.number()]).transform(String),
+  reason: z.string().trim().max(500).optional(),
+});
