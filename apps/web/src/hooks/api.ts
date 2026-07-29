@@ -38,7 +38,12 @@ export function useMe() {
   const setUser = useAuthStore((s) => s.setUser);
   const accessToken = useAuthStore((s) => s.accessToken);
   return useQuery({
-    queryKey: ["me"],
+    // Ключ включает accessToken — иначе повторный логин (logout -> login в течение
+    // staleTime, 15с по умолчанию) отдаёт закэшированный ответ под старым ["me"] и
+    // ни разу не вызывает queryFn, а значит и setUser(): permissions в сторе остаются
+    // пустыми (logout их обнулил) до ручного обновления страницы. Новый accessToken
+    // = новый ключ = гарантированный свежий запрос.
+    queryKey: ["me", accessToken],
     queryFn: async () => {
       const user = await apiRequest<AuthUser>("/auth/me");
       setUser(user);
