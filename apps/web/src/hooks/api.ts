@@ -289,13 +289,17 @@ export function useAssignableUsers(channel: Channel = "EMPLOYEE", enabled = true
   });
 }
 
-export function useAccessRequests() {
+export function useAccessRequests(enabled = true) {
   return useQuery({
     queryKey: ["access-requests"],
     queryFn: () =>
       apiRequest<
         { id: string; telegramId: string; fullName: string; createdAt: string; user: UserDTO }[]
       >("/users/access-requests"),
+    enabled,
+    // Живой счётчик в Sidebar (новые регистрации из бота) — тот же каданс, что и
+    // у колокольчика (useNotifications), не отдельный опрос.
+    refetchInterval: 15000,
   });
 }
 
