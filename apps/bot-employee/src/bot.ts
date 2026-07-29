@@ -7,7 +7,7 @@ import { config } from "./config.js";
 import { registration } from "./conversations/registration.js";
 import { newAppeal } from "./conversations/newAppeal.js";
 import { attachmentsKeyboard, MAIN_MENU_KEYBOARD, MAX_ATTACHMENTS } from "./keyboards.js";
-import { renderAppealDetail, renderMyAppealsPage } from "./myAppeals.js";
+import { renderAppealDetail, renderMyAppealsMenu, renderMyAppealsPage } from "./myAppeals.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
 import { downloadTelegramMedia } from "./telegramFile.js";
 import type { BotContext, SessionData } from "./types.js";
@@ -132,18 +132,30 @@ export function createBot(): Bot<BotContext> {
     await ctx.conversation.enter("newAppeal");
   });
 
-  bot.command("my", (ctx) => renderMyAppealsPage(ctx, 1));
+  bot.command("my", (ctx) => renderMyAppealsMenu(ctx));
   bot.callbackQuery("menu:my", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await renderMyAppealsPage(ctx, 1);
+    await renderMyAppealsMenu(ctx);
   });
-  bot.callbackQuery(/^my_page:(\d+)$/, async (ctx) => {
+  bot.callbackQuery(/^my_list:(OPEN|CLOSED):(\d+)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await renderMyAppealsPage(ctx, Number(ctx.match![1]));
+    await renderMyAppealsPage(ctx, ctx.match![1] as "OPEN" | "CLOSED", Number(ctx.match![2]));
+  });
+  bot.callbackQuery(/^my_page:(OPEN|CLOSED):(\d+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await renderMyAppealsPage(ctx, ctx.match![1] as "OPEN" | "CLOSED", Number(ctx.match![2]));
   });
   bot.callbackQuery(/^my_detail:(.+)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     await renderAppealDetail(ctx, ctx.match![1]!);
+  });
+  // "Задать вопрос по обращению" — переиспользует тот же флаг сессии и тот же
+  // bot.on("message:text") ниже, что и ответ на уточнение от HRD: разница только
+  // в том, кто инициировал переписку, сама доставка (addAuthorReply) одна и та же.
+  bot.callbackQuery(/^my_ask:(.+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    ctx.session.awaitingReplyForAppealId = ctx.match![1]!;
+    await ctx.reply("Напишите ваш вопрос следующим сообщением — я передам его HRD.");
   });
 
   bot.command("help", (ctx) => ctx.reply(HELP_TEXT));
@@ -161,6 +173,27 @@ export function createBot(): Bot<BotContext> {
   bot.command("cancel", async (ctx) => {
     await ctx.conversation.exitAll();
     await ctx.reply("Действие отменено.");
+  });
+
+  // Подтверждение/отклонение заявок на доступ HRD'ом прямо из push-уведомления
+  // (дополнение к FR-USR-003, роль перепроверяется на бэкенде — см. userService.requireHrdActor).
+  bot.callbackQuery(/^accreq_approve:(.+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    try {
+      await apiClient.decideAccessRequest(String(ctx.from!.id), ctx.match![1]!, "approve");
+      await ctx.reply("Заявка подтверждена.");
+    } catch {
+      await ctx.reply("Не удалось подтвердить заявку — нет прав HRD или заявка уже обработана.");
+    }
+  });
+  bot.callbackQuery(/^accreq_reject:(.+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    try {
+      await apiClient.decideAccessRequest(String(ctx.from!.id), ctx.match![1]!, "reject");
+      await ctx.reply("Заявка отклонена.");
+    } catch {
+      await ctx.reply("Не удалось отклонить заявку — нет прав HRD или заявка уже обработана.");
+    }
   });
 
   bot.callbackQuery(/^rate:(.+):(\d)$/, async (ctx) => {

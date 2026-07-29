@@ -71,10 +71,10 @@ export class ApiClient {
     return this.request<{ id: string; publicNumber: string }>("POST", "/appeals", input);
   }
 
-  listMyAppeals(telegramId: string, page = 1, pageSize = 5) {
+  listMyAppeals(telegramId: string, page = 1, pageSize = 5, bucket: "OPEN" | "CLOSED" = "OPEN") {
     return this.request<{ items: unknown[]; total: number }>(
       "GET",
-      `/appeals/mine?telegramId=${telegramId}&page=${page}&pageSize=${pageSize}`,
+      `/appeals/mine?telegramId=${telegramId}&page=${page}&pageSize=${pageSize}&bucket=${bucket}`,
     );
   }
 
@@ -103,6 +103,13 @@ export class ApiClient {
 
   removeDraftAttachment(telegramId: string, attachmentId: string) {
     return this.request<{ ok: true }>("DELETE", `/attachments/${attachmentId}`, { telegramId });
+  }
+
+  decideAccessRequest(telegramId: string, requestId: string, decision: "approve" | "reject", reason?: string) {
+    return this.request<{ ok: true }>("POST", `/users/access-requests/${requestId}/${decision}-bot`, {
+      telegramId,
+      reason,
+    });
   }
 
   listPendingNotifications() {

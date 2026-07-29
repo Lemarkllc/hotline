@@ -26,6 +26,9 @@ export type AppealWithDetails = Prisma.AppealGetPayload<{ include: typeof APPEAL
 export interface AppealListFilters {
   channel: Channel;
   status?: AppealStatus;
+  /** "Открытые" для автора в боте — любой статус, кроме CLOSED. Отдельно от status,
+   * т.к. это не конкретное значение, а "все, кроме одного" (взаимоисключимо с status). */
+  excludeStatus?: AppealStatus;
   type?: string;
   epicId?: string;
   mode?: AppealMode;
@@ -123,6 +126,7 @@ export class AppealRepository {
       deletedAt: null,
       channel: filters.channel,
       ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.excludeStatus ? { status: { not: filters.excludeStatus } } : {}),
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.epicId ? { epicId: filters.epicId } : {}),
       ...(filters.mode ? { mode: filters.mode } : {}),

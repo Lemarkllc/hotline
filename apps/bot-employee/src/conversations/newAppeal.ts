@@ -69,9 +69,8 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
         "сразу нажмите «Готово»."
       : "Опишите ситуацию своими словами одним или несколькими сообщениями. Когда закончите — нажмите «Готово».";
 
-    await ctx.reply(closingText, {
-      reply_markup: new InlineKeyboard().text("Готово", "text_done").text("Отменить", "cancel"),
-    });
+    const doneCancelKeyboard = new InlineKeyboard().text("Готово", "text_done").text("Отменить", "cancel");
+    await ctx.reply(closingText, { reply_markup: doneCancelKeyboard });
     const freeform: string[] = [];
     for (;;) {
       const result = await conversation.waitFor(["message:text", "callback_query:data"]);
@@ -87,6 +86,12 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
         break; // text_done
       }
       freeform.push(result.message!.text);
+      // Кнопки шлём заново под каждым сообщением — иначе после нескольких сообщений
+      // «Готово»/«Отменить» остаются наверху экрана, и пользователю приходится
+      // прокручивать вверх, чтобы их нажать.
+      await ctx.reply("Принято. Ещё что-то — или нажмите «Готово».", {
+        reply_markup: doneCancelKeyboard,
+      });
     }
 
     return [...answers, ...freeform].join("\n\n").trim();
