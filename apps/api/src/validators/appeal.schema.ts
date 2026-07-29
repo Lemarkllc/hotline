@@ -13,6 +13,10 @@ export const createAppealBotSchema = createEmployeeAppealSchema.extend({
 export const listAppealsQuerySchema = paginationSchema.extend({
   channel: z.enum(["EMPLOYEE", "CUSTOMER"]).default("EMPLOYEE"),
   status: z.enum(APPEAL_STATUSES).optional(),
+  /** "Активные" по умолчанию на web (Реестр/Kanban) — всё, кроме CLOSED, чтобы не
+   * заполнять рабочее пространство закрытыми обращениями (см. обсуждение с
+   * пользователем). Взаимоисключимо со status — задаётся, когда status не задан. */
+  excludeStatus: z.enum(APPEAL_STATUSES).optional(),
   type: z.string().optional(),
   epicId: z.string().uuid().optional(),
   mode: z.enum(["OPEN", "CONFIDENTIAL"]).optional(),

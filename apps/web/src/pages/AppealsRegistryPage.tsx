@@ -40,7 +40,11 @@ export function AppealsRegistryPage() {
   const [page, setPage] = useState(1);
   // Начальные значения — из query-параметров (переходы с Dashboard: /appeals?status=CLOSED
   // и т.п.), дальше живут в локальном состоянии, не синхронизируются обратно в URL.
-  const [status, setStatus] = useState<string | undefined>(() => searchParams.get("status") ?? undefined);
+  // "active" (дефолт) — всё, кроме закрытых: открытый список без фильтра иначе быстро
+  // заполняется закрытыми обращениями и превращается в бесполезную свалку.
+  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") ?? "active");
+  const status = statusFilter === "active" || statusFilter === "all" ? undefined : statusFilter;
+  const excludeStatus = statusFilter === "active" ? "CLOSED" : undefined;
   const [type, setType] = useState<string | undefined>(() => searchParams.get("type") ?? undefined);
   const [search, setSearch] = useState("");
   const [backlogOnly, setBacklogOnly] = useState(() => searchParams.get("backlogOnly") === "true");
@@ -51,6 +55,7 @@ export function AppealsRegistryPage() {
     page,
     pageSize: PAGE_SIZE,
     status,
+    excludeStatus,
     type,
     search: search || undefined,
     backlogOnly: backlogOnly || undefined,
@@ -85,10 +90,10 @@ export function AppealsRegistryPage() {
               className="max-w-xs"
             />
             <Select
-              value={status ?? "all"}
+              value={statusFilter}
               disabled={backlogOnly}
               onValueChange={(v) => {
-                setStatus(v === "all" ? undefined : v);
+                setStatusFilter(v);
                 setPage(1);
               }}
             >
@@ -96,6 +101,7 @@ export function AppealsRegistryPage() {
                 <SelectValue placeholder="Статус" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="active">Активные (кроме закрытых)</SelectItem>
                 <SelectItem value="all">Все статусы</SelectItem>
                 {APPEAL_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>

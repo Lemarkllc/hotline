@@ -63,6 +63,7 @@ export interface AppealListFilters {
   page: number;
   pageSize: number;
   status?: string;
+  excludeStatus?: string;
   type?: string;
   epicId?: string;
   mode?: string;
