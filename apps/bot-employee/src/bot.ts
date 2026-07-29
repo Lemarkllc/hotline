@@ -25,6 +25,12 @@ const PRIVACY_TEXT =
   "Конфиденциальный режим: ваши данные скрыты от менеджеров и видны только HRD, каждый такой просмотр " +
   "фиксируется в журнале аудита.";
 
+const NON_ACTIVE_STATUS_MESSAGES: Record<string, string> = {
+  PENDING: "Ваша заявка на подтверждение всё ещё рассматривается администратором.",
+  REJECTED: "Ваша заявка была отклонена. За подробностями обратитесь к HRD.",
+  BLOCKED: "Ваш доступ заблокирован администратором.",
+};
+
 export function createBot(): Bot<BotContext> {
   // grammy сам по себе не ставит таймаут исходящим вызовам Bot API (ctx.reply,
   // answerCallbackQuery, getFile...) — зависший вызов вешает разговор навсегда без
@@ -99,22 +105,13 @@ export function createBot(): Bot<BotContext> {
     const telegramId = String(ctx.from!.id);
     try {
       const result = await apiClient.identifyTelegramUser(telegramId);
-      switch (result.status) {
-        case "ACTIVE":
-          await ctx.reply(WELCOME_TEXT, { reply_markup: MAIN_MENU_KEYBOARD });
-          break;
-        case "PENDING":
-          await ctx.reply("Ваша заявка на подтверждение всё ещё рассматривается администратором.");
-          break;
-        case "REJECTED":
-          await ctx.reply("Ваша заявка была отклонена. За подробностями обратитесь к HRD.");
-          break;
-        case "BLOCKED":
-          await ctx.reply("Ваш доступ заблокирован администратором.");
-          break;
-        default:
-          await ctx.reply("Ваша учётная запись недоступна. Обратитесь к администратору.");
+      if (result.status === "ACTIVE") {
+        await ctx.reply(WELCOME_TEXT, { reply_markup: MAIN_MENU_KEYBOARD });
+        return;
       }
+      await ctx.reply(
+        NON_ACTIVE_STATUS_MESSAGES[result.status] ?? "Ваша учётная запись недоступна. Обратитесь к администратору.",
+      );
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         await ctx.conversation.enter("registration");
@@ -124,29 +121,66 @@ export function createBot(): Bot<BotContext> {
     }
   }
 
+  /**
+   * КРИТИЧНО: единственная точка проверки "пользователь подтверждён" перед ЛЮБЫМ
+   * функциональным действием, кроме /start. Раньше статус сверял только /start —
+   * /new, /my, /help, /privacy и все колбэки меню (menu:…, my_…) выполнялись у кого угодно
+   * с любым telegramId, включая ещё не подтверждённых (PENDING) и заблокированных
+   * (BLOCKED/REJECTED). Возвращает false и сам отвечает пользователю, если доступа
+   * нет — вызывающий код должен в этом случае просто return'иться, ничего не делая.
+   */
+  async function requireActiveUser(ctx: BotContext): Promise<boolean> {
+    const telegramId = String(ctx.from!.id);
+    try {
+      const result = await apiClient.identifyTelegramUser(telegramId);
+      if (result.status === "ACTIVE") return true;
+      await ctx.reply(
+        NON_ACTIVE_STATUS_MESSAGES[result.status] ?? "Ваша учётная запись недоступна. Обратитесь к администратору.",
+      );
+      return false;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        await ctx.reply("Вы ещё не зарегистрированы. Отправьте /start, чтобы начать регистрацию.");
+        return false;
+      }
+      throw error;
+    }
+  }
+
   bot.command("start", handleStart);
 
-  bot.command("new", (ctx) => ctx.conversation.enter("newAppeal"));
+  bot.command("new", async (ctx) => {
+    if (!(await requireActiveUser(ctx))) return;
+    await ctx.conversation.enter("newAppeal");
+  });
   bot.callbackQuery("menu:new", async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
     await ctx.conversation.enter("newAppeal");
   });
 
-  bot.command("my", (ctx) => renderMyAppealsMenu(ctx));
+  bot.command("my", async (ctx) => {
+    if (!(await requireActiveUser(ctx))) return;
+    await renderMyAppealsMenu(ctx);
+  });
   bot.callbackQuery("menu:my", async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
     await renderMyAppealsMenu(ctx);
   });
   bot.callbackQuery(/^my_list:(OPEN|CLOSED):(\d+)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
     await renderMyAppealsPage(ctx, ctx.match![1] as "OPEN" | "CLOSED", Number(ctx.match![2]));
   });
   bot.callbackQuery(/^my_page:(OPEN|CLOSED):(\d+)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
     await renderMyAppealsPage(ctx, ctx.match![1] as "OPEN" | "CLOSED", Number(ctx.match![2]));
   });
   bot.callbackQuery(/^my_detail:(.+)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
     await renderAppealDetail(ctx, ctx.match![1]!);
   });
   // "Задать вопрос по обращению" — переиспользует тот же флаг сессии и тот же
@@ -154,23 +188,33 @@ export function createBot(): Bot<BotContext> {
   // в том, кто инициировал переписку, сама доставка (addAuthorReply) одна и та же.
   bot.callbackQuery(/^my_ask:(.+)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
     ctx.session.awaitingReplyForAppealId = ctx.match![1]!;
     await ctx.reply("Напишите ваш вопрос следующим сообщением — я передам его HRD.");
   });
 
-  bot.command("help", (ctx) => ctx.reply(HELP_TEXT));
+  bot.command("help", async (ctx) => {
+    if (!(await requireActiveUser(ctx))) return;
+    await ctx.reply(HELP_TEXT);
+  });
   bot.callbackQuery("menu:help", async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
     await ctx.reply(HELP_TEXT);
   });
 
-  bot.command("privacy", (ctx) => ctx.reply(PRIVACY_TEXT));
+  bot.command("privacy", async (ctx) => {
+    if (!(await requireActiveUser(ctx))) return;
+    await ctx.reply(PRIVACY_TEXT);
+  });
   bot.callbackQuery("menu:privacy", async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
     await ctx.reply(PRIVACY_TEXT);
   });
 
   bot.command("cancel", async (ctx) => {
+    if (!(await requireActiveUser(ctx))) return;
     await ctx.conversation.exitAll();
     await ctx.reply("Действие отменено.");
   });
@@ -219,6 +263,7 @@ export function createBot(): Bot<BotContext> {
       await ctx.reply("Ответ передан HRD.");
       return;
     }
+    if (!(await requireActiveUser(ctx))) return;
     await ctx.reply(
       "Чтобы создать обращение, используйте /new. Чтобы посмотреть свои обращения — /my.",
     );
