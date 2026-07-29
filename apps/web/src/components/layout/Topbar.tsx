@@ -14,6 +14,8 @@ function describeNotification(payload: Record<string, unknown>): string {
       return `Низкая оценка (${payload.score}) по обращению ${payload.publicNumber}`;
     case "assigned":
       return `Вам назначено обращение ${payload.publicNumber}`;
+    case "internal_mention":
+      return `${payload.fromFullName ?? "Коллега"} упомянул(а) вас в обращении ${payload.publicNumber}`;
     default:
       return "Новое уведомление";
   }

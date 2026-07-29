@@ -45,6 +45,19 @@ export class NotificationRepository {
     return new Map(rows.filter((r) => r.appealId).map((r) => [r.appealId as string, r._count._all]));
   }
 
+  /** Типы непрочитанных WEB-уведомлений по обращению — для потабовых точек
+   * ("Переписка"/"Внутренняя работа") на карточке. Вызывать ДО markAllReadForAppeal,
+   * иначе список уже будет пуст. */
+  async listPendingTypesForAppeal(userId: string, appealId: string): Promise<string[]> {
+    const rows = await prisma.notification.findMany({
+      where: { userId, appealId, channel: "WEB", status: "PENDING" },
+      select: { payload: true },
+    });
+    return rows
+      .map((r) => (r.payload as { type?: string } | null)?.type)
+      .filter((type): type is string => Boolean(type));
+  }
+
   /** Открытие карточки обращения = прочитано — гасит все WEB-уведомления по этому
    * обращению для текущего пользователя одним запросом (а не по одному через markSent). */
   markAllReadForAppeal(userId: string, appealId: string): Promise<Prisma.BatchPayload> {

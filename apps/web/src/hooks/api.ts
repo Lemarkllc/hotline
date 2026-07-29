@@ -130,6 +130,7 @@ export interface AppealDTO {
   updatedAt: string;
   closedAt: string | null;
   unreadCount: number;
+  unreadTabs: { messages: boolean; internal: boolean };
 }
 
 function useInvalidateAppeal(id?: string) {
@@ -193,9 +194,20 @@ export function useSetEpic(id: string) {
 export function useAddComment(id: string) {
   const invalidate = useInvalidateAppeal(id);
   return useMutation({
-    mutationFn: (input: { text: string; visibility: "INTERNAL" | "PUBLIC" }) =>
+    mutationFn: (input: { text: string; visibility: "INTERNAL" | "PUBLIC"; mentionedUserIds?: string[] }) =>
       apiRequest(`/appeals/${id}/comments`, { method: "POST", body: input }),
     onSuccess: invalidate,
+  });
+}
+
+/** Список для @упоминаний во "Внутренней работе" — не общий справочник пользователей,
+ * а только те, кто и так видит эту заметку (назначенные на обращение + HRD/Admin,
+ * см. appealService.listMentionable на бэкенде). */
+export function useMentionableUsers(appealId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["mentionable-users", appealId],
+    queryFn: () => apiRequest<{ id: string; fullName: string }[]>(`/appeals/${appealId}/mentionable-users`),
+    enabled,
   });
 }
 

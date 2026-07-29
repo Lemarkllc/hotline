@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Download, EyeOff, Paperclip, ShieldAlert } from "lucide-react";
 import {
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModeBadge, StatusBadge, TypeLabel } from "@/components/appeals/badges";
+import { MentionTextarea } from "@/components/appeals/MentionTextarea";
 import {
   useAddComment,
   useAppeal,
@@ -23,6 +24,7 @@ import {
   useAuditLog,
   useChangeStatus,
   useEpics,
+  useMentionableUsers,
   useRevealAuthor,
   useSetEpic,
   useSetWorkingEdit,
@@ -40,11 +42,26 @@ export function AppealDetailPage() {
   const [workingEdit, setWorkingEdit] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [newInternalNote, setNewInternalNote] = useState("");
+  const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("appeal");
   const [revealDialogOpen, setRevealDialogOpen] = useState(false);
   const [revealPassword, setRevealPassword] = useState("");
   const [revealError, setRevealError] = useState("");
   const [revealedAuthor, setRevealedAuthor] = useState<{ id: string; fullName: string } | null>(null);
   const revealAuthor = useRevealAuthor(id);
+
+  // Точки на вкладках "Переписка"/"Внутренняя работа" — снимок с ПЕРВОЙ успешной
+  // загрузки карточки, не с каждого 5-секундного поллинга (useAppeal), иначе точка
+  // гаснет сама через один тик вместо того, чтобы ждать, пока пользователь реально
+  // откроет вкладку.
+  const [unreadTabs, setUnreadTabs] = useState({ messages: false, internal: false });
+  const unreadTabsInitialized = useRef(false);
+  useEffect(() => {
+    if (appeal && !unreadTabsInitialized.current) {
+      unreadTabsInitialized.current = true;
+      setUnreadTabs(appeal.unreadTabs);
+    }
+  }, [appeal]);
 
   const canReadAuthor = hasPermission("appeal.read_author");
   const canClassify = hasPermission("appeal.read_all");
@@ -61,6 +78,7 @@ export function AppealDetailPage() {
   // enabled: без permission эти запросы гарантированно вернут 403 — не дёргаем их зря.
   const { data: managers } = useAssignableUsers("EMPLOYEE", canAssign);
   const { data: auditEntries } = useAuditLog({ appealId: id }, canReadAudit);
+  const { data: mentionableUsers } = useMentionableUsers(id, activeTab === "internal");
   const getAttachmentUrl = useAttachmentUrl();
 
   if (isLoading || !appeal) {
@@ -93,8 +111,9 @@ export function AppealDetailPage() {
 
   async function handleAddInternalNote() {
     if (!newInternalNote.trim() || addComment.isPending) return;
-    await addComment.mutateAsync({ text: newInternalNote, visibility: "INTERNAL" });
+    await addComment.mutateAsync({ text: newInternalNote, visibility: "INTERNAL", mentionedUserIds });
     setNewInternalNote("");
+    setMentionedUserIds([]);
   }
 
   async function handleRevealAuthor() {
@@ -267,11 +286,29 @@ export function AppealDetailPage() {
         )}
       </div>
 
-      <Tabs defaultValue="appeal">
+      <Tabs
+        defaultValue="appeal"
+        onValueChange={(value) => {
+          setActiveTab(value);
+          if (value === "messages" || value === "internal") {
+            setUnreadTabs((t) => ({ ...t, [value]: false }));
+          }
+        }}
+      >
         <TabsList>
           <TabsTrigger value="appeal">Обращение</TabsTrigger>
-          <TabsTrigger value="messages">Переписка</TabsTrigger>
-          <TabsTrigger value="internal">Внутренняя работа</TabsTrigger>
+          <TabsTrigger value="messages" className="relative">
+            Переписка
+            {unreadTabs.messages && (
+              <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-destructive" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="internal" className="relative">
+            Внутренняя работа
+            {unreadTabs.internal && (
+              <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-destructive" />
+            )}
+          </TabsTrigger>
           <TabsTrigger value="attachments">Вложения</TabsTrigger>
           <TabsTrigger value="history">История</TabsTrigger>
           <TabsTrigger value="audit">Аудит</TabsTrigger>
@@ -359,17 +396,15 @@ export function AppealDetailPage() {
               </div>
             ))}
           <div className="mt-2 flex gap-2">
-            <Textarea
+            <MentionTextarea
               rows={2}
-              placeholder="Внутренняя заметка (не видна автору)... Enter — добавить, Shift+Enter — новая строка"
+              placeholder="Внутренняя заметка (не видна автору)... @ФИО — тегнуть коллегу. Enter — добавить, Shift+Enter — новая строка"
               value={newInternalNote}
-              onChange={(e) => setNewInternalNote(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleAddInternalNote();
-                }
-              }}
+              onChange={setNewInternalNote}
+              users={mentionableUsers ?? []}
+              mentionedUserIds={mentionedUserIds}
+              onMentionedUserIdsChange={setMentionedUserIds}
+              onSubmit={() => void handleAddInternalNote()}
             />
             <Button disabled={!newInternalNote.trim() || addComment.isPending} onClick={handleAddInternalNote}>
               Добавить

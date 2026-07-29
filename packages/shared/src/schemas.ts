@@ -33,6 +33,10 @@ export const createCommentSchema = z.object({
   text: z.string().trim().min(1).max(4000),
   visibility: z.enum(["INTERNAL", "PUBLIC"]),
   isFinalAnswer: z.boolean().default(false),
+  /** @упоминания во "Внутренней работе" — сервис сам пересекает с реальным списком
+   * тегаемых для этого обращения (назначенные + HRD/Admin), невалидные id тихо
+   * игнорируются, а не 400. */
+  mentionedUserIds: z.array(z.string().uuid()).max(20).optional(),
 });
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 

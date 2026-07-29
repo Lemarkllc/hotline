@@ -137,6 +137,19 @@ export class NotificationService {
     );
   }
 
+  /** @упоминание во "Внутренней работе" — точечно тому, кого тегнули, а не
+   * широковещательно всем HRD/Admin (в отличие от createWebNotification-вызовов выше). */
+  async notifyMentioned(appealId: string, fromFullName: string, userId: string, snippet: string): Promise<void> {
+    const appeal = await appealRepository.findById(appealId);
+    if (!appeal) return;
+    await this.createWebNotification(
+      userId,
+      appealId,
+      { type: "internal_mention", publicNumber: appeal.publicNumber, fromFullName, snippet },
+      { title: "Вас упомянули", body: `${fromFullName}: ${snippet}` },
+    );
+  }
+
   async notifyAccessDecision(userId: string, approved: boolean): Promise<void> {
     await notificationRepository.create({
       userId,
@@ -151,6 +164,10 @@ export class NotificationService {
 
   markAppealRead(userId: string, appealId: string): Promise<void> {
     return notificationRepository.markAllReadForAppeal(userId, appealId).then(() => undefined);
+  }
+
+  pendingTypesForAppeal(userId: string, appealId: string): Promise<string[]> {
+    return notificationRepository.listPendingTypesForAppeal(userId, appealId);
   }
 
   listPendingForBot(channel: "TELEGRAM" | "WEB" = "TELEGRAM") {

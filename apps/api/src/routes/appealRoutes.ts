@@ -80,6 +80,12 @@ appealRoutes.get(
   asyncErrorWrapper((req, res) => appealController.getById(req, res)),
 );
 
+appealRoutes.get(
+  "/:id/mentionable-users",
+  requireWebAuth,
+  asyncErrorWrapper((req, res) => appealController.listMentionable(req, res)),
+);
+
 appealRoutes.post(
   "/:id/reveal-author",
   requireWebAuth,

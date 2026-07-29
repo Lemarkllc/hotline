@@ -59,6 +59,11 @@ export interface AppealDTO {
    * тут всегда 0 и это не бага. Источник — таблица Notification, отдельного поля
    * "прочитано" на самом AppealMessage нет и не нужно заводить. */
   unreadCount: number;
+  /** Точки на вкладках "Переписка"/"Внутренняя работа" — что именно нового было при
+   * открытии карточки (в отличие от unreadCount, который считается только в list()).
+   * Заполняется один раз, из снапшота ДО того, как getByIdForStaff пометит всё
+   * прочитанным — иначе к моменту сериализации уже нечего было бы показать. */
+  unreadTabs: { messages: boolean; internal: boolean };
 }
 
 export class AppealService {
@@ -93,10 +98,18 @@ export class AppealService {
   async getByIdForStaff(user: AuthenticatedUser, id: string): Promise<AppealDTO> {
     const appeal = await appealRepository.findById(id);
     if (!appeal) throw new NotFoundError("Обращение не найдено");
+    // Снимок ДО пометки прочитанным — иначе к моменту сериализации уже нечего
+    // было бы показать в unreadTabs (см. AppealDTO.unreadTabs).
+    const pendingTypes = await notificationService.pendingTypesForAppeal(user.id, id);
     // Открытие карточки = "прочитано", как в мессенджере — гасит и бейдж на
     // карточке/в реестре, и соответствующие пункты в колокольчике (общий источник).
     await notificationService.markAppealRead(user.id, id);
-    return this.serializeForStaff(appeal, user);
+    const dto = this.serializeForStaff(appeal, user);
+    dto.unreadTabs = {
+      messages: pendingTypes.includes("author_replied"),
+      internal: pendingTypes.includes("internal_mention"),
+    };
+    return dto;
   }
 
   async getByIdForAuthor(telegramId: bigint, id: string): Promise<AppealDTO> {
@@ -236,6 +249,7 @@ export class AppealService {
     id: string,
     text: string,
     visibility: "INTERNAL" | "PUBLIC",
+    mentionedUserIds?: string[],
   ): Promise<AppealDTO> {
     const appeal = await appealRepository.findById(id);
     if (!appeal) throw new NotFoundError("Обращение не найдено");
@@ -251,8 +265,49 @@ export class AppealService {
       await appealRepository.addMessage(id, true, text);
       await notificationService.notifyAuthorMessage(id, text);
     }
+    if (visibility === "INTERNAL" && mentionedUserIds?.length) {
+      // Тегаемый список = видящий список (назначенные + HRD/Admin) — иначе уведомление
+      // ушло бы человеку, которому 403 при попытке открыть саму заметку.
+      const candidates = await this.mentionCandidates(appeal);
+      const validIds = new Set(candidates.map((c) => c.id));
+      const snippet = text.length > 120 ? `${text.slice(0, 117)}...` : text;
+      await Promise.all(
+        mentionedUserIds
+          .filter((uid) => uid !== user.id && validIds.has(uid))
+          .map((uid) => notificationService.notifyMentioned(id, user.fullName, uid, snippet)),
+      );
+    }
     const updated = await appealRepository.findById(id);
     return this.serializeForStaff(updated!, user);
+  }
+
+  /** Список для @упоминаний во "Внутренней работе" (не общий справочник пользователей —
+   * см. mentionCandidates: только те, кто и так видит эту заметку). */
+  async listMentionable(user: AuthenticatedUser, id: string) {
+    const appeal = await appealRepository.findById(id);
+    if (!appeal) throw new NotFoundError("Обращение не найдено");
+    const isAssigned = appeal.assignments.some((a) => a.userId === user.id);
+    if (
+      !hasChannelPermission(user, "appeal.read_all", appeal.channel) &&
+      !(hasChannelPermission(user, "appeal.read_assigned", appeal.channel) && isAssigned)
+    ) {
+      throw new ForbiddenError("Недостаточно прав для просмотра списка");
+    }
+    const candidates = await this.mentionCandidates(appeal);
+    // Только id+fullName — это список для автокомплита тегов, не карточка
+    // пользователя; sanitizeUser снимает лишь passwordHash/totpSecret, остальное
+    // (email, mustChangePassword, totpEnabled...) тут лишнее и не нужно фронту.
+    return candidates.map((u) => ({ id: u.id, fullName: u.fullName }));
+  }
+
+  private async mentionCandidates(appeal: AppealWithDetails) {
+    const [hrds, admins] = await Promise.all([
+      userRepository.findByRoleAndChannel("HRD", appeal.channel),
+      userRepository.findByRoleAndChannel("ADMINISTRATOR", appeal.channel),
+    ]);
+    const assignees = appeal.assignments.map((a) => a.user);
+    const seen = new Set<string>();
+    return [...assignees, ...hrds, ...admins].filter((u) => (seen.has(u.id) ? false : (seen.add(u.id), true)));
   }
 
   /** Ответ автора на уточнение (SRS §4.4 UC-007) — доставляется ботом. */
@@ -360,6 +415,7 @@ export class AppealService {
       closedAt: appeal.closedAt,
       reopenDeadlineAt: appeal.reopenDeadlineAt,
       unreadCount: 0,
+      unreadTabs: { messages: false, internal: false },
     };
   }
 
@@ -448,6 +504,7 @@ export class AppealService {
       closedAt: appeal.closedAt,
       reopenDeadlineAt: appeal.reopenDeadlineAt,
       unreadCount: 0,
+      unreadTabs: { messages: false, internal: false },
     };
   }
 }

@@ -30,6 +30,15 @@ export class AppealController extends BaseController {
     }
   }
 
+  async listMentionable(req: Request, res: Response): Promise<void> {
+    try {
+      const users = await appealService.listMentionable(req.user!, pathParam(req, "id"));
+      this.handleSuccess(res, users);
+    } catch (error) {
+      this.handleError(error, res, "listMentionable");
+    }
+  }
+
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const dto = await appealService.getByIdForStaff(req.user!, pathParam(req, "id"));
@@ -123,8 +132,18 @@ export class AppealController extends BaseController {
 
   async addComment(req: Request, res: Response): Promise<void> {
     try {
-      const { text, visibility } = req.body as { text: string; visibility: "INTERNAL" | "PUBLIC" };
-      const dto = await appealService.addComment(req.user!, pathParam(req, "id"), text, visibility);
+      const { text, visibility, mentionedUserIds } = req.body as {
+        text: string;
+        visibility: "INTERNAL" | "PUBLIC";
+        mentionedUserIds?: string[];
+      };
+      const dto = await appealService.addComment(
+        req.user!,
+        pathParam(req, "id"),
+        text,
+        visibility,
+        mentionedUserIds,
+      );
       this.handleSuccess(res, dto, 201);
     } catch (error) {
       this.handleError(error, res, "addComment");
