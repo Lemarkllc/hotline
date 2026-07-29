@@ -11,13 +11,20 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/authStore";
 
+// "Обращения" видно по любому из трёх read-permission (в т.ч. Администратору с
+// appeal.read_all для ОБТ) — остальные пункты завязаны на одно право.
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "report.read" as const },
-  { to: "/appeals", label: "Обращения", icon: ScrollText, permission: "appeal.read_assigned" as const },
-  { to: "/reports", label: "Отчёты", icon: BarChart3, permission: "report.read" as const },
-  { to: "/users", label: "Пользователи", icon: Users, permission: "user.manage" as const },
-  { to: "/directories", label: "Справочники", icon: BookOpen, permission: "user.manage" as const },
-  { to: "/audit", label: "Аудит", icon: Settings, permission: "audit.read" as const },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permissions: ["report.read"] as const },
+  {
+    to: "/appeals",
+    label: "Обращения",
+    icon: ScrollText,
+    permissions: ["appeal.read_assigned", "appeal.read_all", "appeal.read_author"] as const,
+  },
+  { to: "/reports", label: "Отчёты", icon: BarChart3, permissions: ["report.read"] as const },
+  { to: "/users", label: "Пользователи", icon: Users, permissions: ["user.manage"] as const },
+  { to: "/directories", label: "Справочники", icon: BookOpen, permissions: ["user.manage"] as const },
+  { to: "/audit", label: "Аудит", icon: Settings, permissions: ["audit.read"] as const },
 ];
 
 export function Sidebar() {
@@ -30,7 +37,7 @@ export function Sidebar() {
         HotLine
       </div>
       <nav className="flex flex-col gap-1 px-3">
-        {NAV_ITEMS.filter((item) => hasPermission(item.permission)).map((item) => (
+        {NAV_ITEMS.filter((item) => item.permissions.some((p) => hasPermission(p))).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

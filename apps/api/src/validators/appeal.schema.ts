@@ -29,6 +29,11 @@ export const listAppealsQuerySchema = paginationSchema.extend({
 
 export const myAppealsQuerySchema = paginationSchema.extend({
   telegramId: telegramIdField,
+  bucket: z.enum(["OPEN", "CLOSED"]).default("OPEN"),
+});
+
+export const revealAuthorSchema = z.object({
+  password: z.string().min(1, "Пароль обязателен"),
 });
 
 /** Закрытие требует итогового ответа (FR-WF-005) — валидируется в сервисе, не только здесь. */

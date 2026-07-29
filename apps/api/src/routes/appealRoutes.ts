@@ -14,6 +14,7 @@ import {
   createCommentSchema,
   listAppealsQuerySchema,
   myAppealsQuerySchema,
+  revealAuthorSchema,
   setEpicSchema,
   workingEditSchema,
 } from "@/validators/appeal.schema.js";
@@ -77,6 +78,13 @@ appealRoutes.get(
   "/:id",
   requireWebAuth,
   asyncErrorWrapper((req, res) => appealController.getById(req, res)),
+);
+
+appealRoutes.post(
+  "/:id/reveal-author",
+  requireWebAuth,
+  validate(revealAuthorSchema),
+  asyncErrorWrapper((req, res) => appealController.revealAuthor(req, res)),
 );
 
 appealRoutes.patch(

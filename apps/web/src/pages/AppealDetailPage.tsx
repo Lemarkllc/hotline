@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ModeBadge, StatusBadge, TypeLabel } from "@/components/appeals/badges";
 import {
   useAddComment,
@@ -21,6 +23,7 @@ import {
   useAuditLog,
   useChangeStatus,
   useEpics,
+  useRevealAuthor,
   useSetEpic,
   useSetWorkingEdit,
   useAssignableUsers,
@@ -37,6 +40,11 @@ export function AppealDetailPage() {
   const [workingEdit, setWorkingEdit] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [newInternalNote, setNewInternalNote] = useState("");
+  const [revealDialogOpen, setRevealDialogOpen] = useState(false);
+  const [revealPassword, setRevealPassword] = useState("");
+  const [revealError, setRevealError] = useState("");
+  const [revealedAuthor, setRevealedAuthor] = useState<{ id: string; fullName: string } | null>(null);
+  const revealAuthor = useRevealAuthor(id);
 
   const canReadAuthor = hasPermission("appeal.read_author");
   const canClassify = hasPermission("appeal.read_all");
@@ -77,6 +85,30 @@ export function AppealDetailPage() {
     window.open(result.url, "_blank");
   }
 
+  async function handleSendMessage() {
+    if (!newMessage.trim() || addComment.isPending) return;
+    await addComment.mutateAsync({ text: newMessage, visibility: "PUBLIC" });
+    setNewMessage("");
+  }
+
+  async function handleAddInternalNote() {
+    if (!newInternalNote.trim() || addComment.isPending) return;
+    await addComment.mutateAsync({ text: newInternalNote, visibility: "INTERNAL" });
+    setNewInternalNote("");
+  }
+
+  async function handleRevealAuthor() {
+    setRevealError("");
+    try {
+      const author = await revealAuthor.mutateAsync(revealPassword);
+      setRevealedAuthor(author);
+      setRevealDialogOpen(false);
+      setRevealPassword("");
+    } catch {
+      setRevealError("Неверный пароль или недостаточно прав.");
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -107,15 +139,43 @@ export function AppealDetailPage() {
       <Card className={appeal.mode === "CONFIDENTIAL" ? "border-confidential" : undefined}>
         <CardContent className="flex items-center gap-3 p-4">
           {appeal.isAuthorHidden ? (
-            <>
-              <EyeOff className="size-5 text-confidential" />
-              <div>
-                <p className="text-sm font-medium text-confidential">Автор скрыт (конфиденциальный режим)</p>
-                <p className="text-xs text-muted-foreground">
-                  Данные автора доступны только HRD; каждый просмотр журналируется.
-                </p>
-              </div>
-            </>
+            revealedAuthor ? (
+              <>
+                <ShieldAlert className="size-5 text-confidential" />
+                <div>
+                  <p className="text-sm font-medium text-confidential">{revealedAuthor.fullName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Автор раскрыт для этого просмотра — действие зафиксировано в аудите.
+                  </p>
+                </div>
+              </>
+            ) : appeal.canRevealAuthor ? (
+              <button
+                type="button"
+                onClick={() => setRevealDialogOpen(true)}
+                className="flex w-full items-center gap-3 text-left"
+              >
+                <EyeOff className="size-5 text-confidential" />
+                <div>
+                  <p className="text-sm font-medium text-confidential underline decoration-dotted">
+                    Автор скрыт (конфиденциальный режим) — нажмите, чтобы раскрыть
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Потребуется повторный ввод пароля; каждый просмотр журналируется.
+                  </p>
+                </div>
+              </button>
+            ) : (
+              <>
+                <EyeOff className="size-5 text-confidential" />
+                <div>
+                  <p className="text-sm font-medium text-confidential">Автор скрыт (конфиденциальный режим)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Данные автора доступны только HRD и Администратору; каждый просмотр журналируется.
+                  </p>
+                </div>
+              </>
+            )
           ) : (
             <>
               <ShieldAlert className="size-5 text-muted-foreground" />
@@ -127,6 +187,53 @@ export function AppealDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={revealDialogOpen}
+        onOpenChange={(open) => {
+          setRevealDialogOpen(open);
+          if (!open) {
+            setRevealPassword("");
+            setRevealError("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Раскрыть автора конфиденциального обращения</DialogTitle>
+          <DialogDescription>
+            Вы открываете конфиденциальную информацию — личность автора. Это действие будет зафиксировано в
+            журнале аудита с вашим именем и временем просмотра. Подтвердите паролем от своей учётной записи.
+          </DialogDescription>
+          <form
+            className="mt-4 flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleRevealAuthor();
+            }}
+          >
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="revealPassword">Пароль</Label>
+              <Input
+                id="revealPassword"
+                type="password"
+                autoFocus
+                value={revealPassword}
+                onChange={(e) => setRevealPassword(e.target.value)}
+                required
+              />
+            </div>
+            {revealError && <p className="text-sm text-destructive">{revealError}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRevealDialogOpen(false)}>
+                Отменить
+              </Button>
+              <Button type="submit" disabled={!revealPassword || revealAuthor.isPending}>
+                Раскрыть автора
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex flex-wrap items-center gap-3">
         {canClassify && (
@@ -226,17 +333,17 @@ export function AppealDetailPage() {
           <div className="mt-2 flex gap-2">
             <Textarea
               rows={2}
-              placeholder="Написать автору (например, запросить уточнение)..."
+              placeholder="Написать автору (например, запросить уточнение)... Enter — отправить, Shift+Enter — новая строка"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-            />
-            <Button
-              disabled={!newMessage.trim() || addComment.isPending}
-              onClick={async () => {
-                await addComment.mutateAsync({ text: newMessage, visibility: "PUBLIC" });
-                setNewMessage("");
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleSendMessage();
+                }
               }}
-            >
+            />
+            <Button disabled={!newMessage.trim() || addComment.isPending} onClick={handleSendMessage}>
               Отправить
             </Button>
           </div>
@@ -254,17 +361,17 @@ export function AppealDetailPage() {
           <div className="mt-2 flex gap-2">
             <Textarea
               rows={2}
-              placeholder="Внутренняя заметка (не видна автору)..."
+              placeholder="Внутренняя заметка (не видна автору)... Enter — добавить, Shift+Enter — новая строка"
               value={newInternalNote}
               onChange={(e) => setNewInternalNote(e.target.value)}
-            />
-            <Button
-              disabled={!newInternalNote.trim() || addComment.isPending}
-              onClick={async () => {
-                await addComment.mutateAsync({ text: newInternalNote, visibility: "INTERNAL" });
-                setNewInternalNote("");
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleAddInternalNote();
+                }
               }}
-            >
+            />
+            <Button disabled={!newInternalNote.trim() || addComment.isPending} onClick={handleAddInternalNote}>
               Добавить
             </Button>
           </div>

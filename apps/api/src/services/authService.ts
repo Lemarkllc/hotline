@@ -6,6 +6,7 @@ import { redis } from "@/lib/redis.js";
 import { accessRequestRepository } from "@/repositories/AccessRequestRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { auditService } from "@/services/auditService.js";
+import { notificationService } from "@/services/notificationService.js";
 import { ConflictError, ForbiddenError, UnauthorizedError } from "@/types/index.js";
 
 const ACCESS_TOKEN_TYPE = "access";
@@ -215,6 +216,16 @@ export class AuthService {
   }
 
   /** SRS §21: временный пароль требует смены. Самообслуживание — текущий пароль подтверждает личность. */
+  /** Step-up подтверждение паролем без смены (используется перед раскрытием автора
+   * конфиденциального обращения, appealService.revealAuthor) — TOTP повторно не
+   * спрашиваем, пользователь уже прошёл его при логине в текущей сессии. */
+  async verifyPassword(userId: string, password: string): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user?.passwordHash) throw new UnauthorizedError();
+    const valid = await argon2.verify(user.passwordHash, password);
+    if (!valid) throw new UnauthorizedError("Неверный пароль");
+  }
+
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
     const user = await userRepository.findById(userId);
     if (!user?.passwordHash) throw new UnauthorizedError();
@@ -262,11 +273,12 @@ export class AuthService {
       telegramId: params.telegramId,
       fullName: params.fullName,
     });
-    await accessRequestRepository.create({
+    const accessRequest = await accessRequestRepository.create({
       userId: user.id,
       telegramId: params.telegramId,
       fullName: params.fullName,
     });
+    await notificationService.notifyHrdNewAccessRequest(accessRequest.id, params.fullName);
     return { status: user.status, userId: user.id, isNew: true };
   }
 }

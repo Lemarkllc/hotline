@@ -111,6 +111,7 @@ export interface AppealDTO {
   workingEdit: string | null;
   author: { id: string; fullName: string } | null;
   isAuthorHidden: boolean;
+  canRevealAuthor: boolean;
   assignees: { id: string; fullName: string }[];
   attachmentsCount: number;
   attachments: { id: string; kind: string; mimeType: string; fileSize: number; createdAt: string }[];
@@ -128,6 +129,7 @@ export interface AppealDTO {
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;
+  unreadCount: number;
 }
 
 function useInvalidateAppeal(id?: string) {
@@ -204,6 +206,19 @@ export function useAttachmentUrl() {
   });
 }
 
+/** Раскрытие автора CONFIDENTIAL-обращения — повторный ввод пароля, каждый вызов
+ * журналируется на бэкенде. Результат не кладём в react-query кэш appeal'а (сервер
+ * его туда и не отдаёт) — компонент держит его в локальном state сам. */
+export function useRevealAuthor(appealId: string) {
+  return useMutation({
+    mutationFn: (password: string) =>
+      apiRequest<{ id: string; fullName: string }>(`/appeals/${appealId}/reveal-author`, {
+        method: "POST",
+        body: { password },
+      }),
+  });
+}
+
 // --- Epics ---
 
 export function useEpics(channel: Channel = "EMPLOYEE") {
@@ -238,6 +253,7 @@ export interface UserDTO {
   telegramId: string | null;
   fullName: string;
   status: string;
+  roleNames?: string[];
   email: string | null;
   createdAt: string;
 }
@@ -296,6 +312,29 @@ export function useBlockUser() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       apiRequest(`/users/${id}/block`, { method: "POST", body: { reason } }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...input
+    }: {
+      id: string;
+      fullName?: string;
+      telegramId?: string | null;
+      roleNames?: string[];
+    }) => apiRequest<UserDTO>(`/users/${id}`, { method: "PATCH", body: input }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiRequest<{ temporaryPassword: string }>(`/users/${id}/reset-password`, { method: "POST" }),
   });
 }
 

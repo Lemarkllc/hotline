@@ -33,6 +33,27 @@ export class NotificationRepository {
     });
   }
 
+  /** Бейдж непрочитанных на карточке обращения в Реестре/Kanban — считает по уже
+   * существующим WEB-уведомлениям, отдельного счётчика/поля не заводим. */
+  async countPendingByAppeal(userId: string, appealIds: string[]): Promise<Map<string, number>> {
+    if (!appealIds.length) return new Map();
+    const rows = await prisma.notification.groupBy({
+      by: ["appealId"],
+      where: { userId, appealId: { in: appealIds }, channel: "WEB", status: "PENDING" },
+      _count: { _all: true },
+    });
+    return new Map(rows.filter((r) => r.appealId).map((r) => [r.appealId as string, r._count._all]));
+  }
+
+  /** Открытие карточки обращения = прочитано — гасит все WEB-уведомления по этому
+   * обращению для текущего пользователя одним запросом (а не по одному через markSent). */
+  markAllReadForAppeal(userId: string, appealId: string): Promise<Prisma.BatchPayload> {
+    return prisma.notification.updateMany({
+      where: { userId, appealId, channel: "WEB", status: "PENDING" },
+      data: { status: "SENT", sentAt: new Date() },
+    });
+  }
+
   markSent(id: string): Promise<Notification> {
     return prisma.notification.update({
       where: { id },

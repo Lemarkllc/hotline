@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuthenticatedUser } from "@/types/index.js";
-import { canSeeAuthor, hasChannelPermission } from "@/utils/authz.js";
+import { canRevealAuthor, canSeeAuthor, hasChannelPermission } from "@/utils/authz.js";
 
 function user(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser {
   return {
@@ -32,10 +32,18 @@ describe("canSeeAuthor — критический инвариант конфи�
   const openAppeal = { channel: "EMPLOYEE" as const, mode: "OPEN" as const };
   const confidentialAppeal = { channel: "EMPLOYEE" as const, mode: "CONFIDENTIAL" as const };
 
-  it("HRD (read_author) видит автора всегда — и в открытом, и в конфиденциальном режиме", () => {
-    const hrd = user({ permissions: ["appeal.read_author"], channels: ["EMPLOYEE"] });
+  it("HRD (read_author + read_all) видит автора в открытом режиме, но НЕ в конфиденциальном — там нужен отдельный reveal", () => {
+    const hrd = user({ permissions: ["appeal.read_author", "appeal.read_all"], channels: ["EMPLOYEE"] });
     expect(canSeeAuthor(openAppeal, hrd, false)).toBe(true);
-    expect(canSeeAuthor(confidentialAppeal, hrd, false)).toBe(true);
+    expect(canSeeAuthor(confidentialAppeal, hrd, false)).toBe(false);
+  });
+
+  it("Ни у кого нет мгновенного доступа к автору CONFIDENTIAL через обычный ответ — только через canRevealAuthor()", () => {
+    const everyone = user({
+      permissions: ["appeal.read_all", "appeal.read_assigned", "appeal.read_author"],
+      channels: ["EMPLOYEE"],
+    });
+    expect(canSeeAuthor(confidentialAppeal, everyone, true)).toBe(false);
   });
 
   it("Менеджер (read_assigned, назначен) видит автора ТОЛЬКО в открытом режиме", () => {
@@ -49,7 +57,7 @@ describe("canSeeAuthor — критический инвариант конфи�
     expect(canSeeAuthor(openAppeal, manager, false)).toBe(false);
   });
 
-  it("Администратор (без appeal.* permissions по умолчанию) не видит автора ни в каком режиме", () => {
+  it("Администратор (без appeal.* permissions) не видит автора ни в каком режиме", () => {
     const admin = user({ permissions: ["user.manage", "audit.read"], channels: ["EMPLOYEE"] });
     expect(canSeeAuthor(openAppeal, admin, false)).toBe(false);
     expect(canSeeAuthor(confidentialAppeal, admin, false)).toBe(false);
@@ -65,5 +73,26 @@ describe("canSeeAuthor — критический инвариант конфи�
     const noChannelAccess = user({ permissions: ["appeal.read_all", "appeal.read_author"], channels: [] });
     expect(canSeeAuthor(openAppeal, noChannelAccess, false)).toBe(false);
     expect(canSeeAuthor(confidentialAppeal, noChannelAccess, false)).toBe(false);
+  });
+});
+
+describe("canRevealAuthor — кто вообще может раскрыть автора CONFIDENTIAL через отдельный шаг (пароль + аудит)", () => {
+  const openAppeal = { channel: "EMPLOYEE" as const, mode: "OPEN" as const };
+  const confidentialAppeal = { channel: "EMPLOYEE" as const, mode: "CONFIDENTIAL" as const };
+
+  it("read_author может раскрыть автора CONFIDENTIAL, но не OPEN (там он и так виден)", () => {
+    const hrd = user({ permissions: ["appeal.read_author"], channels: ["EMPLOYEE"] });
+    expect(canRevealAuthor(confidentialAppeal, hrd)).toBe(true);
+    expect(canRevealAuthor(openAppeal, hrd)).toBe(false);
+  });
+
+  it("read_all без read_author не может раскрыть автора CONFIDENTIAL", () => {
+    const readAllOnly = user({ permissions: ["appeal.read_all"], channels: ["EMPLOYEE"] });
+    expect(canRevealAuthor(confidentialAppeal, readAllOnly)).toBe(false);
+  });
+
+  it("read_author без доступа к каналу не может раскрыть автора", () => {
+    const noChannel = user({ permissions: ["appeal.read_author"], channels: [] });
+    expect(canRevealAuthor(confidentialAppeal, noChannel)).toBe(false);
   });
 });

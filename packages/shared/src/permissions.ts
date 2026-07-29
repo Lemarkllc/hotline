@@ -22,7 +22,14 @@ export type Permission = (typeof PERMISSIONS)[number];
 export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
   EMPLOYEE: [],
   MANAGER: ["appeal.read_assigned", "report.read"],
-  ADMINISTRATOR: ["user.manage", "audit.read", "report.read"],
+  // appeal.read_all добавлен ради ОБТ (опытной боевой эксплуатации) — SRS §4.5 матрица
+  // допускает это явно ("Видеть все | Администратор | По праву").
+  // appeal.read_author добавлен по прямому решению владельца продукта: Администратор —
+  // второе доверенное лицо (наряду с HRD) для работы с персональными данными. Это
+  // осознанное отступление от буквы SRS §4.3, но не от духа — раскрытие автора
+  // CONFIDENTIAL-обращения всё равно требует отдельного шага (повторный пароль) и
+  // журналируется, см. canRevealAuthor()/appealService.revealAuthor() в apps/api.
+  ADMINISTRATOR: ["user.manage", "audit.read", "report.read", "appeal.read_all", "appeal.read_author"],
   HRD: [
     "appeal.read_all",
     "appeal.read_assigned",

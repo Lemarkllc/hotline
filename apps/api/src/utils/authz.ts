@@ -16,12 +16,16 @@ export function hasChannelPermission(
 }
 
 /**
- * Может ли viewer увидеть автора обращения (SRS §7, §4.5 матрица доступа) — это
- * САМЫЙ критический инвариант проекта, поэтому вынесен в чистую функцию без
+ * Может ли viewer увидеть автора обращения в ОБЫЧНОМ ответе (список/карточка) —
+ * это САМЫЙ критический инвариант проекта, поэтому вынесен в чистую функцию без
  * зависимости от Prisma-типов, чтобы её было легко покрыть unit-тестами
  * (см. tests/authz.test.ts) для всех комбинаций режим × permission × назначение.
  *
- * CONFIDENTIAL: только appeal.read_author (де-факто HRD).
+ * CONFIDENTIAL: НИКОГДА (даже у appeal.read_author) — раскрытие только через
+ * отдельный шаг подтверждения паролем, см. canRevealAuthor() и
+ * appealService.revealAuthor(). Это намеренное усиление инварианта (было: HRD видел
+ * автора сразу), а не ослабление — базовый ответ больше не содержит личность автора
+ * ни при каких permission, только явный дополнительный запрос с логированием.
  * OPEN: read_all, либо read_assigned + реально назначен на это обращение.
  */
 export function canSeeAuthor(
@@ -29,8 +33,23 @@ export function canSeeAuthor(
   user: AuthenticatedUser,
   isAssignedToViewer: boolean,
 ): boolean {
-  if (hasChannelPermission(user, "appeal.read_author", appeal.channel)) return true;
   if (appeal.mode === "CONFIDENTIAL") return false;
   if (hasChannelPermission(user, "appeal.read_all", appeal.channel)) return true;
   return hasChannelPermission(user, "appeal.read_assigned", appeal.channel) && isAssignedToViewer;
+}
+
+/**
+ * Может ли viewer РАСКРЫТЬ автора конфиденциального обращения через отдельный
+ * эндпоинт (повторный ввод пароля + запись в audit_log, FR-CONF-005/FR-PRV-005).
+ * Ровно appeal.read_author — по умолчанию только HRD; Администратору выдан явно
+ * (см. packages/shared/permissions.ts) как второе доверенное лицо для работы с ПДн,
+ * что осознанно отступает от буквы SRS §4.3 ("только через защищённый журнал"),
+ * но не от духа: раскрытие всё равно журналируется и требует пароля, "автоматического"
+ * доступа как такового нет.
+ */
+export function canRevealAuthor(
+  appeal: { channel: Channel; mode: "OPEN" | "CONFIDENTIAL" },
+  user: AuthenticatedUser,
+): boolean {
+  return appeal.mode === "CONFIDENTIAL" && hasChannelPermission(user, "appeal.read_author", appeal.channel);
 }

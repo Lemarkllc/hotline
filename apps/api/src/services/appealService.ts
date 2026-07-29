@@ -13,10 +13,11 @@ import {
 import { userRepository } from "@/repositories/UserRepository.js";
 import { getPresignedDownloadUrl } from "@/lib/storage.js";
 import { auditService } from "@/services/auditService.js";
+import { authService } from "@/services/authService.js";
 import { notificationService } from "@/services/notificationService.js";
 import type { AuthenticatedUser } from "@/types/index.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/types/index.js";
-import { canSeeAuthor, hasChannelPermission } from "@/utils/authz.js";
+import { canRevealAuthor, canSeeAuthor, hasChannelPermission } from "@/utils/authz.js";
 
 export interface AppealDTO {
   id: string;
@@ -30,6 +31,10 @@ export interface AppealDTO {
   workingEdit: string | null;
   author: { id: string; fullName: string } | null;
   isAuthorHidden: boolean;
+  /** true — можно кликнуть "раскрыть автора" (запросит пароль повторно, POST
+   * /appeals/:id/reveal-author). Значимо только при isAuthorHidden && mode==CONFIDENTIAL;
+   * для остальных ролей просто false, чтобы фронт не рисовал кликабельный элемент. */
+  canRevealAuthor: boolean;
   assignees: { id: string; fullName: string }[];
   attachmentsCount: number;
   attachments: { id: string; kind: string; mimeType: string; fileSize: number; createdAt: Date }[];
@@ -48,6 +53,12 @@ export interface AppealDTO {
   updatedAt: Date;
   closedAt: Date | null;
   reopenDeadlineAt: Date | null;
+  /** Непрочитанные WEB-уведомления по этому обращению для текущего пользователя
+   * (реально — ответы автора, см. notifyHrdAuthorReplied). Считается только в list()
+   * (Реестр/Kanban); при открытии карточки (getByIdForStaff) сбрасывается в 0, так что
+   * тут всегда 0 и это не бага. Источник — таблица Notification, отдельного поля
+   * "прочитано" на самом AppealMessage нет и не нужно заводить. */
+  unreadCount: number;
 }
 
 export class AppealService {
@@ -82,7 +93,10 @@ export class AppealService {
   async getByIdForStaff(user: AuthenticatedUser, id: string): Promise<AppealDTO> {
     const appeal = await appealRepository.findById(id);
     if (!appeal) throw new NotFoundError("Обращение не найдено");
-    return this.serializeForStaffWithAudit(appeal, user);
+    // Открытие карточки = "прочитано", как в мессенджере — гасит и бейдж на
+    // карточке/в реестре, и соответствующие пункты в колокольчике (общий источник).
+    await notificationService.markAppealRead(user.id, id);
+    return this.serializeForStaff(appeal, user);
   }
 
   async getByIdForAuthor(telegramId: bigint, id: string): Promise<AppealDTO> {
@@ -110,14 +124,23 @@ export class AppealService {
     }
 
     const { items, total } = await appealRepository.list(scoped);
-    return { items: items.map((a) => this.serializeForStaff(a, user)), total };
+    const dtos = items.map((a) => this.serializeForStaff(a, user));
+    const unreadCounts = await notificationService.unreadCountsByAppeal(
+      user.id,
+      dtos.map((d) => d.id),
+    );
+    for (const dto of dtos) dto.unreadCount = unreadCounts.get(dto.id) ?? 0;
+    return { items: dtos, total };
   }
 
-  async listMineForAuthor(telegramId: bigint, page: number, pageSize: number) {
+  /** bucket: "OPEN" — всё, кроме CLOSED; "CLOSED" — только закрытые (бот делит список
+   * на две вкладки вместо одного общего списка). */
+  async listMineForAuthor(telegramId: bigint, page: number, pageSize: number, bucket: "OPEN" | "CLOSED") {
     const user = await this.assertActiveEmployee(telegramId);
     const { items, total } = await appealRepository.list({
       channel: "EMPLOYEE",
       authorUserId: user.id,
+      ...(bucket === "CLOSED" ? { status: "CLOSED" } : { excludeStatus: "CLOSED" }),
       page,
       pageSize,
     });
@@ -168,7 +191,7 @@ export class AppealService {
     await notificationService.notifyStatusChanged(id, toStatus, toStatus === "CLOSED" ? finalAnswer : undefined);
 
     const updated = await appealRepository.findById(id);
-    return this.serializeForStaffWithAudit(updated!, user);
+    return this.serializeForStaff(updated!, user);
   }
 
   async assign(user: AuthenticatedUser, id: string, assigneeUserId: string): Promise<AppealDTO> {
@@ -183,7 +206,7 @@ export class AppealService {
     }
     await notificationService.notifyAssigned(id, assigneeUserId);
     const updated = await appealRepository.findById(id);
-    return this.serializeForStaffWithAudit(updated!, user);
+    return this.serializeForStaff(updated!, user);
   }
 
   async setWorkingEdit(user: AuthenticatedUser, id: string, text: string): Promise<AppealDTO> {
@@ -194,7 +217,7 @@ export class AppealService {
     }
     await appealRepository.setWorkingEdit(id, text);
     const updated = await appealRepository.findById(id);
-    return this.serializeForStaffWithAudit(updated!, user);
+    return this.serializeForStaff(updated!, user);
   }
 
   async setEpic(user: AuthenticatedUser, id: string, epicId: string | null): Promise<AppealDTO> {
@@ -205,7 +228,7 @@ export class AppealService {
     }
     await appealRepository.setEpic(id, epicId);
     const updated = await appealRepository.findById(id);
-    return this.serializeForStaffWithAudit(updated!, user);
+    return this.serializeForStaff(updated!, user);
   }
 
   async addComment(
@@ -229,7 +252,7 @@ export class AppealService {
       await notificationService.notifyAuthorMessage(id, text);
     }
     const updated = await appealRepository.findById(id);
-    return this.serializeForStaffWithAudit(updated!, user);
+    return this.serializeForStaff(updated!, user);
   }
 
   /** Ответ автора на уточнение (SRS §4.4 UC-007) — доставляется ботом. */
@@ -300,6 +323,7 @@ export class AppealService {
           ? { id: appeal.author.id, fullName: appeal.author.fullName }
           : null,
       isAuthorHidden: !authorVisible,
+      canRevealAuthor: !authorVisible && canRevealAuthor(appeal, user),
       assignees: appeal.assignments.map((a) => ({ id: a.user.id, fullName: a.user.fullName })),
       attachmentsCount: appeal.attachments.length,
       attachments: appeal.attachments.map((a) => ({
@@ -335,28 +359,43 @@ export class AppealService {
       updatedAt: appeal.updatedAt,
       closedAt: appeal.closedAt,
       reopenDeadlineAt: appeal.reopenDeadlineAt,
+      unreadCount: 0,
     };
   }
 
-  /** То же, что serializeForStaff, но журналирует просмотр автора конфиденциального обращения
-   * (FR-CONF-005/FR-PRV-005) — только при открытии конкретной карточки, не в списках, чтобы
-   * не заспамить audit_log при обычной пагинации реестра. */
-  private async serializeForStaffWithAudit(
-    appeal: AppealWithDetails,
+  /**
+   * Раскрытие автора CONFIDENTIAL-обращения — отдельный шаг (не часть обычного
+   * чтения), требует повторного пароля и журналируется (FR-CONF-005/FR-PRV-005).
+   * Возвращает только { id, fullName }, не весь DTO — фронт мёржит это в уже
+   * загруженную карточку сам, повторный GET не нужен.
+   */
+  async revealAuthor(
     user: AuthenticatedUser,
-  ): Promise<AppealDTO> {
-    const dto = this.serializeForStaff(appeal, user);
-    if (appeal.mode === "CONFIDENTIAL" && dto.author) {
-      await auditService.record({
-        actorId: user.id,
-        action: "appeal.view_confidential_author",
-        objectType: "Appeal",
-        objectId: appeal.id,
-        appealId: appeal.id,
-        result: "success",
-      });
+    id: string,
+    password: string,
+  ): Promise<{ id: string; fullName: string }> {
+    const appeal = await appealRepository.findById(id);
+    if (!appeal) throw new NotFoundError("Обращение не найдено");
+    if (appeal.mode !== "CONFIDENTIAL") {
+      throw new ValidationError("Обращение не в конфиденциальном режиме");
     }
-    return dto;
+    if (!canRevealAuthor(appeal, user)) {
+      throw new ForbiddenError("Недостаточно прав для раскрытия автора");
+    }
+    if (!appeal.author) throw new NotFoundError("Автор не найден");
+
+    await authService.verifyPassword(user.id, password);
+
+    await auditService.record({
+      actorId: user.id,
+      action: "appeal.view_confidential_author",
+      objectType: "Appeal",
+      objectId: appeal.id,
+      appealId: appeal.id,
+      result: "success",
+    });
+
+    return { id: appeal.author.id, fullName: appeal.author.fullName };
   }
 
   private serializeForAuthor(appeal: AppealWithDetails): AppealDTO {
@@ -372,6 +411,7 @@ export class AppealService {
       workingEdit: null, // автору рабочая редакция не показывается — это внутренний инструмент HRD
       author: appeal.author ? { id: appeal.author.id, fullName: appeal.author.fullName } : null,
       isAuthorHidden: false,
+      canRevealAuthor: false,
       assignees: [], // сотрудник не видит исполнителя (FR §4.1 "не может менять исполнителя")
       attachmentsCount: appeal.attachments.length,
       attachments: appeal.attachments.map((a) => ({
@@ -407,6 +447,7 @@ export class AppealService {
       updatedAt: appeal.updatedAt,
       closedAt: appeal.closedAt,
       reopenDeadlineAt: appeal.reopenDeadlineAt,
+      unreadCount: 0,
     };
   }
 }

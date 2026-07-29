@@ -39,6 +39,16 @@ export class AppealController extends BaseController {
     }
   }
 
+  async revealAuthor(req: Request, res: Response): Promise<void> {
+    try {
+      const { password } = req.body as { password: string };
+      const author = await appealService.revealAuthor(req.user!, pathParam(req, "id"), password);
+      this.handleSuccess(res, author);
+    } catch (error) {
+      this.handleError(error, res, "revealAuthor");
+    }
+  }
+
   async getMineDetailFromBot(req: Request, res: Response): Promise<void> {
     try {
       const { telegramId } = req.query as { telegramId: string };
@@ -61,10 +71,10 @@ export class AppealController extends BaseController {
 
   async listMineFromBot(req: Request, res: Response): Promise<void> {
     try {
-      const { telegramId, page, pageSize } = req.query as unknown as z.infer<
+      const { telegramId, page, pageSize, bucket } = req.query as unknown as z.infer<
         typeof myAppealsQuerySchema
       >;
-      const result = await appealService.listMineForAuthor(BigInt(telegramId), page, pageSize);
+      const result = await appealService.listMineForAuthor(BigInt(telegramId), page, pageSize, bucket);
       this.handleSuccess(res, result);
     } catch (error) {
       this.handleError(error, res, "listMineFromBot");
