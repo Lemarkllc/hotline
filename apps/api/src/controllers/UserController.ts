@@ -17,7 +17,7 @@ export class UserController extends BaseController {
 
   async listAccessRequests(req: Request, res: Response): Promise<void> {
     try {
-      const requests = await userService.listAccessRequests();
+      const requests = await userService.listAccessRequests(req.user!);
       this.handleSuccess(res, requests);
     } catch (error) {
       this.handleError(error, res, "listAccessRequests");

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ROLE_NAMES, USER_STATUS_LABELS, type UserStatus } from "@hotline/shared";
-import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +13,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { AccessRequestsCard } from "@/components/users/AccessRequestsCard";
 import {
-  useAccessRequests,
-  useApproveAccessRequest,
   useBlockUser,
   useCreateWebAccount,
-  useRejectAccessRequest,
   useResetPassword,
   useUpdateUser,
   useUsers,
@@ -161,10 +158,7 @@ function EditUserDialog({ user }: { user: UserDTO }) {
 }
 
 export function UsersPage() {
-  const { data: requests } = useAccessRequests();
   const { data: users } = useUsers();
-  const approve = useApproveAccessRequest();
-  const reject = useRejectAccessRequest();
   const block = useBlockUser();
   const resetPassword = useResetPassword();
 
@@ -175,35 +169,7 @@ export function UsersPage() {
         <CreateWebAccountDialog />
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <h2 className="mb-3 text-sm font-semibold">Заявки на подтверждение</h2>
-          {!requests?.length && <p className="text-sm text-muted-foreground">Заявок нет.</p>}
-          <div className="flex flex-col gap-2">
-            {requests?.map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded-md border border-border p-3">
-                <div>
-                  <p className="text-sm font-medium">{r.fullName}</p>
-                  <p className="text-xs text-muted-foreground">telegramId: {r.telegramId}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => approve.mutate(r.id)} disabled={approve.isPending}>
-                    Подтвердить
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => reject.mutate({ id: r.id })}
-                    disabled={reject.isPending}
-                  >
-                    Отклонить
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <AccessRequestsCard />
 
       <Table>
         <TableHeader>

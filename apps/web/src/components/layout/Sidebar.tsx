@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ScrollText,
   Settings,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,10 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const hasPermission = useAuthStore((s) => s.hasPermission);
+  const roleNames = useAuthStore((s) => s.user?.roleNames ?? []);
+  // Отдельный пункт для HRD без user.manage — у Administrator те же заявки уже
+  // доступны на "Пользователи", дублировать пункт меню незачем.
+  const showAccessRequests = roleNames.includes("HRD") && !hasPermission("user.manage");
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
@@ -37,6 +42,22 @@ export function Sidebar() {
         HotLine
       </div>
       <nav className="flex flex-col gap-1 px-3">
+        {showAccessRequests && (
+          <NavLink
+            to="/access-requests"
+            className={({ isActive }) =>
+              cn(
+                "flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-background hover:text-foreground",
+              )
+            }
+          >
+            <UserCheck className="size-4" />
+            Заявки на доступ
+          </NavLink>
+        )}
         {NAV_ITEMS.filter((item) => item.permissions.some((p) => hasPermission(p))).map((item) => (
           <NavLink
             key={item.to}

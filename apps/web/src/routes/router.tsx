@@ -7,10 +7,12 @@ import { AppealsRegistryPage } from "@/pages/AppealsRegistryPage";
 import { AppealDetailPage } from "@/pages/AppealDetailPage";
 import { ReportsPage } from "@/pages/ReportsPage";
 import { UsersPage } from "@/pages/UsersPage";
+import { AccessRequestsPage } from "@/pages/AccessRequestsPage";
 import { DirectoriesPage } from "@/pages/DirectoriesPage";
 import { AuditPage } from "@/pages/AuditPage";
 import { RequireAuth } from "./RequireAuth";
 import { RequirePermission } from "./RequirePermission";
+import { RequireRole } from "./RequireRole";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -33,6 +35,10 @@ export const router = createBrowserRouter([
               { path: "/users", element: <UsersPage /> },
               { path: "/directories", element: <DirectoriesPage /> },
             ],
+          },
+          {
+            element: <RequireRole anyOfRoles={["HRD"]} permission="user.manage" />,
+            children: [{ path: "/access-requests", element: <AccessRequestsPage /> }],
           },
           {
             element: <RequirePermission permission="audit.read" />,

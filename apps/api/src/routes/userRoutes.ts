@@ -36,22 +36,22 @@ userRoutes.get(
   requirePermission("user.manage"),
   asyncErrorWrapper((req, res) => userController.list(req, res)),
 );
+
+// --- web, заявки на доступ: Администратор ИЛИ HRD напрямую по роли (не user.manage —
+// см. userService.requireHrdOrAdmin, второй слой авторизации, реальная власть там) ---
 userRoutes.get(
   "/access-requests",
   requireWebAuth,
-  requirePermission("user.manage"),
   asyncErrorWrapper((req, res) => userController.listAccessRequests(req, res)),
 );
 userRoutes.post(
   "/access-requests/:id/approve",
   requireWebAuth,
-  requirePermission("user.manage"),
   asyncErrorWrapper((req, res) => userController.approve(req, res)),
 );
 userRoutes.post(
   "/access-requests/:id/reject",
   requireWebAuth,
-  requirePermission("user.manage"),
   validate(decideAccessRequestSchema),
   asyncErrorWrapper((req, res) => userController.reject(req, res)),
 );

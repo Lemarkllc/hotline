@@ -10,7 +10,21 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/types/index.js
 import { sanitizeUser } from "@/utils/serializers.js";
 
 export class UserService {
-  async listAccessRequests() {
+  /**
+   * Заявки на доступ доступны и Administrator (user.manage), и HRD напрямую по роли —
+   * это НЕ то же самое, что user.manage: HRD не получает доступ ни к чему остальному
+   * на "Пользователи" (редактирование/блокировка/сброс пароля — только Administrator).
+   * Второй слой поверх requireWebAuth на роуте (см. CLAUDE.md "RBAC" про appeal.assign/
+   * user.manage) — route-level ничего не проверяет, реальная авторизация здесь.
+   */
+  private requireHrdOrAdmin(user: AuthenticatedUser): void {
+    if (!user.roleNames.includes("HRD") && !user.permissions.includes("user.manage")) {
+      throw new ForbiddenError("Недостаточно прав для работы с заявками на доступ");
+    }
+  }
+
+  async listAccessRequests(user: AuthenticatedUser) {
+    this.requireHrdOrAdmin(user);
     const requests = await accessRequestRepository.listPending();
     return requests.map((r) => ({ ...r, user: sanitizeUser(r.user) }));
   }
@@ -41,11 +55,12 @@ export class UserService {
   }
 
   /**
-   * Дополнение к FR-USR-003 (ОБТ, по просьбе): HRD тоже может подтвердить/отклонить
-   * заявку, но только через бота (нет web-эндпоинта под этот путь) — Администратор
-   * сохраняет свой web-путь без изменений. Проверка роли — здесь, а не в роуте:
-   * requireBotService проверяет только "это бот", не "это HRD" (см. паттерн
-   * epicService с прямой проверкой roleNames, CLAUDE.md "RBAC").
+   * Дополнение к FR-USR-003: HRD может подтвердить/отклонить заявку и из бота
+   * (push с кнопками, для тех, у кого привязан telegramId), и с web-страницы
+   * "Заявки на доступ" (requireHrdOrAdmin выше) — Администратор сохраняет свой
+   * web-путь на "Пользователи" без изменений. Здесь — резолв acting user по
+   * telegramId, т.к. requireBotService проверяет только "это бот", не "это HRD"
+   * (см. паттерн epicService с прямой проверкой roleNames, CLAUDE.md "RBAC").
    */
   async approveAccessRequestFromBot(telegramId: bigint, requestId: string): Promise<void> {
     const actor = await this.requireHrdActor(telegramId);
@@ -67,8 +82,9 @@ export class UserService {
     return actor;
   }
 
-  /** FR-USR-003/FR-AUTH-005: только Администратор подтверждает/отклоняет заявку. */
+  /** FR-USR-003/FR-AUTH-005: подтверждает Администратор или HRD. */
   async approveAccessRequest(admin: AuthenticatedUser, requestId: string): Promise<void> {
+    this.requireHrdOrAdmin(admin);
     const request = await accessRequestRepository.findById(requestId);
     if (!request) throw new NotFoundError("Заявка не найдена");
     await accessRequestRepository.decide(requestId, { status: "ACTIVE", decidedById: admin.id });
@@ -85,6 +101,7 @@ export class UserService {
   }
 
   async rejectAccessRequest(admin: AuthenticatedUser, requestId: string, reason?: string): Promise<void> {
+    this.requireHrdOrAdmin(admin);
     const request = await accessRequestRepository.findById(requestId);
     if (!request) throw new NotFoundError("Заявка не найдена");
     await accessRequestRepository.decide(requestId, {
