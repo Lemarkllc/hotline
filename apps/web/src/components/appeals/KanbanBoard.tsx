@@ -34,7 +34,14 @@ function AppealCard({ appeal }: { appeal: AppealDTO }) {
           <Link to={`/appeals/${appeal.id}`} className="text-sm font-medium text-primary hover:underline">
             {appeal.publicNumber}
           </Link>
-          <span className="text-xs text-muted-foreground">{ageDays} дн.</span>
+          <div className="flex items-center gap-2">
+            {appeal.unreadCount > 0 && (
+              <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">
+                {appeal.unreadCount}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">{ageDays} дн.</span>
+          </div>
         </div>
         <TypeLabel type={appeal.type} />
         <div className="flex items-center justify-between">

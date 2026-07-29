@@ -167,8 +167,16 @@ export function AppealsRegistryPage() {
               {data?.items.map((appeal) => (
                 <TableRow key={appeal.id}>
                   <TableCell>
-                    <Link to={`/appeals/${appeal.id}`} className="font-medium text-primary hover:underline">
+                    <Link
+                      to={`/appeals/${appeal.id}`}
+                      className="inline-flex items-center gap-2 font-medium text-primary hover:underline"
+                    >
                       {appeal.publicNumber}
+                      {appeal.unreadCount > 0 && (
+                        <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">
+                          {appeal.unreadCount}
+                        </span>
+                      )}
                     </Link>
                   </TableCell>
                   <TableCell className="tabular-nums">
