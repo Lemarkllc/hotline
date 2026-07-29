@@ -28,6 +28,7 @@ RUN chmod +x ./apps/api/docker-entrypoint.sh
 COPY apps/bot-employee/src ./apps/bot-employee/src
 COPY apps/web/index.html ./apps/web/index.html
 COPY apps/web/src ./apps/web/src
+COPY apps/web/public ./apps/web/public
 
 # Vite инлайнит VITE_* в бандл на этапе сборки — не runtime-переменная, поэтому
 # фиксируется здесь, а не в docker-compose environment. Same-origin путь /api/v1
