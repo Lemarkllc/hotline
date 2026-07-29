@@ -101,7 +101,7 @@ export function AppealsRegistryPage() {
                 <SelectValue placeholder="Статус" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Активные (кроме закрытых)</SelectItem>
+                <SelectItem value="active">Активные</SelectItem>
                 <SelectItem value="all">Все статусы</SelectItem>
                 {APPEAL_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
