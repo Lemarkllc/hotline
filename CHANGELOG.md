@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.0](///compare/v0.2.0...v0.3.0) (2026-07-29)
+
+
+### Новые возможности
+
+* **api,web:** @упоминания во Внутренней работе + потабовые бейджи непрочитанного 729be20
+* **api,web:** HRD gets a narrow web page for access requests db6563b
+
+
+### Исправления
+
+* **bot-employee:** re-check account status before every command, not just /start 9b1f9a5
+
 ## [0.2.0](///compare/v0.1.0...v0.2.0) (2026-07-29)
 
 
