@@ -24,6 +24,13 @@ export class NotificationService {
     return [...hrd, ...admins].filter((u) => (seen.has(u.id) ? false : (seen.add(u.id), true)));
   }
 
+  /** Роль «Продажи» ведёт канал CUSTOMER единолично (Фаза 7, PLAN.md §6) — не через
+   * interestedStaffRecipients (тот HRD/Administrator-специфичный, а у них нет
+   * user_channel_access(CUSTOMER) по умолчанию, см. допущение №8 раздела 9 PLAN.md). */
+  private salesRecipients() {
+    return userRepository.findByRoleAndChannel("SALES", "CUSTOMER");
+  }
+
   /** WEB-уведомление всегда дублируется браузерным push'ем тем же получателям —
    * один источник правды вместо повторения create()+sendToUser() на каждый вызов ниже. */
   private async createWebNotification(
@@ -54,9 +61,17 @@ export class NotificationService {
 
   async notifyStatusChanged(appealId: string, toStatus: string, finalAnswer?: string): Promise<void> {
     const appeal = await appealRepository.findById(appealId);
-    if (!appeal?.authorUserId) return;
+    if (!appeal) return;
+    // EMPLOYEE — через userId, CUSTOMER — через externalContactId (Фаза 7, PLAN.md §6):
+    // автор обращения ровно в одной из этих двух форм, никогда в обеих сразу.
+    const recipient = appeal.authorUserId
+      ? { userId: appeal.authorUserId }
+      : appeal.externalContactId
+        ? { externalContactId: appeal.externalContactId }
+        : null;
+    if (!recipient) return;
     await notificationRepository.create({
-      userId: appeal.authorUserId,
+      ...recipient,
       appealId,
       channel: "TELEGRAM",
       payload: { type: "status_changed", publicNumber: appeal.publicNumber, toStatus, finalAnswer },
@@ -112,6 +127,46 @@ export class NotificationService {
           appealId,
           { type: "low_rating", publicNumber: appeal.publicNumber, score },
           { title: "Низкая оценка", body: `Обращение ${appeal.publicNumber}: ${score}/5` },
+        ),
+      ),
+    );
+  }
+
+  async notifySalesNewAppeal(appealId: string): Promise<void> {
+    const appeal = await appealRepository.findById(appealId);
+    if (!appeal) return;
+    const recipients = await this.salesRecipients();
+    await Promise.all(
+      recipients.map((r) =>
+        this.createWebNotification(
+          r.id,
+          appealId,
+          { type: "new_appeal", publicNumber: appeal.publicNumber },
+          { title: "Новое обращение", body: `Обращение ${appeal.publicNumber} ждёт классификации` },
+        ),
+      ),
+    );
+  }
+
+  /** NPS-style — низкая любая из двух оценок (порог ≤2, по аналогии с notifyLowRating). */
+  async notifyLowCustomerRating(
+    appealId: string,
+    wouldRecommendScore: number,
+    wouldReturnScore: number,
+  ): Promise<void> {
+    const appeal = await appealRepository.findById(appealId);
+    if (!appeal) return;
+    const recipients = await this.salesRecipients();
+    await Promise.all(
+      recipients.map((r) =>
+        this.createWebNotification(
+          r.id,
+          appealId,
+          { type: "low_rating", publicNumber: appeal.publicNumber, wouldRecommendScore, wouldReturnScore },
+          {
+            title: "Низкая оценка",
+            body: `Обращение ${appeal.publicNumber}: рекомендация ${wouldRecommendScore}/5, вернётся ${wouldReturnScore}/5`,
+          },
         ),
       ),
     );

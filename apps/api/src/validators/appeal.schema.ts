@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { APPEAL_STATUSES, createEmployeeAppealSchema, paginationSchema } from "@hotline/shared";
+import {
+  APPEAL_STATUSES,
+  createCustomerAppealSchema,
+  createEmployeeAppealSchema,
+  customerRatingSchema,
+  paginationSchema,
+} from "@hotline/shared";
 
 export { ratingSchema, createCommentSchema } from "@hotline/shared";
 
@@ -7,6 +13,16 @@ const telegramIdField = z.union([z.string(), z.number()]).transform((v) => Strin
 
 /** Обращение всегда создаётся ботом от имени конкретного Telegram-пользователя. */
 export const createAppealBotSchema = createEmployeeAppealSchema.extend({
+  telegramId: telegramIdField,
+});
+
+/** Фаза 7 (PLAN.md §6) — бот клиентов, без attachmentIds в этом заходе (см.
+ * appealService "Канал CUSTOMER"). */
+export const createCustomerAppealBotSchema = createCustomerAppealSchema.omit({ attachmentIds: true }).extend({
+  telegramId: telegramIdField,
+});
+
+export const customerRatingBotSchema = customerRatingSchema.extend({
   telegramId: telegramIdField,
 });
 

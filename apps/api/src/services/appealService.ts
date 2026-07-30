@@ -10,6 +10,7 @@ import {
   type AppealListFilters,
   type AppealWithDetails,
 } from "@/repositories/AppealRepository.js";
+import { externalContactRepository } from "@/repositories/ExternalContactRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { getPresignedDownloadUrl } from "@/lib/storage.js";
 import { auditService } from "@/services/auditService.js";
@@ -48,7 +49,14 @@ export interface AppealDTO {
   }[];
   messages: { id: string; fromHrd: boolean; text: string; createdAt: Date }[];
   statusHistory: { fromStatus: string | null; toStatus: string; createdAt: Date }[];
-  rating: { score: number; comment: string | null } | null;
+  /** score/comment — EMPLOYEE; wouldRecommendScore/wouldReturnScore — CUSTOMER (Фаза 7,
+   * PLAN.md §6, NPS-style). Ровно одна пара заполнена в зависимости от appeal.channel. */
+  rating: {
+    score: number | null;
+    comment: string | null;
+    wouldRecommendScore: number | null;
+    wouldReturnScore: number | null;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
   closedAt: Date | null;
@@ -341,6 +349,79 @@ export class AppealService {
     }
   }
 
+  // --- Канал CUSTOMER (Фаза 7, PLAN.md §6) ---
+  // Вложения здесь намеренно не поддерживаются в этом заходе: AppealAttachment
+  // привязан только к User (uploadedByUserId), эквивалента для ExternalContact нет —
+  // отдельная доработка (миграция + отдельные роуты вложений под requireBotService
+  // ("CUSTOMER")), не входила в исходный запрос ("много не нужно").
+
+  private async assertConsentedContact(telegramId: bigint) {
+    const contact = await externalContactRepository.findByTelegramId(telegramId);
+    if (!contact || !contact.consentAt) {
+      throw new ForbiddenError("Обращение может создать только клиент, давший согласие на обработку данных");
+    }
+    return contact;
+  }
+
+  async createCustomerAppeal(input: {
+    telegramId: bigint;
+    type: string;
+    mode: AppealMode;
+    originalText: string;
+  }) {
+    const contact = await this.assertConsentedContact(input.telegramId);
+    const appeal = await appealRepository.create({
+      channel: "CUSTOMER",
+      type: input.type,
+      mode: input.mode,
+      originalText: input.originalText,
+      externalContactId: contact.id,
+    });
+    await notificationService.notifySalesNewAppeal(appeal.id);
+    return appeal;
+  }
+
+  async getByIdForExternalContact(telegramId: bigint, id: string): Promise<AppealDTO> {
+    const contact = await this.assertConsentedContact(telegramId);
+    const appeal = await appealRepository.findById(id);
+    if (!appeal || appeal.externalContactId !== contact.id) {
+      throw new NotFoundError("Обращение не найдено");
+    }
+    return this.serializeForAuthor(appeal);
+  }
+
+  async listMineForExternalContact(telegramId: bigint, page: number, pageSize: number, bucket: "OPEN" | "CLOSED") {
+    const contact = await this.assertConsentedContact(telegramId);
+    const { items, total } = await appealRepository.list({
+      channel: "CUSTOMER",
+      externalContactId: contact.id,
+      ...(bucket === "CLOSED" ? { status: "CLOSED" } : { excludeStatus: "CLOSED" }),
+      page,
+      pageSize,
+    });
+    return { items: items.map((a) => this.serializeForAuthor(a)), total };
+  }
+
+  async setCustomerRating(
+    telegramId: bigint,
+    id: string,
+    wouldRecommendScore: number,
+    wouldReturnScore: number,
+  ): Promise<void> {
+    const contact = await this.assertConsentedContact(telegramId);
+    const appeal = await appealRepository.findById(id);
+    if (!appeal || appeal.externalContactId !== contact.id) {
+      throw new NotFoundError("Обращение не найдено");
+    }
+    if (appeal.status !== "CLOSED") {
+      throw new ConflictError("Оценка доступна только после закрытия обращения (FR-EVL-002)");
+    }
+    await appealRepository.upsertCustomerRating(id, contact.id, wouldRecommendScore, wouldReturnScore);
+    if (wouldRecommendScore <= 2 || wouldReturnScore <= 2) {
+      await notificationService.notifyLowCustomerRating(id, wouldRecommendScore, wouldReturnScore);
+    }
+  }
+
   async getAttachmentUrl(user: AuthenticatedUser, appealId: string, attachmentId: string) {
     const appeal = await appealRepository.findById(appealId);
     if (!appeal) throw new NotFoundError("Обращение не найдено");
@@ -409,7 +490,14 @@ export class AppealService {
         toStatus: h.toStatus,
         createdAt: h.createdAt,
       })),
-      rating: appeal.rating ? { score: appeal.rating.score, comment: appeal.rating.comment } : null,
+      rating: appeal.rating
+        ? {
+            score: appeal.rating.score,
+            comment: appeal.rating.comment,
+            wouldRecommendScore: appeal.rating.wouldRecommendScore,
+            wouldReturnScore: appeal.rating.wouldReturnScore,
+          }
+        : null,
       createdAt: appeal.createdAt,
       updatedAt: appeal.updatedAt,
       closedAt: appeal.closedAt,
@@ -498,7 +586,14 @@ export class AppealService {
         toStatus: h.toStatus,
         createdAt: h.createdAt,
       })),
-      rating: appeal.rating ? { score: appeal.rating.score, comment: appeal.rating.comment } : null,
+      rating: appeal.rating
+        ? {
+            score: appeal.rating.score,
+            comment: appeal.rating.comment,
+            wouldRecommendScore: appeal.rating.wouldRecommendScore,
+            wouldReturnScore: appeal.rating.wouldReturnScore,
+          }
+        : null,
       createdAt: appeal.createdAt,
       updatedAt: appeal.updatedAt,
       closedAt: appeal.closedAt,

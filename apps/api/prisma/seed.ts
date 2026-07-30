@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import argon2 from "argon2";
-import { DEFAULT_EMPLOYEE_EPICS, DEFAULT_ROLE_PERMISSIONS, ROLE_NAMES } from "@hotline/shared";
+import {
+  DEFAULT_CUSTOMER_EPICS,
+  DEFAULT_EMPLOYEE_EPICS,
+  DEFAULT_ROLE_PERMISSIONS,
+  ROLE_NAMES,
+} from "@hotline/shared";
 
 const prisma = new PrismaClient();
 
@@ -29,6 +34,15 @@ async function main() {
     });
   }
   console.log(`Справочник эпиков (EMPLOYEE) засеян: ${DEFAULT_EMPLOYEE_EPICS.length} шт.`);
+
+  for (const name of DEFAULT_CUSTOMER_EPICS) {
+    await prisma.epic.upsert({
+      where: { channel_name: { channel: "CUSTOMER", name } },
+      update: {},
+      create: { channel: "CUSTOMER", name },
+    });
+  }
+  console.log(`Справочник эпиков (CUSTOMER) засеян: ${DEFAULT_CUSTOMER_EPICS.length} шт.`);
 
   const bootstrapAdminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@hotline.local";
   const bootstrapAdminPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMeNow123!";
@@ -76,6 +90,32 @@ async function main() {
     );
   } else {
     console.log("Bootstrap-HRD уже существует, пропускаем.");
+  }
+
+  // Фаза 7 (PLAN.md §6): в отличие от HRD/Administrator, «Продажи» получает
+  // channelAccess CUSTOMER, а не EMPLOYEE — иначе роль ничего не увидит несмотря
+  // на верные permission (доступ всегда дополнительно скоуплен по каналу).
+  const bootstrapSalesEmail = process.env.SEED_SALES_EMAIL ?? "sales@hotline.local";
+  const bootstrapSalesPassword = process.env.SEED_SALES_PASSWORD ?? "ChangeMeNow123!";
+  const existingSales = await prisma.user.findUnique({ where: { email: bootstrapSalesEmail } });
+  if (!existingSales) {
+    const salesRole = await prisma.role.findUniqueOrThrow({ where: { name: "SALES" } });
+    const sales = await prisma.user.create({
+      data: {
+        email: bootstrapSalesEmail,
+        fullName: "Первичный менеджер продаж",
+        status: "ACTIVE",
+        passwordHash: await argon2.hash(bootstrapSalesPassword, { type: argon2.argon2id }),
+        mustChangePassword: true,
+        userRoles: { create: { roleId: salesRole.id } },
+        channelAccess: { create: { channel: "CUSTOMER" } },
+      },
+    });
+    console.log(
+      `Создан bootstrap-«Продажи»: ${sales.email} / временный пароль: ${bootstrapSalesPassword} (сменить при первом входе).`,
+    );
+  } else {
+    console.log("Bootstrap-«Продажи» уже существует, пропускаем.");
   }
 }
 

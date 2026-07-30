@@ -48,7 +48,8 @@ export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
 export const ATTACHMENT_KINDS = ["PHOTO", "VIDEO"] as const;
 export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
 
-export const ROLE_NAMES = ["EMPLOYEE", "MANAGER", "ADMINISTRATOR", "HRD"] as const;
+// SALES — Фаза 7 (PLAN.md §6): ведёт канал CUSTOMER, не EMPLOYEE-роль как остальные три.
+export const ROLE_NAMES = ["EMPLOYEE", "MANAGER", "ADMINISTRATOR", "HRD", "SALES"] as const;
 export type RoleName = (typeof ROLE_NAMES)[number];
 
 /**
@@ -106,5 +107,29 @@ export const DEFAULT_EMPLOYEE_EPICS = [
   "Качество",
   "Дисциплина",
   "Корпоративная культура",
+  "Другое",
+] as const;
+
+/**
+ * Типы обращений клиента (Фаза 7, PLAN.md §6, решено 30.07.2026) — сильно короче
+ * пяти сотруднических: клиент либо жалуется, либо благодарит, третьего не нужно
+ * ("много не нужно" — прямая формулировка заказчика). Appeal.type в Prisma — String,
+ * а не enum, ровно ради такой независимой валидации по каналу (см. schema.prisma).
+ */
+export const CUSTOMER_APPEAL_TYPES = ["COMPLAINT", "GRATITUDE"] as const;
+export type CustomerAppealType = (typeof CUSTOMER_APPEAL_TYPES)[number];
+
+export const CUSTOMER_APPEAL_TYPE_LABELS: Record<CustomerAppealType, string> = {
+  COMPLAINT: "Жалоба",
+  GRATITUDE: "Благодарность",
+};
+
+/** Стартовый справочник эпиков канала CUSTOMER — правится потом через тот же UI
+ * справочников, что и у EMPLOYEE (не продиктован явно, взят по аналогии, см. план). */
+export const DEFAULT_CUSTOMER_EPICS = [
+  "Качество товара/услуги",
+  "Доставка",
+  "Сервис и обслуживание",
+  "Возврат/обмен",
   "Другое",
 ] as const;

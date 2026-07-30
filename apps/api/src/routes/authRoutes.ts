@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { telegramAuthSchema, webLoginSchema } from "@hotline/shared";
+import { externalContactAuthSchema, telegramAuthSchema, webLoginSchema } from "@hotline/shared";
 import { authController } from "@/controllers/AuthController.js";
 import { requireBotService, requireWebAuth } from "@/middleware/auth.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
@@ -18,6 +18,13 @@ authRoutes.post(
   requireBotService("EMPLOYEE"),
   validate(telegramAuthSchema),
   asyncErrorWrapper((req, res) => authController.telegramIdentify(req, res)),
+);
+
+authRoutes.post(
+  "/customer-telegram",
+  requireBotService("CUSTOMER"),
+  validate(externalContactAuthSchema),
+  asyncErrorWrapper((req, res) => authController.externalContactIdentify(req, res)),
 );
 
 authRoutes.post(

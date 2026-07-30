@@ -1,12 +1,19 @@
 import type { Notification, NotificationChannel, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma.js";
 
-const PENDING_INCLUDE = { user: { select: { telegramId: true } } } satisfies Prisma.NotificationInclude;
+// include user.telegramId и externalContact.telegramId — боту нужен именно telegramId,
+// chatId для private-чата всегда ему равен. Ровно один из двух заполнен на строку
+// (Фаза 7, PLAN.md §6: EMPLOYEE через user, CUSTOMER через externalContact).
+const PENDING_INCLUDE = {
+  user: { select: { telegramId: true } },
+  externalContact: { select: { telegramId: true } },
+} satisfies Prisma.NotificationInclude;
 export type PendingNotification = Prisma.NotificationGetPayload<{ include: typeof PENDING_INCLUDE }>;
 
 export class NotificationRepository {
   create(data: {
     userId?: string | null;
+    externalContactId?: string | null;
     appealId?: string | null;
     channel: NotificationChannel;
     payload: Prisma.InputJsonValue;
@@ -14,7 +21,6 @@ export class NotificationRepository {
     return prisma.notification.create({ data });
   }
 
-  /** include user.telegramId — боту нужен именно он, chatId для private-чата всегда равен telegramId. */
   listPending(limit = 50): Promise<PendingNotification[]> {
     return prisma.notification.findMany({
       where: { status: "PENDING" },

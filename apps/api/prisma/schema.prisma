@@ -197,7 +197,9 @@ model ExternalContact {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  appeals Appeal[]
+  appeals       Appeal[]
+  ratings       Rating[]
+  notifications Notification[]
 
   @@map("external_contacts")
 }
@@ -355,17 +357,31 @@ model AppealStatusHistory {
   @@map("appeal_status_history")
 }
 
+/// Автор оценки — union User/ExternalContact, тем же паттерном, что и Appeal.author
+/// (Фаза 7, PLAN.md §6): для EMPLOYEE заполнен authorId, для CUSTOMER — externalContactId.
 model Rating {
-  id        String   @id @default(uuid())
-  appealId  String   @unique
-  authorId  String
-  score     Int
-  comment   String?
+  id       String @id @default(uuid())
+  appealId String @unique
+
+  authorId          String?
+  externalContactId String?
+
+  /// EMPLOYEE: "насколько результат решил вопрос" (FR-EVL-001..005). Не используется
+  /// для CUSTOMER — там вместо одного числа два отдельных ниже (Фаза 7, PLAN.md §6).
+  score   Int?
+  comment String?
+
+  /// CUSTOMER-only, оба обязательны при закрытии обращения в канале CUSTOMER
+  /// (NPS-style: "порекомендовали бы" / "обратитесь ли снова"). Null для EMPLOYEE.
+  wouldRecommendScore Int?
+  wouldReturnScore    Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  appeal Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
-  author User   @relation(fields: [authorId], references: [id])
+  appeal          Appeal           @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  author          User?            @relation(fields: [authorId], references: [id])
+  externalContact ExternalContact? @relation(fields: [externalContactId], references: [id])
 
   @@map("ratings")
 }
@@ -373,6 +389,9 @@ model Rating {
 model Notification {
   id        String              @id @default(uuid())
   userId    String?
+  /// Получатель в канале CUSTOMER — эквивалент userId для ExternalContact (Фаза 7,
+  /// PLAN.md §6): бот клиентов резолвит telegramId через эту связь, не через user.
+  externalContactId String?
   appealId  String?
   channel   NotificationChannel
   status    NotificationStatus  @default(PENDING)
@@ -382,8 +401,9 @@ model Notification {
   createdAt DateTime            @default(now())
   sentAt    DateTime?
 
-  user   User?   @relation(fields: [userId], references: [id])
-  appeal Appeal? @relation(fields: [appealId], references: [id])
+  user            User?            @relation(fields: [userId], references: [id])
+  externalContact ExternalContact? @relation(fields: [externalContactId], references: [id])
+  appeal          Appeal?          @relation(fields: [appealId], references: [id])
 
   @@index([status])
   @@map("notifications")

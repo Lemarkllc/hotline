@@ -4,6 +4,7 @@ import { authenticator } from "otplib";
 import { config } from "@/config/unifiedConfig.js";
 import { redis } from "@/lib/redis.js";
 import { accessRequestRepository } from "@/repositories/AccessRequestRepository.js";
+import { externalContactRepository } from "@/repositories/ExternalContactRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { auditService } from "@/services/auditService.js";
 import { notificationService } from "@/services/notificationService.js";
@@ -280,6 +281,33 @@ export class AuthService {
     });
     await notificationService.notifyHrdNewAccessRequest(accessRequest.id, params.fullName);
     return { status: user.status, userId: user.id, isNew: true };
+  }
+
+  /**
+   * Аналог telegramIdentify для канала CUSTOMER (Фаза 7, PLAN.md §6), но без
+   * approval-флоу — вместо него согласие. Тот же двухшаговый паттерн, что и у
+   * telegramIdentify/registration.ts: первый вызов без fullName у нового контакта
+   * кидает 409 (бот показывает форму имени + текст согласия), второй — с fullName
+   * и consentVersion сразу — создаёт контакт уже согласившимся, одним вызовом.
+   */
+  async externalContactIdentify(params: {
+    telegramId: bigint;
+    fullName?: string;
+    consentVersion?: string;
+  }): Promise<{ contactId: string; hasConsent: boolean; isNew: boolean }> {
+    const existing = await externalContactRepository.findByTelegramId(params.telegramId);
+    if (existing) {
+      return { contactId: existing.id, hasConsent: Boolean(existing.consentAt), isNew: false };
+    }
+    if (!params.fullName) {
+      throw new ConflictError("Для нового контакта обязательно ФИО");
+    }
+    const contact = await externalContactRepository.create({
+      telegramId: params.telegramId,
+      fullName: params.fullName,
+      consentVersion: params.consentVersion,
+    });
+    return { contactId: contact.id, hasConsent: Boolean(contact.consentAt), isNew: true };
   }
 }
 

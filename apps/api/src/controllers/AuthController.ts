@@ -17,6 +17,25 @@ export class AuthController extends BaseController {
     }
   }
 
+  /** Вызывается ботом клиентов от имени Telegram-пользователя (Фаза 7, PLAN.md §6). */
+  async externalContactIdentify(req: Request, res: Response): Promise<void> {
+    try {
+      const { telegramId, fullName, consentVersion } = req.body as {
+        telegramId: string;
+        fullName?: string;
+        consentVersion?: string;
+      };
+      const result = await authService.externalContactIdentify({
+        telegramId: BigInt(telegramId),
+        fullName,
+        consentVersion,
+      });
+      this.handleSuccess(res, result);
+    } catch (error) {
+      this.handleError(error, res, "externalContactIdentify");
+    }
+  }
+
   async webLogin(req: Request, res: Response): Promise<void> {
     try {
       const { email, password, totpCode } = req.body as {

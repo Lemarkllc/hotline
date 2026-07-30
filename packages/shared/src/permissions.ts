@@ -40,6 +40,20 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     "report.export",
     "audit.read",
   ],
+  // Фаза 7 (PLAN.md §6, решено 30.07.2026): «Продажи» ведёт канал CUSTOMER целиком —
+  // ровно набор HRD, но применяется только там, где есть user_channel_access(CUSTOMER)
+  // (по умолчанию не выдаётся никому, включая эту роль — грант всегда явный, см. допущение
+  // №8 раздела 9 PLAN.md). Не user.manage/audit.read — это не HRD-эквивалент по
+  // администрированию, только по работе с обращениями своего канала.
+  SALES: [
+    "appeal.read_all",
+    "appeal.read_assigned",
+    "appeal.read_author",
+    "appeal.assign",
+    "appeal.close",
+    "report.read",
+    "report.export",
+  ],
 };
 
 /**

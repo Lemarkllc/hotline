@@ -34,6 +34,8 @@ export interface AppealListFilters {
   mode?: AppealMode;
   assigneeId?: string;
   authorUserId?: string;
+  /** Канал CUSTOMER — эквивалент authorUserId для ExternalContact (Фаза 7, PLAN.md §6). */
+  externalContactId?: string;
   createdFrom?: Date;
   createdTo?: Date;
   search?: string;
@@ -131,6 +133,7 @@ export class AppealRepository {
       ...(filters.epicId ? { epicId: filters.epicId } : {}),
       ...(filters.mode ? { mode: filters.mode } : {}),
       ...(filters.authorUserId ? { authorUserId: filters.authorUserId } : {}),
+      ...(filters.externalContactId ? { externalContactId: filters.externalContactId } : {}),
       ...(filters.assigneeId
         ? { assignments: { some: { userId: filters.assigneeId, unassignedAt: null } } }
         : {}),
@@ -290,6 +293,20 @@ export class AppealRepository {
       where: { appealId },
       update: { score, comment },
       create: { appealId, authorId, score, comment },
+    });
+  }
+
+  /** Канал CUSTOMER — два поля вместо score/comment (Фаза 7, PLAN.md §6, NPS-style). */
+  upsertCustomerRating(
+    appealId: string,
+    externalContactId: string,
+    wouldRecommendScore: number,
+    wouldReturnScore: number,
+  ) {
+    return prisma.rating.upsert({
+      where: { appealId },
+      update: { wouldRecommendScore, wouldReturnScore },
+      create: { appealId, externalContactId, wouldRecommendScore, wouldReturnScore },
     });
   }
 }
