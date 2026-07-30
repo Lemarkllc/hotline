@@ -122,7 +122,7 @@ export function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className={cn(isMobile && "h-[50px] rounded-[14px] text-[15px]")}
+                    className={cn(isMobile && "h-[50px] rounded-[14px] text-[16px]")}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -135,7 +135,7 @@ export function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className={cn(isMobile && "h-[50px] rounded-[14px] text-[15px]")}
+                    className={cn(isMobile && "h-[50px] rounded-[14px] text-[16px]")}
                   />
                 </div>
                 {credentialsError && <p className="text-sm text-destructive">{credentialsError}</p>}
@@ -173,6 +173,7 @@ export function LoginPage() {
                     value={totpCode}
                     onChange={(e) => setTotpCode(e.target.value)}
                     required
+                    className={cn(isMobile && "h-[50px] rounded-[14px] text-[16px]")}
                   />
                 </div>
                 {totpError && <p className="text-sm text-destructive">{totpError}</p>}
@@ -215,6 +216,7 @@ export function LoginPage() {
                     value={confirmCode}
                     onChange={(e) => setConfirmCode(e.target.value)}
                     required
+                    className={cn(isMobile && "h-[50px] rounded-[14px] text-[16px]")}
                   />
                 </div>
                 {totpError && <p className="text-sm text-destructive">{totpError}</p>}

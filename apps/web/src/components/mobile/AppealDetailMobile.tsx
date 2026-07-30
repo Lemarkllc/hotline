@@ -204,7 +204,7 @@ export function AppealDetailMobile({
                     defaultValue={appeal.workingEdit ?? ""}
                     onChange={(e) => onWorkingEditChange(e.target.value)}
                     placeholder="Необязательно — обезличенная формулировка без деталей, раскрывающих автора"
-                    className="w-full resize-none border-none bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    className="w-full resize-none border-none bg-transparent text-[16px] text-foreground placeholder:text-muted-foreground focus:outline-none"
                   />
                   <button
                     disabled={!workingEdit.trim() || saveWorkingEditPending}
@@ -374,7 +374,7 @@ export function AppealDetailMobile({
               }
             }}
             placeholder="Написать автору..."
-            className="h-11 flex-1 rounded-full border border-border bg-background px-4 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-11 flex-1 rounded-full border border-border bg-background px-4 text-[16px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
             disabled={!newMessage.trim() || sendPending}
@@ -397,7 +397,7 @@ export function AppealDetailMobile({
               mentionedUserIds={mentionedUserIds}
               onMentionedUserIdsChange={onMentionedUserIdsChange}
               onSubmit={onAddInternalNote}
-              className="min-h-0 border-none bg-transparent p-0 text-[14px] focus-visible:ring-0"
+              className="min-h-0 border-none bg-transparent p-0 text-[16px] focus-visible:ring-0"
             />
           </div>
           <button

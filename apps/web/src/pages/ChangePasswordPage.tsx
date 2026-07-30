@@ -49,12 +49,16 @@ export function ChangePasswordPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="currentPassword">Текущий пароль</Label>
+              {/* text-[16px] переопределяет базовый text-sm (14px) — iOS Safari сам зумит
+               * страницу при фокусе на поле мельче 16px и не всегда возвращает зум обратно
+               * после закрытия клавиатуры. */}
               <Input
                 id="currentPassword"
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
+                className="text-[16px]"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -66,6 +70,7 @@ export function ChangePasswordPage() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
+                className="text-[16px]"
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}

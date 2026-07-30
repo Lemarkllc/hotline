@@ -44,7 +44,10 @@ export function MobileRegistry({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Поиск по номеру или тексту"
-          className="h-[42px] w-full rounded-[12px] border border-border bg-surface pl-10 pr-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          // text-[16px], не 14px: iOS Safari сам зумит страницу при фокусе на любом
+          // поле с font-size < 16px и не всегда отменяет зум после потери фокуса —
+          // клавиатура закрывается, а страница остаётся увеличенной.
+          className="h-[42px] w-full rounded-[12px] border border-border bg-surface pl-10 pr-3 text-[16px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 
