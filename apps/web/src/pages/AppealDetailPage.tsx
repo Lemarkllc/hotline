@@ -219,7 +219,11 @@ export function AppealDetailPage() {
       <>
         <AppealDetailMobile
           appeal={appeal}
-          onBack={() => navigate(-1)}
+          // Не navigate(-1) — history может быть пустой (открытие по deep link из
+          // push-уведомления, новая вкладка, свежий запуск PWA), тогда "назад" молча
+          // ничего не делал бы. "/appeals" — всегда валидный, предсказуемый пункт
+          // назначения независимо от того, откуда реально попали на карточку.
+          onBack={() => navigate("/appeals")}
           activeTab={activeTab as "appeal" | "messages" | "internal" | "attachments"}
           onTabChange={(tab) => {
             setActiveTab(tab);

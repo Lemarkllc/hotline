@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,19 @@ export function ChangePasswordPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-4">
+      {/* Смена пароля не обязательна прямо сейчас (soft-gate, см. CLAUDE.md — mustChangePassword
+       * ничего не блокирует на сервере), поэтому явный выход нужен: без него страница вне AppShell
+       * (ни Sidebar, ни bottom tab bar) была тупиком — ни назад, ни в сторону. */}
+      <div className="w-full max-w-md">
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" /> Назад
+        </button>
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Смена пароля</CardTitle>
