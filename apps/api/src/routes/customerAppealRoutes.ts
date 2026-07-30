@@ -5,6 +5,7 @@ import { requireBotService } from "@/middleware/auth.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
 import { validate } from "@/middleware/validate.js";
 import {
+  botCreateMessageSchema,
   createCustomerAppealBotSchema,
   customerRatingBotSchema,
   myAppealsQuerySchema,
@@ -36,6 +37,13 @@ customerAppealRoutes.get(
   requireBotService("CUSTOMER"),
   validate(z.object({ telegramId: z.union([z.string(), z.number()]).transform(String) }), "query"),
   asyncErrorWrapper((req, res) => customerAppealController.getMineDetail(req, res)),
+);
+
+customerAppealRoutes.post(
+  "/:id/reply",
+  requireBotService("CUSTOMER"),
+  validate(botCreateMessageSchema),
+  asyncErrorWrapper((req, res) => customerAppealController.reply(req, res)),
 );
 
 customerAppealRoutes.post(

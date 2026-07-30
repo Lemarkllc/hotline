@@ -89,15 +89,29 @@ export class NotificationService {
     );
   }
 
+  /** Публичное сообщение от персонала автору — TELEGRAM, доставка ботом.
+   * EMPLOYEE — через userId (payload "hrd_message", bot-employee), CUSTOMER — через
+   * externalContactId (payload "sales_message", bot-customer): автор ровно в одной из
+   * двух форм, как и everywhere else в Фазе 7. До этой правки здесь проверялся только
+   * authorUserId — клиент никогда не получал в Telegram ответы «Продаж» на своё обращение. */
   async notifyAuthorMessage(appealId: string, text: string): Promise<void> {
     const appeal = await appealRepository.findById(appealId);
-    if (!appeal?.authorUserId) return;
-    await notificationRepository.create({
-      userId: appeal.authorUserId,
-      appealId,
-      channel: "TELEGRAM",
-      payload: { type: "hrd_message", publicNumber: appeal.publicNumber, text },
-    });
+    if (!appeal) return;
+    if (appeal.authorUserId) {
+      await notificationRepository.create({
+        userId: appeal.authorUserId,
+        appealId,
+        channel: "TELEGRAM",
+        payload: { type: "hrd_message", publicNumber: appeal.publicNumber, text },
+      });
+    } else if (appeal.externalContactId) {
+      await notificationRepository.create({
+        externalContactId: appeal.externalContactId,
+        appealId,
+        channel: "TELEGRAM",
+        payload: { type: "sales_message", publicNumber: appeal.publicNumber, text },
+      });
+    }
   }
 
   async notifyHrdAuthorReplied(appealId: string): Promise<void> {
@@ -111,6 +125,25 @@ export class NotificationService {
           appealId,
           { type: "author_replied", publicNumber: appeal.publicNumber },
           { title: "Автор ответил", body: `Обращение ${appeal.publicNumber}` },
+        ),
+      ),
+    );
+  }
+
+  /** Ответный аналог notifyHrdAuthorReplied для канала CUSTOMER — «Продажи» ведёт его
+   * единолично (см. комментарий у salesRecipients()), поэтому не переиспользует
+   * interestedStaffRecipients (тот HRD/Administrator-специфичный). */
+  async notifySalesAuthorReplied(appealId: string): Promise<void> {
+    const appeal = await appealRepository.findById(appealId);
+    if (!appeal) return;
+    const recipients = await this.salesRecipients();
+    await Promise.all(
+      recipients.map((r) =>
+        this.createWebNotification(
+          r.id,
+          appealId,
+          { type: "author_replied", publicNumber: appeal.publicNumber },
+          { title: "Клиент ответил", body: `Обращение ${appeal.publicNumber}` },
         ),
       ),
     );

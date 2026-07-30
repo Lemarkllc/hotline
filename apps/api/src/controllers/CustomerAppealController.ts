@@ -4,7 +4,7 @@ import { createCustomerAppealSchema, customerRatingSchema } from "@hotline/share
 import { BaseController } from "@/controllers/BaseController.js";
 import { appealService } from "@/services/appealService.js";
 import { pathParam } from "@/utils/params.js";
-import type { myAppealsQuerySchema } from "@/validators/appeal.schema.js";
+import type { botCreateMessageSchema, myAppealsQuerySchema } from "@/validators/appeal.schema.js";
 
 /**
  * Бот клиентов (канал CUSTOMER, Фаза 7, PLAN.md §6) — зеркало bot-facing методов
@@ -48,6 +48,16 @@ export class CustomerAppealController extends BaseController {
       this.handleSuccess(res, dto);
     } catch (error) {
       this.handleError(error, res, "getMineDetail");
+    }
+  }
+
+  async reply(req: Request, res: Response): Promise<void> {
+    try {
+      const { telegramId, text } = req.body as z.infer<typeof botCreateMessageSchema>;
+      await appealService.addExternalContactReply(BigInt(telegramId), pathParam(req, "id"), text);
+      this.handleSuccess(res, { ok: true }, 201);
+    } catch (error) {
+      this.handleError(error, res, "reply");
     }
   }
 

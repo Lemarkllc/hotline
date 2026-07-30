@@ -382,7 +382,8 @@ export function AppealDetailPage() {
             >
               <p>{m.text}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {m.fromHrd ? "HRD" : "Автор"} · {new Date(m.createdAt).toLocaleString("ru-RU")}
+                {m.fromHrd ? (m.fromFullName ?? "Сотрудник") : (appeal.author?.fullName ?? "Автор")} ·{" "}
+                {new Date(m.createdAt).toLocaleString("ru-RU")}
               </p>
             </div>
           ))}
@@ -412,7 +413,9 @@ export function AppealDetailPage() {
             .map((c) => (
               <div key={c.id} className="rounded-lg bg-background p-3 text-sm">
                 <p>{c.text}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString("ru-RU")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {c.authorFullName} · {new Date(c.createdAt).toLocaleString("ru-RU")}
+                </p>
               </div>
             ))}
           <div className="mt-2 flex gap-2">

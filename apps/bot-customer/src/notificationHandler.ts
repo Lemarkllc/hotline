@@ -1,12 +1,14 @@
 import type { Bot } from "grammy";
+import { patchSession } from "@hotline/bot-core";
 import type { PendingNotification } from "@hotline/bot-core";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { npsRecommendKeyboard } from "./keyboards.js";
-import type { BotContext } from "./types.js";
+import { redis, SESSION_PREFIX } from "./redis.js";
+import type { BotContext, SessionData } from "./types.js";
 
-/** Транслирует запись из очереди уведомлений в сообщение Telegram — только
- * status_changed в этом заходе (нет флоу уточнений/упоминаний у клиента). Получатель
- * резолвится через externalContact.telegramId, не user.telegramId (Фаза 7, PLAN.md §6). */
+/** Транслирует запись из очереди уведомлений в сообщение Telegram — status_changed +
+ * sales_message (переписка, Фаза 7). Получатель резолвится через
+ * externalContact.telegramId, не user.telegramId (PLAN.md §6). */
 export function createNotificationHandler(bot: Bot<BotContext>) {
   return async function handleNotification(notification: PendingNotification): Promise<void> {
     const telegramId = notification.externalContact?.telegramId;
@@ -25,6 +27,18 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         if (payload.toStatus === "CLOSED" && notification.appealId) {
           await bot.api.sendMessage(telegramId, "Порекомендовали бы вы нас?", {
             reply_markup: npsRecommendKeyboard(notification.appealId),
+          });
+        }
+        break;
+      }
+      case "sales_message": {
+        await bot.api.sendMessage(
+          telegramId,
+          `Сообщение по обращению ${payload.publicNumber}:\n${payload.text}\n\nОтветьте следующим сообщением.`,
+        );
+        if (notification.appealId) {
+          await patchSession<SessionData>(redis, SESSION_PREFIX, telegramId, {
+            awaitingReplyForAppealId: notification.appealId,
           });
         }
         break;

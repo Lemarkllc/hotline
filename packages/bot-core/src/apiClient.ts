@@ -145,6 +145,10 @@ export class ApiClient {
     });
   }
 
+  replyToCustomerAppeal(telegramId: string, appealId: string, text: string) {
+    return this.request<{ ok: true }>("POST", `/customer/appeals/${appealId}/reply`, { telegramId, text });
+  }
+
   listPendingNotifications() {
     return this.request<
       {

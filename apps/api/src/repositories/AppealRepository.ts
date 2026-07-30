@@ -15,8 +15,8 @@ export const APPEAL_DETAIL_INCLUDE = {
   epic: true,
   assignments: { where: { unassignedAt: null }, include: { user: true } },
   attachments: { where: { deletedAt: null } },
-  comments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" as const } },
-  messages: { orderBy: { createdAt: "asc" as const } },
+  comments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" as const }, include: { author: true } },
+  messages: { orderBy: { createdAt: "asc" as const }, include: { author: true } },
   statusHistory: { orderBy: { createdAt: "asc" as const } },
   rating: true,
 } satisfies Prisma.AppealInclude;
@@ -238,8 +238,8 @@ export class AppealRepository {
     return prisma.appealComment.create({ data });
   }
 
-  addMessage(appealId: string, fromHrd: boolean, text: string) {
-    return prisma.appealMessage.create({ data: { appealId, fromHrd, text } });
+  addMessage(appealId: string, fromHrd: boolean, text: string, authorId?: string) {
+    return prisma.appealMessage.create({ data: { appealId, fromHrd, text, authorId } });
   }
 
   /** Загрузка ДО создания обращения — черновик с TTL 24ч (FR-DRF-002/006). */

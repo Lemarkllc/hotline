@@ -1,11 +1,14 @@
 import type { Context, SessionFlavor } from "grammy";
 import type { Conversation, ConversationFlavor } from "@grammyjs/conversations";
 
-/** Пусто — в отличие от bot-employee, тут не нужны ни draftAttachmentIds (вложений нет
- * в этом заходе, см. appealService "Канал CUSTOMER"), ни awaitingReplyForAppealId
- * (нет флоу ответа на уточнение у клиента). session() всё равно обязателен — на нём
- * держится сам механизм @grammyjs/conversations, даже без собственных полей. */
-export type SessionData = Record<string, never>;
+export interface SessionData {
+  /** Установлено кнопкой "Написать сообщение" в карточке обращения ИЛИ доставкой
+   * уведомления "sales_message" (см. notificationHandler.ts) — следующее текстовое
+   * сообщение клиента уходит как реплика в переписку по этому обращению. Вложений
+   * здесь по-прежнему нет (см. appealService "Канал CUSTOMER"), поэтому
+   * draftAttachmentIds из bot-employee сюда не переносится. */
+  awaitingReplyForAppealId?: string;
+}
 
 export type BotContext = ConversationFlavor<Context & SessionFlavor<SessionData>>;
 

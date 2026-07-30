@@ -124,12 +124,13 @@ export interface AppealDTO {
   comments: {
     id: string;
     authorId: string;
+    authorFullName: string;
     visibility: string;
     text: string;
     isFinalAnswer: boolean;
     createdAt: string;
   }[];
-  messages: { id: string; fromHrd: boolean; text: string; createdAt: string }[];
+  messages: { id: string; fromHrd: boolean; fromFullName: string | null; text: string; createdAt: string }[];
   statusHistory: { fromStatus: string | null; toStatus: string; createdAt: string }[];
   rating: {
     score: number | null;

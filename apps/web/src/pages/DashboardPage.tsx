@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   CircleDot,
   FilePlus2,
-  Inbox,
   Star,
   Timer,
   TrendingDown,
@@ -171,13 +170,6 @@ export function DashboardPage() {
           value={data.avgFirstResponseMinutes !== null ? `${Math.round(data.avgFirstResponseMinutes / 60)} ч` : "—"}
           icon={Timer}
           accent="slate"
-        />
-        <KpiCard
-          label="Backlog"
-          value={data.backlogAtPeriodEnd}
-          icon={Inbox}
-          accent="warning"
-          to="/appeals?backlogOnly=true"
         />
       </div>
 

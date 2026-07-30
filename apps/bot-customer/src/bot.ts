@@ -115,6 +115,16 @@ export function createBot(): Bot<BotContext> {
     if (!(await requireConsentedContact(ctx))) return;
     await renderAppealDetail(ctx, ctx.match![1]!);
   });
+  // "Написать сообщение" в карточке обращения — переиспользует тот же флаг сессии и
+  // тот же bot.on("message:text") ниже, что и ответ на сообщение "Продаж" (sales_message
+  // в notificationHandler.ts): разница только в том, кто начал переписку, доставка
+  // (addExternalContactReply) одна и та же (см. аналогичный my_ask у bot-employee).
+  bot.callbackQuery(/^my_ask:(.+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!(await requireConsentedContact(ctx))) return;
+    ctx.session.awaitingReplyForAppealId = ctx.match![1]!;
+    await ctx.reply("Напишите сообщение следующим сообщением — я передам его в компанию.");
+  });
 
   bot.command("privacy", async (ctx) => {
     if (!(await requireConsentedContact(ctx))) return;
@@ -158,6 +168,13 @@ export function createBot(): Bot<BotContext> {
   });
 
   bot.on("message:text", async (ctx) => {
+    const appealId = ctx.session.awaitingReplyForAppealId;
+    if (appealId) {
+      ctx.session.awaitingReplyForAppealId = undefined;
+      await apiClient.replyToCustomerAppeal(String(ctx.from!.id), appealId, ctx.message.text);
+      await ctx.reply("Сообщение передано.");
+      return;
+    }
     if (!(await requireConsentedContact(ctx))) return;
     await ctx.reply("Чтобы оставить обращение, используйте /new. Чтобы посмотреть свои — /my.");
   });

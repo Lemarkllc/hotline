@@ -42,12 +42,15 @@ export interface AppealDTO {
   comments: {
     id: string;
     authorId: string;
+    authorFullName: string;
     visibility: string;
     text: string;
     isFinalAnswer: boolean;
     createdAt: Date;
   }[];
-  messages: { id: string; fromHrd: boolean; text: string; createdAt: Date }[];
+  /** fromFullName — только при fromHrd (кто из персонала написал); при !fromHrd
+   * отправитель — сам автор обращения, см. author/externalContact на самом AppealDTO. */
+  messages: { id: string; fromHrd: boolean; fromFullName: string | null; text: string; createdAt: Date }[];
   statusHistory: { fromStatus: string | null; toStatus: string; createdAt: Date }[];
   /** score/comment — EMPLOYEE; wouldRecommendScore/wouldReturnScore — CUSTOMER (Фаза 7,
    * PLAN.md §6, NPS-style). Ровно одна пара заполнена в зависимости от appeal.channel. */
@@ -270,7 +273,7 @@ export class AppealService {
     }
     await appealRepository.addComment({ appealId: id, authorId: user.id, visibility, text });
     if (visibility === "PUBLIC") {
-      await appealRepository.addMessage(id, true, text);
+      await appealRepository.addMessage(id, true, text, user.id);
       await notificationService.notifyAuthorMessage(id, text);
     }
     if (visibility === "INTERNAL" && mentionedUserIds?.length) {
@@ -402,6 +405,24 @@ export class AppealService {
     return { items: items.map((a) => this.serializeForAuthor(a)), total };
   }
 
+  /** Ответный аналог addAuthorReply для канала CUSTOMER (SRS §4.4 UC-007 по духу, не
+   * по букве — у клиента нет уточняющих вопросов от HRD, но сама механика "добавить
+   * сообщение в переписку по своему обращению" та же). Разрешено по любому не закрытому
+   * обращению, не только в ответ на явный запрос — у клиента нет аналога "Задать вопрос",
+   * бот просто предлагает написать сообщение из карточки обращения. */
+  async addExternalContactReply(telegramId: bigint, id: string, text: string): Promise<void> {
+    const contact = await this.assertConsentedContact(telegramId);
+    const appeal = await appealRepository.findById(id);
+    if (!appeal || appeal.externalContactId !== contact.id) {
+      throw new NotFoundError("Обращение не найдено");
+    }
+    if (appeal.status === "CLOSED") {
+      throw new ConflictError("Обращение закрыто — переписка недоступна");
+    }
+    await appealRepository.addMessage(id, false, text);
+    await notificationService.notifySalesAuthorReplied(id);
+  }
+
   async setCustomerRating(
     telegramId: bigint,
     id: string,
@@ -454,10 +475,17 @@ export class AppealService {
       epic: appeal.epic ? { id: appeal.epic.id, name: appeal.epic.name } : null,
       originalText: appeal.originalText,
       workingEdit: appeal.workingEdit,
-      author:
-        authorVisible && appeal.author
+      // author — User (EMPLOYEE) либо externalContact (CUSTOMER, Фаза 7): ровно один из
+      // двух заполнен в зависимости от appeal.channel, как и authorUserId/externalContactId
+      // в самой модели. До этой правки здесь проверялся только appeal.author — для CUSTOMER
+      // он всегда null, поэтому SALES видел "Автор не указан" даже в открытом режиме.
+      author: authorVisible
+        ? appeal.author
           ? { id: appeal.author.id, fullName: appeal.author.fullName }
-          : null,
+          : appeal.externalContact
+            ? { id: appeal.externalContact.id, fullName: appeal.externalContact.fullName ?? "Без имени" }
+            : null
+        : null,
       isAuthorHidden: !authorVisible,
       canRevealAuthor: !authorVisible && canRevealAuthor(appeal, user),
       assignees: appeal.assignments.map((a) => ({ id: a.user.id, fullName: a.user.fullName })),
@@ -474,6 +502,7 @@ export class AppealService {
         .map((c) => ({
           id: c.id,
           authorId: c.authorId,
+          authorFullName: c.author.fullName,
           visibility: c.visibility,
           text: c.text,
           isFinalAnswer: c.isFinalAnswer,
@@ -482,6 +511,7 @@ export class AppealService {
       messages: appeal.messages.map((m) => ({
         id: m.id,
         fromHrd: m.fromHrd,
+        fromFullName: m.author?.fullName ?? null,
         text: m.text,
         createdAt: m.createdAt,
       })),
@@ -526,7 +556,10 @@ export class AppealService {
     if (!canRevealAuthor(appeal, user)) {
       throw new ForbiddenError("Недостаточно прав для раскрытия автора");
     }
-    if (!appeal.author) throw new NotFoundError("Автор не найден");
+    // author — User (EMPLOYEE) либо externalContact (CUSTOMER, Фаза 7) — тот же union,
+    // что и в serializeForStaff; appeal.author всегда null для клиентских обращений.
+    const revealed = appeal.author ?? appeal.externalContact;
+    if (!revealed) throw new NotFoundError("Автор не найден");
 
     await authService.verifyPassword(user.id, password);
 
@@ -539,7 +572,7 @@ export class AppealService {
       result: "success",
     });
 
-    return { id: appeal.author.id, fullName: appeal.author.fullName };
+    return { id: revealed.id, fullName: revealed.fullName ?? "Без имени" };
   }
 
   private serializeForAuthor(appeal: AppealWithDetails): AppealDTO {
@@ -553,7 +586,11 @@ export class AppealService {
       epic: appeal.epic ? { id: appeal.epic.id, name: appeal.epic.name } : null,
       originalText: appeal.originalText,
       workingEdit: null, // автору рабочая редакция не показывается — это внутренний инструмент HRD
-      author: appeal.author ? { id: appeal.author.id, fullName: appeal.author.fullName } : null,
+      author: appeal.author
+        ? { id: appeal.author.id, fullName: appeal.author.fullName }
+        : appeal.externalContact
+          ? { id: appeal.externalContact.id, fullName: appeal.externalContact.fullName ?? "Без имени" }
+          : null,
       isAuthorHidden: false,
       canRevealAuthor: false,
       assignees: [], // сотрудник не видит исполнителя (FR §4.1 "не может менять исполнителя")
@@ -570,6 +607,7 @@ export class AppealService {
         .map((c) => ({
           id: c.id,
           authorId: c.authorId,
+          authorFullName: c.author.fullName,
           visibility: c.visibility,
           text: c.text,
           isFinalAnswer: c.isFinalAnswer,
@@ -578,6 +616,7 @@ export class AppealService {
       messages: appeal.messages.map((m) => ({
         id: m.id,
         fromHrd: m.fromHrd,
+        fromFullName: m.author?.fullName ?? null,
         text: m.text,
         createdAt: m.createdAt,
       })),

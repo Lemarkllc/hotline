@@ -54,16 +54,33 @@ export async function renderAppealDetail(ctx: BotContext, appealId: string): Pro
     mode: "OPEN" | "CONFIDENTIAL";
     status: keyof typeof APPEAL_STATUS_LABELS;
     rating: { wouldRecommendScore: number | null } | null;
+    messages: { fromHrd: boolean; fromFullName: string | null; text: string }[];
   };
 
+  const lastMessages = appeal.messages
+    .slice(-3)
+    .map((m) => `${m.fromHrd ? (m.fromFullName ?? "Компания") : "Вы"}: ${m.text}`)
+    .join("\n");
+
   const needsRating = appeal.status === "CLOSED" && !appeal.rating;
+  // Написать можно только по ещё не закрытому обращению — appealService.addExternalContactReply
+  // отклонит попытку по закрытому (та же граница, что и у сотрудников).
+  const canAsk = appeal.status !== "CLOSED";
+
+  let keyboard: InlineKeyboard | undefined;
+  if (needsRating) {
+    keyboard = npsRecommendKeyboard(appealId);
+  } else if (canAsk) {
+    keyboard = new InlineKeyboard().text("Написать сообщение", `my_ask:${appealId}`);
+  }
 
   await ctx.reply(
     `Обращение ${appeal.publicNumber}\n` +
       `Тип: ${CUSTOMER_APPEAL_TYPE_LABELS[appeal.type]}\n` +
       `Режим: ${APPEAL_MODE_LABELS[appeal.mode]}\n` +
       `Статус: ${APPEAL_STATUS_LABELS[appeal.status]}\n` +
+      (lastMessages ? `\nПоследние сообщения:\n${lastMessages}\n` : "") +
       (needsRating ? "\nПорекомендовали бы вы нас?" : ""),
-    needsRating ? { reply_markup: npsRecommendKeyboard(appealId) } : undefined,
+    keyboard ? { reply_markup: keyboard } : undefined,
   );
 }

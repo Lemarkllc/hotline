@@ -111,6 +111,7 @@ model User {
   createdAppeals        Appeal[]              @relation("AppealAuthor")
   assignments           AppealAssignment[]    @relation("AssignedUser")
   comments              AppealComment[]
+  sentMessages          AppealMessage[]        @relation("MessageAuthor")
   statusChanges         AppealStatusHistory[] @relation("ChangedBy")
   ratings               Rating[]
   notifications         Notification[]
@@ -308,10 +309,16 @@ model AppealMessage {
   id        String   @id @default(uuid())
   appealId  String
   fromHrd   Boolean
+  /// Кто из персонала отправил (fromHrd=true) — не только HRD, несмотря на имя поля
+  /// (общий пул: HRD/менеджер/«Продажи», любой с правом писать в это обращение).
+  /// null при fromHrd=false — отправитель тогда сам автор обращения, уже известен
+  /// через appeal.author/externalContact, дублировать незачем.
+  authorId  String?
   text      String
   createdAt DateTime @default(now())
 
   appeal Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  author User?  @relation("MessageAuthor", fields: [authorId], references: [id])
 
   @@index([appealId])
   @@map("appeal_messages")
