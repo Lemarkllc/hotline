@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuthStore } from "@/lib/authStore";
 import { ApiError } from "@/lib/apiClient";
 import { useBeginTwoFactorSetup, useConfirmTwoFactorSetup, useLogin } from "@/hooks/api";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 
 type Step = "credentials" | "totp" | "setup-2fa";
 
@@ -81,42 +83,67 @@ export function LoginPage() {
     }
   }
 
+  const isMobile = useIsMobile();
+
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4">
+      {isMobile && step === "credentials" && (
+        <div className="mb-7 flex flex-col items-center gap-3">
+          <div className="flex size-[76px] items-center justify-center rounded-[20px] bg-warning">
+            <Flame className="size-[42px] text-white" />
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-extrabold text-foreground">
+              Hot<span className="text-warning">Line</span>
+            </p>
+            <p className="mt-1 text-[13px] text-muted-foreground">Панель обращений</p>
+          </div>
+        </div>
+      )}
+      <Card className={cn("w-full max-w-md", isMobile && "border-none bg-transparent shadow-none")}>
         {step === "credentials" && (
           <>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Flame className="size-5 text-amber-500" /> HotLine — вход
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+            {!isMobile && (
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Flame className="size-5 text-amber-500" /> HotLine — вход
+                </CardTitle>
+              </CardHeader>
+            )}
+            <CardContent className={cn(isMobile && "p-0")}>
               <form onSubmit={handleCredentials} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  {!isMobile && <Label htmlFor="email">Email</Label>}
                   <Input
                     id="email"
                     type="email"
                     autoComplete="username"
+                    placeholder={isMobile ? "Email" : undefined}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    className={cn(isMobile && "h-[50px] rounded-[14px] text-[15px]")}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="password">Пароль</Label>
+                  {!isMobile && <Label htmlFor="password">Пароль</Label>}
                   <Input
                     id="password"
                     type="password"
                     autoComplete="current-password"
+                    placeholder={isMobile ? "Пароль" : undefined}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    className={cn(isMobile && "h-[50px] rounded-[14px] text-[15px]")}
                   />
                 </div>
                 {credentialsError && <p className="text-sm text-destructive">{credentialsError}</p>}
-                <Button type="submit" disabled={login.isPending}>
+                <Button
+                  type="submit"
+                  disabled={login.isPending}
+                  className={cn(isMobile && "h-[50px] rounded-[14px] text-[16px] font-semibold")}
+                >
                   Войти
                 </Button>
               </form>

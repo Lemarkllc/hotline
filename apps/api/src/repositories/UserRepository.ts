@@ -152,7 +152,7 @@ export class UserRepository {
     ) as AuthenticatedUser["permissions"];
     const channels = user.channelAccess.map((c) => c.channel) as AuthenticatedUser["channels"];
 
-    return { id: user.id, fullName: user.fullName, roleNames, permissions, channels };
+    return { id: user.id, fullName: user.fullName, email: user.email, roleNames, permissions, channels };
   }
 }
 

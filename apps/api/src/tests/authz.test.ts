@@ -6,6 +6,7 @@ function user(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser {
   return {
     id: "user-1",
     fullName: "Test User",
+    email: "test@hotline.local",
     roleNames: [],
     permissions: [],
     channels: ["EMPLOYEE"],

@@ -5,6 +5,8 @@ import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { AppealsRegistryPage } from "@/pages/AppealsRegistryPage";
 import { AppealDetailPage } from "@/pages/AppealDetailPage";
+import { NotificationsPage } from "@/pages/NotificationsPage";
+import { ProfilePage } from "@/pages/ProfilePage";
 import { ReportsPage } from "@/pages/ReportsPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { AccessRequestsPage } from "@/pages/AccessRequestsPage";
@@ -29,6 +31,8 @@ export const router = createBrowserRouter([
           { path: "/appeals/:id", element: <AppealDetailPage /> },
           { path: "/kanban", element: <Navigate to="/appeals?view=kanban" replace /> },
           { path: "/reports", element: <ReportsPage /> },
+          { path: "/notifications", element: <NotificationsPage /> },
+          { path: "/profile", element: <ProfilePage /> },
           {
             element: <RequirePermission permission="user.manage" />,
             children: [

@@ -3,6 +3,7 @@ import type { Channel, Permission } from "@hotline/shared";
 export interface AuthenticatedUser {
   id: string;
   fullName: string;
+  email: string | null;
   roleNames: string[];
   permissions: Permission[];
   channels: Channel[];

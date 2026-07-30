@@ -31,6 +31,20 @@ export function StatusBadge({ status }: { status: AppealStatus }) {
   );
 }
 
+/** Сплошные hex вместо Tailwind-вариантов Badge выше — мобильные пилюли
+ * (design_handoff_mobile_pwa) заливные (белый текст на цветном фоне), а не
+ * мягкий tint-стиль десктопной Badge; общая палитра та же (tailwind.config.ts). */
+export const STATUS_HEX: Record<AppealStatus, string> = {
+  OPEN: "#2563EB",
+  UNDER_REVIEW: "#D97706",
+  IN_PROGRESS: "#1E40AF",
+  CLOSED: "#16A34A",
+};
+
+export function statusColor(status: AppealStatus): string {
+  return STATUS_HEX[status] ?? "#64748B";
+}
+
 /** Конфиденциальный маркер — единственный сознательный цветовой акцент дизайн-системы (PLAN.md §5). */
 export function ModeBadge({ mode }: { mode: AppealMode }) {
   if (mode === "CONFIDENTIAL") {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Download, EyeOff, Paperclip, ShieldAlert } from "lucide-react";
 import {
   APPEAL_STATUS_LABELS,
@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModeBadge, StatusBadge, TypeLabel } from "@/components/appeals/badges";
 import { MentionTextarea } from "@/components/appeals/MentionTextarea";
+import { AppealDetailMobile } from "@/components/mobile/AppealDetailMobile";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   useAddComment,
   useAppeal,
@@ -34,6 +36,8 @@ import { useAuthStore } from "@/lib/authStore";
 
 export function AppealDetailPage() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { data: appeal, isLoading } = useAppeal(id);
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const activeChannel = useAuthStore((s) => s.activeChannel);
@@ -130,6 +134,132 @@ export function AppealDetailPage() {
     } catch {
       setRevealError("Неверный пароль или недостаточно прав.");
     }
+  }
+
+  // Диалоги пароля-подтверждения раскрытия автора и закрытия обращения — общие для
+  // десктопа и мобильного экрана (Radix Dialog порталит контент поверх всего вне
+  // зависимости от того, где в дереве он смонтирован), поэтому логика/state одни и
+  // те же (revealAuthor/changeStatus mutation), не дублируются между ветками.
+  const revealDialogEl = (
+    <Dialog
+      open={revealDialogOpen}
+      onOpenChange={(open) => {
+        setRevealDialogOpen(open);
+        if (!open) {
+          setRevealPassword("");
+          setRevealError("");
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogTitle>Раскрыть автора конфиденциального обращения</DialogTitle>
+        <DialogDescription>
+          Вы открываете конфиденциальную информацию — личность автора. Это действие будет зафиксировано в
+          журнале аудита с вашим именем и временем просмотра. Подтвердите паролем от своей учётной записи.
+        </DialogDescription>
+        <form
+          className="mt-4 flex flex-col gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleRevealAuthor();
+          }}
+        >
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="revealPassword">Пароль</Label>
+            <Input
+              id="revealPassword"
+              type="password"
+              autoFocus
+              value={revealPassword}
+              onChange={(e) => setRevealPassword(e.target.value)}
+              required
+            />
+          </div>
+          {revealError && <p className="text-sm text-destructive">{revealError}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setRevealDialogOpen(false)}>
+              Отменить
+            </Button>
+            <Button type="submit" disabled={!revealPassword || revealAuthor.isPending}>
+              Раскрыть автора
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const closeDialogEl = (
+    <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+      <DialogContent>
+        <DialogTitle>Закрытие обращения</DialogTitle>
+        <DialogDescription>Закрытие требует итогового ответа автору (FR-WF-005).</DialogDescription>
+        <Textarea rows={4} value={finalAnswer} onChange={(e) => setFinalAnswer(e.target.value)} className="mt-4" />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>
+            Отменить
+          </Button>
+          <Button
+            disabled={!finalAnswer.trim() || changeStatus.isPending}
+            onClick={async () => {
+              await changeStatus.mutateAsync({ toStatus: "CLOSED", finalAnswer });
+              setCloseDialogOpen(false);
+              setFinalAnswer("");
+            }}
+          >
+            Закрыть обращение
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <AppealDetailMobile
+          appeal={appeal}
+          onBack={() => navigate(-1)}
+          activeTab={activeTab as "appeal" | "messages" | "internal" | "attachments"}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            if (tab === "messages" || tab === "internal") {
+              setUnreadTabs((t) => ({ ...t, [tab]: false }));
+            }
+          }}
+          unreadTabs={unreadTabs}
+          availableTransitions={availableTransitions}
+          canClose={canClose}
+          canClassify={canClassify}
+          canAssign={canAssign}
+          canReadAuthor={canReadAuthor}
+          revealedAuthor={revealedAuthor}
+          onRevealClick={() => setRevealDialogOpen(true)}
+          onTransitionClick={handleTransition}
+          transitionPending={changeStatus.isPending}
+          managers={managers}
+          onAssign={(userId) => assignMutation.mutate(userId)}
+          workingEdit={workingEdit}
+          onWorkingEditChange={setWorkingEdit}
+          onSaveWorkingEdit={() => setWorkingEditMutation.mutate(workingEdit)}
+          saveWorkingEditPending={setWorkingEditMutation.isPending}
+          newMessage={newMessage}
+          onNewMessageChange={setNewMessage}
+          onSendMessage={handleSendMessage}
+          sendPending={addComment.isPending}
+          newInternalNote={newInternalNote}
+          onNewInternalNoteChange={setNewInternalNote}
+          mentionableUsers={mentionableUsers}
+          mentionedUserIds={mentionedUserIds}
+          onMentionedUserIdsChange={setMentionedUserIds}
+          onAddInternalNote={handleAddInternalNote}
+          addNotePending={addComment.isPending}
+          onDownloadAttachment={handleDownload}
+        />
+        {revealDialogEl}
+        {closeDialogEl}
+      </>
+    );
   }
 
   return (

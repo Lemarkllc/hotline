@@ -10,6 +10,8 @@ import { APPEAL_TYPE_LABELS, ModeBadge, StatusBadge, TypeLabel } from "@/compone
 import { KanbanBoard } from "@/components/appeals/KanbanBoard";
 import { useAppeals } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { MobileRegistry } from "@/components/mobile/MobileRegistry";
 
 const PAGE_SIZE = 20;
 type View = "list" | "kanban";
@@ -31,6 +33,7 @@ function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
  * визуальное представление того же реестра (запрос пользователя), поэтому
  * переключается тут же, а не отдельным пунктом меню. */
 export function AppealsRegistryPage() {
+  const isMobile = useIsMobile();
   const activeChannel = useAuthStore((s) => s.activeChannel);
   const [searchParams, setSearchParams] = useSearchParams();
   const view: View = searchParams.get("view") === "kanban" ? "kanban" : "list";
@@ -63,6 +66,25 @@ export function AppealsRegistryPage() {
 
   function setView(v: View) {
     setSearchParams(v === "list" ? {} : { view: v });
+  }
+
+  if (isMobile) {
+    return (
+      <MobileRegistry
+        search={search}
+        onSearchChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        chip={statusFilter === "active" ? "all" : statusFilter}
+        onChipChange={(v) => {
+          setStatusFilter(v);
+          setPage(1);
+        }}
+        appeals={data?.items ?? []}
+        isLoading={isLoading}
+      />
+    );
   }
 
   return (

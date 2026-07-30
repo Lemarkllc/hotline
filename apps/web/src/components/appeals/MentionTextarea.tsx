@@ -45,6 +45,7 @@ export function MentionTextarea({
   onSubmit,
   placeholder,
   rows = 2,
+  className,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -54,6 +55,9 @@ export function MentionTextarea({
   onSubmit: () => void;
   placeholder?: string;
   rows?: number;
+  /** Переопределяет визуал внутреннего Textarea (мобильная input-bar, design_handoff_mobile_pwa) —
+   * логика упоминаний/MRU/клавиатурной навигации при этом не дублируется. */
+  className?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
@@ -145,6 +149,7 @@ export function MentionTextarea({
           // Небольшая задержка — иначе onBlur съедает клик по пункту списка раньше onClick.
           setTimeout(() => setMention(null), 150);
         }}
+        className={className}
       />
       {mention && candidates.length > 0 && (
         <div className="absolute bottom-full left-0 z-20 mb-1 w-64 rounded-md border border-border bg-surface p-1 shadow-lg">

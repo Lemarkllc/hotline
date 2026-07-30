@@ -24,10 +24,12 @@ import {
 } from "recharts";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { APPEAL_TYPE_LABELS } from "@/components/appeals/badges";
+import { APPEAL_TYPE_LABELS, statusColor } from "@/components/appeals/badges";
 import { cn } from "@/lib/utils";
-import { useReportSummary } from "@/hooks/api";
+import { useAppeals, useReportSummary } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { MobileDashboard } from "@/components/mobile/MobileDashboard";
 
 const TYPE_CHART_COLORS = ["#2563EB", "#7C3AED", "#16A34A", "#D97706", "#DC2626"];
 
@@ -97,7 +99,9 @@ function KpiCard({
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const activeChannel = useAuthStore((s) => s.activeChannel);
+  const userName = useAuthStore((s) => s.user?.fullName ?? "");
   const [days] = useState(30);
   const { from, to } = useMemo(() => {
     const now = new Date();
@@ -106,9 +110,16 @@ export function DashboardPage() {
   }, [days]);
 
   const { data, isLoading } = useReportSummary(activeChannel, from, to);
+  // Только для мобильного "Последние обращения" — десктопный дашборд обходится без
+  // него (там для этого есть отдельный раздел "Обращения" с полноценным реестром).
+  const { data: recent } = useAppeals({ channel: activeChannel, page: 1, pageSize: 3 });
 
   if (isLoading || !data) {
     return <p className="text-muted-foreground">Загрузка...</p>;
+  }
+
+  if (isMobile) {
+    return <MobileDashboard userName={userName} data={data} recentAppeals={recent?.items ?? []} />;
   }
 
   const statusData = Object.entries(data.byStatus).map(([status, count]) => ({

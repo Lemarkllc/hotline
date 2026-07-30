@@ -458,9 +458,9 @@ export function useNotifications() {
   return useQuery({
     queryKey: ["notifications"],
     queryFn: () =>
-      apiRequest<{ id: string; payload: Record<string, unknown>; status: string; createdAt: string }[]>(
-        "/notifications",
-      ),
+      apiRequest<
+        { id: string; appealId: string | null; payload: Record<string, unknown>; status: string; createdAt: string }[]
+      >("/notifications"),
     refetchInterval: 15000,
   });
 }

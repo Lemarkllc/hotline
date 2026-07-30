@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="#D97706"/><path d="M100 30C100 30 60 65 52 100C47 118 52 137 65 150C57 138 55 122 62 108C65 122 76 132 87 136C80 120 84 100 100 87C107 100 117 108 127 118C133 108 135 96 130 84C140 95 147 111 143 127C153 115 158 99 153 82C148 65 130 48 100 30Z" fill="#FFFFFF"/></svg></template>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#E2E8F0; font-family:'Inter',system-ui,sans-serif; -webkit-tap-highlight-color:transparent; }
+    * { box-sizing:border-box; }
+    ::-webkit-scrollbar { display:none; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px">
+  <div style="width:390px;height:844px;background:#F8FAFC;border-radius:44px;box-shadow:0 30px 60px rgba(15,23,42,0.35);overflow:hidden;position:relative;border:8px solid #0F172A">
+
+    <!-- Status bar -->
+    <div style="position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;z-index:50;color:#0F172A;font-size:14px;font-weight:600">
+      <span>9:41</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div style="width:18px;height:10px;border:1.5px solid #0F172A;border-radius:2px;position:relative"><div style="position:absolute;inset:1.5px;width:11px;background:#0F172A;border-radius:1px"></div></div>
+      </div>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <sc-if value="{{ showLogin }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute;inset:0;padding-top:48px;display:flex;flex-direction:column;background:#F8FAFC">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 32px;gap:28px">
+          <div style="width:76px;height:76px;background:#D97706;border-radius:20px;display:flex;align-items:center;justify-content:center">
+            <svg width="42" height="42" viewBox="0 0 100 100"><path d="M50 4C50 4 27 26 22 46C19 58 22 70 30 79C25 71 24 61 28 52C30 62 37 68 44 70C40 60 42 48 50 40C54 50 60 55 66 62C70 55 71 47 68 39C74 46 78 56 76 68C82 60 85 49 82 38C79 27 68 16 50 4Z" fill="#FFFFFF"></path></svg>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:800;color:#0F172A">Hot<span style="color:#D97706">Line</span></div>
+            <div style="font-size:13px;color:#64748B;margin-top:4px">Панель обращений</div>
+          </div>
+          <div style="width:100%;display:flex;flex-direction:column;gap:12px;margin-top:8px">
+            <input value="e.morozova@company.ru" readonly style="width:100%;height:50px;border-radius:14px;border:1px solid #E2E8F0;background:#FFFFFF;padding:0 16px;font-size:15px;color:#0F172A;font-family:inherit" />
+            <input value="••••••••••" readonly type="password" style="width:100%;height:50px;border-radius:14px;border:1px solid #E2E8F0;background:#FFFFFF;padding:0 16px;font-size:15px;color:#0F172A;font-family:inherit" />
+            <button onClick="{{ login }}" style="width:100%;height:50px;border-radius:14px;background:#2563EB;color:#FFFFFF;border:none;font-size:16px;font-weight:600;font-family:inherit;margin-top:4px">Войти</button>
+            <div style="text-align:center;font-size:13px;color:#2563EB;font-weight:500;margin-top:6px">Забыли пароль?</div>
+          </div>
+          <div style="font-size:12px;color:#94A3B8;text-align:center;margin-top:12px">Требуется двухфакторная аутентификация</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- APP -->
+    <sc-if value="{{ showApp }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;padding-top:48px;display:flex;flex-direction:column">
+
+        <!-- DASHBOARD -->
+        <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1;overflow-y:auto;padding:20px 20px 100px 20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+              <div>
+                <div style="font-size:20px;font-weight:800;color:#0F172A">Добрый день, Елена</div>
+                <div style="font-size:13px;color:#64748B;margin-top:2px">Четверг, 30 июля</div>
+              </div>
+              <div style="width:40px;height:40px;border-radius:50%;background:#2563EB;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px">ЕМ</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">
+              <div style="background:#FFFFFF;border-radius:16px;padding:16px;border:1px solid #E2E8F0">
+                <div style="font-size:26px;font-weight:800;color:#2563EB">12</div>
+                <div style="font-size:13px;color:#64748B;margin-top:2px">Открыто</div>
+              </div>
+              <div style="background:#FFFFFF;border-radius:16px;padding:16px;border:1px solid #E2E8F0">
+                <div style="font-size:26px;font-weight:800;color:#1E40AF">8</div>
+                <div style="font-size:13px;color:#64748B;margin-top:2px">В работе</div>
+              </div>
+              <div style="background:#FFFFFF;border-radius:16px;padding:16px;border:1px solid #E2E8F0">
+                <div style="font-size:26px;font-weight:800;color:#16A34A">5</div>
+                <div style="font-size:13px;color:#64748B;margin-top:2px">Закрыто сегодня</div>
+              </div>
+              <div style="background:#FFFFFF;border-radius:16px;padding:16px;border:1px solid #E2E8F0">
+                <div style="font-size:26px;font-weight:800;color:#DC2626">3</div>
+                <div style="font-size:13px;color:#64748B;margin-top:2px">Просрочено</div>
+              </div>
+            </div>
+
+            <div style="font-size:15px;font-weight:700;color:#0F172A;margin-bottom:12px">Последние обращения</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ recentAppeals }}" as="a" hint-placeholder-count="3">
+                <div onClick="{{ a.open }}" style="background:#FFFFFF;border-radius:14px;padding:14px;border:1px solid #E2E8F0;display:flex;gap:12px;align-items:center">
+                  <div style="width:36px;height:36px;border-radius:10px;background:#F1F5F9;color:#475569;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">{{ a.typeLetter }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:600;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.title }}</div>
+                    <div style="font-size:12px;color:#64748B;margin-top:2px">{{ a.number }} · {{ a.date }}</div>
+                  </div>
+                  <div style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;color:#fff;flex-shrink:0;background:{{ a.statusColor }}">{{ a.statusLabel }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- REGISTRY -->
+        <sc-if value="{{ isRegistry }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+            <div style="padding:16px 20px 12px 20px">
+              <div style="font-size:20px;font-weight:800;color:#0F172A;margin-bottom:12px">Обращения</div>
+              <input placeholder="Поиск по номеру или тексту" style="width:100%;height:42px;border-radius:12px;border:1px solid #E2E8F0;background:#FFFFFF;padding:0 14px;font-size:14px;font-family:inherit;color:#0F172A" />
+              <div style="display:flex;gap:8px;margin-top:10px;overflow-x:auto">
+                <div style="padding:6px 14px;border-radius:20px;background:#2563EB;color:#fff;font-size:12px;font-weight:600;white-space:nowrap">Все</div>
+                <div style="padding:6px 14px;border-radius:20px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:600;white-space:nowrap">Открыто</div>
+                <div style="padding:6px 14px;border-radius:20px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:600;white-space:nowrap">В работе</div>
+                <div style="padding:6px 14px;border-radius:20px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:600;white-space:nowrap">Закрыто</div>
+              </div>
+            </div>
+            <div style="flex:1;overflow-y:auto;padding:0 20px 100px 20px;display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ appeals }}" as="a" hint-placeholder-count="6">
+                <div onClick="{{ a.open }}" style="background:#FFFFFF;border-radius:14px;padding:14px;border:1px solid #E2E8F0">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                    <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
+                      <div style="width:32px;height:32px;border-radius:9px;background:#F1F5F9;color:#475569;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">{{ a.typeLetter }}</div>
+                      <div style="min-width:0">
+                        <div style="font-size:14px;font-weight:600;color:#0F172A">{{ a.title }}</div>
+                        <div style="font-size:12px;color:#64748B;margin-top:2px">{{ a.number }} · {{ a.typeLabel }} · {{ a.date }}</div>
+                      </div>
+                    </div>
+                    <sc-if value="{{ a.confidential }}" hint-placeholder-val="{{ false }}">
+                      <svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:3px"><path d="M6 10V8a6 6 0 1112 0v2h1a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9a1 1 0 011-1h1zm2 0h8V8a4 4 0 00-8 0v2z" fill="#7C3AED"></path></svg>
+                    </sc-if>
+                  </div>
+                  <div style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;color:#fff;display:inline-block;margin-top:10px;background:{{ a.statusColor }}">{{ a.statusLabel }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- NOTIFICATIONS -->
+        <sc-if value="{{ isNotifications }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+            <div style="padding:16px 20px 12px 20px;font-size:20px;font-weight:800;color:#0F172A">Уведомления</div>
+            <div style="flex:1;overflow-y:auto;padding:0 20px 100px 20px;display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ notifications }}" as="n" hint-placeholder-count="5">
+                <div style="background:#FFFFFF;border-radius:14px;padding:14px;border:1px solid #E2E8F0;display:flex;gap:10px;align-items:flex-start">
+                  <div style="width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:{{ n.dotColor }}"></div>
+                  <div style="flex:1">
+                    <div style="font-size:13px;color:#0F172A;line-height:1.4;font-weight:{{ n.weight }}">{{ n.text }}</div>
+                    <div style="font-size:12px;color:#94A3B8;margin-top:4px">{{ n.time }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- PROFILE -->
+        <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;overflow-y:auto;padding:20px 20px 100px 20px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0 24px 0">
+              <div style="width:72px;height:72px;border-radius:50%;background:#2563EB;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px">ЕМ</div>
+              <div style="font-size:17px;font-weight:700;color:#0F172A">Морозова Елена</div>
+              <div style="font-size:13px;color:#64748B">HRD · hr@company.ru</div>
+            </div>
+            <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E2E8F0;overflow:hidden">
+              <div style="padding:14px 16px;font-size:14px;color:#0F172A;border-bottom:1px solid #E2E8F0">Сменить пароль</div>
+              <div style="padding:14px 16px;font-size:14px;color:#0F172A;border-bottom:1px solid #E2E8F0">Двухфакторная аутентификация</div>
+              <div style="padding:14px 16px;font-size:14px;color:#0F172A;border-bottom:1px solid #E2E8F0">Push-уведомления</div>
+              <div style="padding:14px 16px;font-size:14px;color:#0F172A">О приложении</div>
+            </div>
+            <div onClick="{{ logout }}" style="margin-top:16px;background:#FFFFFF;border-radius:16px;border:1px solid #E2E8F0;padding:14px 16px;font-size:14px;color:#DC2626;font-weight:600;text-align:center">Выйти</div>
+          </div>
+        </sc-if>
+
+        <!-- BOTTOM TAB BAR -->
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(248,250,252,0.94);backdrop-filter:blur(12px);border-top:1px solid #E2E8F0;display:flex;justify-content:space-around;align-items:center;padding:10px 0 22px 0">
+          <div onClick="{{ goDashboard }}" style="display:flex;flex-direction:column;align-items:center;gap:3px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 11.5L12 4l8 7.5V20a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1v-8.5z" style="fill:{{ dashboardColor }}"></path></svg>
+            <div style="font-size:10px;font-weight:600;color:{{ dashboardColor }}">Главная</div>
+          </div>
+          <div onClick="{{ goRegistry }}" style="display:flex;flex-direction:column;align-items:center;gap:3px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h16M4 19h10" style="stroke:{{ registryColor }}" stroke-width="2.2" stroke-linecap="round"></path></svg>
+            <div style="font-size:10px;font-weight:600;color:{{ registryColor }}">Реестр</div>
+          </div>
+          <div onClick="{{ goNotifications }}" style="display:flex;flex-direction:column;align-items:center;gap:3px;position:relative">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3a5 5 0 00-5 5v3.3c0 .5-.2 1-.5 1.4L5 15h14l-1.5-2.3c-.3-.4-.5-.9-.5-1.4V8a5 5 0 00-5-5z M10 18a2 2 0 004 0" style="stroke:{{ notifColor }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            <div style="position:absolute;top:-2px;right:2px;width:8px;height:8px;border-radius:50%;background:#DC2626;border:1.5px solid #F8FAFC"></div>
+            <div style="font-size:10px;font-weight:600;color:{{ notifColor }}">Уведомл.</div>
+          </div>
+          <div onClick="{{ goProfile }}" style="display:flex;flex-direction:column;align-items:center;gap:3px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" style="stroke:{{ profileColor }}" stroke-width="2.2"></circle><path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6" style="stroke:{{ profileColor }}" stroke-width="2.2" stroke-linecap="round"></path></svg>
+            <div style="font-size:10px;font-weight:600;color:{{ profileColor }}">Профиль</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- DETAIL OVERLAY -->
+    <div style="position:absolute;inset:0;padding-top:48px;background:#F8FAFC;display:flex;flex-direction:column;transition:transform 0.32s cubic-bezier(.32,.72,0,1);z-index:40;transform:{{ detailTransform }}">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px 8px 16px">
+        <div onClick="{{ closeDetail }}" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:16px;font-weight:700;color:#0F172A">{{ detailNumber }}</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
+            <div style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;color:#fff;background:{{ detailStatusColor }}">{{ detailStatus }}</div>
+            <div style="font-size:11px;color:#64748B">{{ detailType }}</div>
+          </div>
+        </div>
+        <div onClick="{{ advanceStatus }}" style="font-size:12px;font-weight:600;color:#2563EB;padding:6px 10px;border-radius:10px;background:#EFF6FF;white-space:nowrap;flex-shrink:0">→ {{ detailNextStatus }}</div>
+      </div>
+
+      <!-- Author card -->
+      <div style="padding:0 16px 10px 16px">
+        <div onClick="{{ toggleReveal }}" style="display:flex;align-items:center;gap:10px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:10px 14px">
+          <sc-if value="{{ detailAuthorHidden }}" hint-placeholder-val="{{ false }}">
+            <svg width="17" height="17" viewBox="0 0 24 24" style="flex-shrink:0"><path d="M6 10V8a6 6 0 1112 0v2h1a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9a1 1 0 011-1h1zm2 0h8V8a4 4 0 00-8 0v2z" fill="#7C3AED"></path></svg>
+          </sc-if>
+          <sc-if value="{{ detailAuthorVisible }}" hint-placeholder-val="{{ true }}">
+            <div style="width:17px;height:17px;border-radius:50%;background:#F1F5F9;flex-shrink:0"></div>
+          </sc-if>
+          <div style="min-width:0">
+            <div style="font-size:13px;font-weight:600;color:{{ detailAuthorColor }}">{{ detailAuthorLine }}</div>
+            <div style="font-size:11px;color:#94A3B8">{{ detailAuthorHint }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs: segmented control, matches web TabsList -->
+      <div style="display:flex;gap:2px;margin:0 16px 10px 16px;padding:3px;border-radius:10px;background:#F1F5F9">
+        <div onClick="{{ tabAppeal }}" style="flex:1;text-align:center;padding:7px 2px;border-radius:8px;font-size:11px;font-weight:600;white-space:nowrap;background:{{ tabAppealBg }};color:{{ tabAppealFg }};box-shadow:{{ tabAppealShadow }}">Обращение</div>
+        <div onClick="{{ tabMessages }}" style="flex:1;text-align:center;padding:7px 2px;border-radius:8px;font-size:11px;font-weight:600;white-space:nowrap;background:{{ tabMessagesBg }};color:{{ tabMessagesFg }};box-shadow:{{ tabMessagesShadow }};position:relative">Переписка
+          <sc-if value="{{ messagesUnread }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:3px;right:14px;width:5px;height:5px;border-radius:50%;background:#DC2626"></span></sc-if>
+        </div>
+        <div onClick="{{ tabInternal }}" style="flex:1;text-align:center;padding:7px 2px;border-radius:8px;font-size:11px;font-weight:600;white-space:nowrap;background:{{ tabInternalBg }};color:{{ tabInternalFg }};box-shadow:{{ tabInternalShadow }};position:relative">Внутр. работа
+          <sc-if value="{{ internalUnread }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:3px;right:6px;width:5px;height:5px;border-radius:50%;background:#DC2626"></span></sc-if>
+        </div>
+        <div onClick="{{ tabAttachments }}" style="flex:1;text-align:center;padding:7px 2px;border-radius:8px;font-size:11px;font-weight:600;white-space:nowrap;background:{{ tabAttachmentsBg }};color:{{ tabAttachmentsFg }};box-shadow:{{ tabAttachmentsShadow }}">Вложения</div>
+      </div>
+
+      <!-- Tab: Обращение -->
+      <sc-if value="{{ showTabAppeal }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;overflow-y:auto;padding:0 16px 24px 16px;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:#64748B;margin-bottom:6px">ОРИГИНАЛЬНЫЙ ТЕКСТ</div>
+            <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:14px;font-size:14px;color:#334155;line-height:1.6">{{ detailText }}</div>
+          </div>
+          <sc-if value="{{ detailHasWorkingEdit }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:#64748B;margin-bottom:6px">РАБОЧАЯ РЕДАКЦИЯ</div>
+              <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:14px;font-size:13px;color:#475569;line-height:1.6">{{ detailWorkingEdit }}</div>
+            </div>
+          </sc-if>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:#64748B;margin-bottom:6px">ОТВЕТСТВЕННЫЙ</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                <div style="width:32px;height:32px;border-radius:50%;background:{{ assigneeAvatarBg }};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0">{{ assigneeInitials }}</div>
+                <div style="font-size:13px;font-weight:600;color:{{ assigneeTextColor }}">{{ assigneeLabel }}</div>
+              </div>
+              <div onClick="{{ openAssignSheet }}" style="font-size:12px;font-weight:600;color:#2563EB;padding:6px 12px;border-radius:10px;background:#EFF6FF;white-space:nowrap;flex-shrink:0">{{ assignButtonLabel }}</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- Assign bottom sheet -->
+      <sc-if value="{{ assignSheetOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeAssignSheet }}" style="position:absolute;inset:0;background:rgba(15,23,42,0.4);z-index:70;display:flex;align-items:flex-end">
+          <div onClick="{{ stopPropagation }}" style="width:100%;background:#F8FAFC;border-radius:20px 20px 0 0;padding:8px 16px 28px 16px">
+            <div style="width:36px;height:4px;border-radius:2px;background:#E2E8F0;margin:0 auto 14px auto"></div>
+            <div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:10px">Назначить ответственного</div>
+            <sc-for list="{{ assignableUsers }}" as="u" hint-placeholder-count="3">
+              <div onClick="{{ u.select }}" style="display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid #E2E8F0">
+                <div style="width:30px;height:30px;border-radius:50%;background:#F1F5F9;color:#475569;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0">{{ u.initials }}</div>
+                <div style="font-size:13px;color:#0F172A">{{ u.name }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- Tab: Переписка -->
+      <sc-if value="{{ showTabMessages }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+          <div style="flex:1;overflow-y:auto;padding:4px 16px 12px 16px;display:flex;flex-direction:column;gap:8px">
+            <sc-if value="{{ detailNoMessages }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:13px;color:#94A3B8;text-align:center;margin-top:24px">Переписки пока нет.</div>
+            </sc-if>
+            <sc-for list="{{ detailMessages }}" as="m" hint-placeholder-count="2">
+              <div style="max-width:78%;border-radius:14px;padding:10px 13px;font-size:13px;line-height:1.5;align-self:{{ m.align }};background:{{ m.bg }};color:#0F172A">
+                <div>{{ m.text }}</div>
+                <div style="font-size:11px;color:#94A3B8;margin-top:4px">{{ m.who }} · {{ m.time }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:8px;padding:8px 16px 20px 16px;border-top:1px solid #E2E8F0">
+            <input value="{{ messageDraft }}" onChange="{{ setMessageDraft }}" placeholder="Написать автору..." style="flex:1;height:42px;border-radius:12px;border:1px solid #E2E8F0;background:#FFFFFF;padding:0 14px;font-size:13px;font-family:inherit;color:#0F172A" />
+            <div onClick="{{ sendMessage }}" style="width:42px;height:42px;border-radius:12px;background:#2563EB;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12l16-8-6 16-3-6-7-2z" fill="#FFFFFF"></path></svg>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- Tab: Внутренняя работа -->
+      <sc-if value="{{ showTabInternal }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+          <div style="flex:1;overflow-y:auto;padding:4px 16px 12px 16px;display:flex;flex-direction:column;gap:8px">
+            <sc-if value="{{ detailNoNotes }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:13px;color:#94A3B8;text-align:center;margin-top:24px">Внутренних заметок пока нет.</div>
+            </sc-if>
+            <sc-for list="{{ detailNotes }}" as="note" hint-placeholder-count="2">
+              <div style="background:#F1F5F9;border-radius:14px;padding:10px 13px;font-size:13px;color:#0F172A;line-height:1.5">
+                <div>{{ note.text }}</div>
+                <div style="font-size:11px;color:#94A3B8;margin-top:4px">{{ note.author }} · {{ note.time }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:8px;padding:8px 16px 20px 16px;border-top:1px solid #E2E8F0">
+            <input value="{{ noteDraft }}" onChange="{{ setNoteDraft }}" placeholder="Заметка коллегам, @упомянуть..." style="flex:1;height:42px;border-radius:12px;border:1px solid #E2E8F0;background:#FFFFFF;padding:0 14px;font-size:13px;font-family:inherit;color:#0F172A" />
+            <div onClick="{{ addNote }}" style="width:42px;height:42px;border-radius:12px;background:#0F172A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12l16-8-6 16-3-6-7-2z" fill="#FFFFFF"></path></svg>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- Tab: Вложения -->
+      <sc-if value="{{ showTabAttachments }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;overflow-y:auto;padding:4px 16px 24px 16px;display:flex;flex-direction:column;gap:8px">
+          <sc-if value="{{ detailNoAttachments }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;color:#94A3B8;text-align:center;margin-top:24px">Вложений нет.</div>
+          </sc-if>
+          <sc-for list="{{ detailAttachments }}" as="att" hint-placeholder-count="1">
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M8 12l4-4a3 3 0 114 4l-6 6a4 4 0 01-6-6l6-6" stroke="#64748B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                <span style="font-size:13px;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ att.name }}</span>
+              </div>
+              <span style="font-size:12px;color:#94A3B8;flex-shrink:0">{{ att.size }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#0F172A;opacity:0.4;z-index:60"></div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 480, &quot;height&quot;: 900}}">
+function statusColor(s) {
+  return { "Открыто": "#2563EB", "На рассмотрении": "#D97706", "В работе": "#1E40AF", "Закрыто": "#16A34A" }[s] || "#64748B";
+}
+const TYPE_LETTER = { "Жалоба": "Ж", "Вопрос": "В", "Нарушение": "Н", "Предложение": "П", "Благодарность": "Б" };
+const STATUS_FLOW = ["Открыто", "На рассмотрении", "В работе", "Закрыто"];
+function nextStatus(current) {
+  if (current === "Закрыто") return "В работе";
+  const i = STATUS_FLOW.indexOf(current);
+  return STATUS_FLOW[Math.min(i + 1, STATUS_FLOW.length - 1)];
+}
+
+class Component extends DCLogic {
+  state = {
+    loggedIn: false,
+    tab: "dashboard",
+    detailNumber: null,
+    detailTab: "appeal",
+    revealed: {},
+    statusOverride: {},
+    messageDraft: "",
+    noteDraft: "",
+    sentMessages: {},
+    sentNotes: {},
+    assignSheetOpen: false,
+    assigneeOverride: {},
+  };
+
+  login = () => this.setState({ loggedIn: true });
+  logout = () => this.setState({ loggedIn: false, tab: "dashboard", detailNumber: null });
+  goDashboard = () => this.setState({ tab: "dashboard" });
+  goRegistry = () => this.setState({ tab: "registry" });
+  goNotifications = () => this.setState({ tab: "notifications" });
+  goProfile = () => this.setState({ tab: "profile" });
+  closeDetail = () => this.setState({ detailNumber: null, detailTab: "appeal" });
+  tabAppeal = () => this.setState({ detailTab: "appeal" });
+  tabMessages = () => this.setState({ detailTab: "messages" });
+  tabInternal = () => this.setState({ detailTab: "internal" });
+  tabAttachments = () => this.setState({ detailTab: "attachments" });
+  setMessageDraft = (e) => this.setState({ messageDraft: e.target.value });
+  setNoteDraft = (e) => this.setState({ noteDraft: e.target.value });
+  openAssignSheet = () => this.setState({ assignSheetOpen: true });
+  closeAssignSheet = () => this.setState({ assignSheetOpen: false });
+  stopPropagation = (e) => e.stopPropagation();
+  selectAssignee = (name) => () => {
+    const num = this.state.detailNumber;
+    if (!num) return;
+    this.setState((s) => ({ assigneeOverride: { ...s.assigneeOverride, [num]: name }, assignSheetOpen: false }));
+  };
+
+  toggleReveal = () => {
+    const num = this.state.detailNumber;
+    if (!num) return;
+    this.setState((s) => ({ revealed: { ...s.revealed, [num]: !s.revealed[num] } }));
+  };
+
+  advanceStatus = () => {
+    const num = this.state.detailNumber;
+    if (!num) return;
+    const appeal = this.rawAppeals().find((a) => a.number === num);
+    const current = this.state.statusOverride[num] || appeal.statusLabel;
+    this.setState((s) => ({ statusOverride: { ...s.statusOverride, [num]: nextStatus(current) } }));
+  };
+
+  sendMessage = () => {
+    const num = this.state.detailNumber;
+    if (!num || !this.state.messageDraft.trim()) return;
+    const msg = { text: this.state.messageDraft, fromHrd: true, who: "Морозова Е.", time: "сейчас" };
+    this.setState((s) => ({
+      sentMessages: { ...s.sentMessages, [num]: [...(s.sentMessages[num] || []), msg] },
+      messageDraft: "",
+    }));
+  };
+
+  addNote = () => {
+    const num = this.state.detailNumber;
+    if (!num || !this.state.noteDraft.trim()) return;
+    const note = { text: this.state.noteDraft, author: "Морозова Е.", time: "сейчас" };
+    this.setState((s) => ({
+      sentNotes: { ...s.sentNotes, [num]: [...(s.sentNotes[num] || []), note] },
+      noteDraft: "",
+    }));
+  };
+
+  rawAppeals() {
+    return [
+      { number: "№1042", typeLabel: "Жалоба", title: "Задержка выплаты премии за март", statusLabel: "Открыто", confidential: true, author: "Скрыто", authorReal: "Кузнецов Д.", date: "2 часа назад", text: "Сотрудник сообщает о задержке выплаты премии за март на две недели. Требуется проверка бухгалтерией и обратная связь заявителю.", workingEdit: "Сотрудник сообщает о задержке выплаты премии, требуется проверка расчёта.", assignee: null,
+        messages: [
+          { text: "Здравствуйте! Пожалуйста, уточните дату начисления премии.", fromHrd: true, who: "Морозова Е.", time: "2 часа назад" },
+          { text: "Премию должны были перечислить 25 числа, но на карту ничего не пришло.", fromHrd: false, who: "Автор", time: "1 час назад" },
+        ],
+        notes: [{ text: "Направила запрос в бухгалтерию, ждём ответ до конца дня.", author: "Морозова Е.", time: "1 час назад" }],
+        attachments: [{ name: "Скриншот_приложения.png", size: "1.4 МБ" }],
+      },
+      { number: "№1041", typeLabel: "Вопрос", title: "Как оформить перевод в другой отдел", statusLabel: "В работе", confidential: false, author: "Соколова А.", date: "5 часов назад", text: "Уточнение процедуры внутреннего перевода между отделами: сроки, необходимые согласования и документы.", workingEdit: null, assignee: "Никитина О.",
+        messages: [
+          { text: "Здравствуйте! Подскажите порядок перевода в другой отдел.", fromHrd: false, who: "Соколова А.", time: "5 часов назад" },
+          { text: "Направила вам инструкцию на почту, там весь порядок по шагам.", fromHrd: true, who: "Морозова Е.", time: "4 часа назад" },
+        ],
+        notes: [], attachments: [],
+      },
+      { number: "№1039", typeLabel: "Нарушение", title: "Нарушение техники безопасности на складе №3", statusLabel: "На рассмотрении", confidential: true, author: "Скрыто", authorReal: "Волков С.", date: "вчера", text: "Зафиксировано нарушение правил хранения материалов на складе №3, создающее риск травматизма.", workingEdit: "Выявлено нарушение правил хранения материалов на одном из складов.", assignee: "Петров А.",
+        messages: [], notes: [{ text: "Назначила выездную проверку на завтра совместно с ОТ.", author: "Морозова Е.", time: "сегодня утром" }],
+        attachments: [{ name: "Фото_склад_3.jpg", size: "2.1 МБ" }],
+      },
+      { number: "№1038", typeLabel: "Благодарность", title: "Благодарность за помощь в переезде отдела", statusLabel: "Закрыто", confidential: false, author: "Иванов П.", date: "2 дня назад", text: "Сотрудник выражает благодарность коллегам ИТ-отдела за оперативную помощь при переезде в новый офис.", workingEdit: null, assignee: null,
+        messages: [], notes: [], attachments: [],
+      },
+      { number: "№1035", typeLabel: "Предложение", title: "Внедрить гибкий график для бухгалтерии", statusLabel: "В работе", confidential: false, author: "Петрова Н.", date: "3 дня назад", text: "Предложение о переходе бухгалтерии на гибкий график с фиксированными часами присутствия с 11:00 до 15:00.", workingEdit: null, assignee: "Соколов И.",
+        messages: [], notes: [{ text: "Обсудили с финансовым директором, в целом поддерживает идею.", author: "Морозова Е.", time: "вчера" }], attachments: [],
+      },
+      { number: "№1030", typeLabel: "Жалоба", title: "Конфликт с руководителем смены", statusLabel: "Закрыто", confidential: true, author: "Скрыто", authorReal: "Титова М.", date: "неделю назад", text: "Обращение по поводу конфликтной ситуации с руководителем смены урегулировано, стороны пришли к соглашению.", workingEdit: null, assignee: "Никитина О.",
+        messages: [], notes: [], attachments: [],
+      },
+    ];
+  }
+
+  renderVals() {
+    const openDetail = (a) => () => this.setState({ detailNumber: a.number, detailTab: "appeal" });
+    const withStatus = (a) => ({ ...a, statusLabel: this.state.statusOverride[a.number] || a.statusLabel });
+    const withOpen = (a) => ({ ...a, typeLetter: TYPE_LETTER[a.typeLabel], statusColor: statusColor(a.statusLabel), open: openDetail(a) });
+    const appeals = this.rawAppeals().map(withStatus).map(withOpen);
+
+    const notificationsRaw = [
+      { text: "Новое обращение №1042 требует классификации", time: "2 мин назад", unread: true },
+      { text: "Обращение №1039 назначено вам", time: "1 час назад", unread: true },
+      { text: "Добавлен комментарий к обращению №1035", time: "3 часа назад", unread: false },
+      { text: "Обращение №1038 закрыто", time: "вчера", unread: false },
+      { text: "Новый запрос доступа от сотрудника", time: "2 дня назад", unread: false },
+    ];
+    const notifications = notificationsRaw.map((n) => ({ ...n, dotColor: n.unread ? "#2563EB" : "#E2E8F0", weight: n.unread ? 600 : 400 }));
+
+    const tab = this.state.tab;
+    const activeColor = "#2563EB", inactiveColor = "#94A3B8";
+    const num = this.state.detailNumber;
+    const d = num ? appeals.find((a) => a.number === num) : null;
+    const dt = this.state.detailTab;
+
+    const activePillBg = "#FFFFFF", activePillFg = "#0F172A", activePillShadow = "0 1px 2px rgba(15,23,42,0.12)";
+    const inactivePillBg = "transparent", inactivePillFg = "#64748B", inactivePillShadow = "none";
+
+    let messages = [], notes = [], attachments = [];
+    let authorHidden = false, authorLine = "", authorHint = "", authorColor = "#0F172A";
+    let nextStatusLabel = "";
+    if (d) {
+      const extraMsgs = this.state.sentMessages[num] || [];
+      messages = [...d.messages, ...extraMsgs].map((m) => ({
+        ...m,
+        align: m.fromHrd ? "flex-end" : "flex-start",
+        bg: m.fromHrd ? "#DBEAFE" : "#FFFFFF",
+      }));
+      const extraNotes = this.state.sentNotes[num] || [];
+      notes = [...d.notes, ...extraNotes];
+      attachments = d.attachments;
+      const revealed = !!this.state.revealed[num];
+      authorHidden = d.confidential && !revealed;
+      if (d.confidential) {
+        if (revealed) {
+          authorLine = d.authorReal || "Автор раскрыт";
+          authorHint = "Раскрыто для этого просмотра · зафиксировано в аудите";
+          authorColor = "#7C3AED";
+        } else {
+          authorLine = "Автор скрыт (конфиденциально)";
+          authorHint = "Нажмите, чтобы раскрыть — потребует пароль, действие в аудите";
+          authorColor = "#7C3AED";
+        }
+      } else {
+        authorLine = d.author;
+        authorHint = "Автор обращения";
+        authorColor = "#0F172A";
+      }
+      nextStatusLabel = nextStatus(d.statusLabel);
+    }
+
+    const assignee = d ? (this.state.assigneeOverride[num] ?? d.assignee) : null;
+    const assigneeInitials = assignee ? assignee.split(" ").map((p) => p[0]).join("").toUpperCase() : "?";
+    const MANAGERS = ["Соколов И.", "Петров А.", "Никитина О.", "Волкова Т."];
+    const assignableUsers = MANAGERS.map((name) => ({
+      name,
+      initials: name.split(" ").map((p) => p[0]).join("").toUpperCase(),
+      select: this.selectAssignee(name),
+    }));
+
+    return {
+      showLogin: !this.state.loggedIn,
+      showApp: this.state.loggedIn,
+      login: this.login,
+      logout: this.logout,
+      isDashboard: tab === "dashboard",
+      isRegistry: tab === "registry",
+      isNotifications: tab === "notifications",
+      isProfile: tab === "profile",
+      goDashboard: this.goDashboard,
+      goRegistry: this.goRegistry,
+      goNotifications: this.goNotifications,
+      goProfile: this.goProfile,
+      dashboardColor: tab === "dashboard" ? activeColor : inactiveColor,
+      registryColor: tab === "registry" ? activeColor : inactiveColor,
+      notifColor: tab === "notifications" ? activeColor : inactiveColor,
+      profileColor: tab === "profile" ? activeColor : inactiveColor,
+      recentAppeals: appeals.slice(0, 3),
+      appeals,
+      notifications,
+      closeDetail: this.closeDetail,
+      detailTransform: d ? "translateX(0)" : "translateX(100%)",
+      detailNumber: d ? d.number : "",
+      detailStatus: d ? d.statusLabel : "",
+      detailStatusColor: d ? d.statusColor : "#64748B",
+      detailNextStatus: nextStatusLabel,
+      advanceStatus: this.advanceStatus,
+      detailType: d ? d.typeLabel : "",
+      detailText: d ? d.text : "",
+      detailHasWorkingEdit: !!(d && d.workingEdit),
+      detailWorkingEdit: d && d.workingEdit ? d.workingEdit : "",
+      toggleReveal: this.toggleReveal,
+      detailAuthorHidden: authorHidden,
+      detailAuthorVisible: !authorHidden,
+      detailAuthorLine: authorLine,
+      detailAuthorHint: authorHint,
+      detailAuthorColor: authorColor,
+      tabAppeal: this.tabAppeal,
+      tabMessages: this.tabMessages,
+      tabInternal: this.tabInternal,
+      tabAttachments: this.tabAttachments,
+      tabAppealBg: dt === "appeal" ? activePillBg : inactivePillBg,
+      tabAppealFg: dt === "appeal" ? activePillFg : inactivePillFg,
+      tabAppealShadow: dt === "appeal" ? activePillShadow : inactivePillShadow,
+      tabMessagesBg: dt === "messages" ? activePillBg : inactivePillBg,
+      tabMessagesFg: dt === "messages" ? activePillFg : inactivePillFg,
+      tabMessagesShadow: dt === "messages" ? activePillShadow : inactivePillShadow,
+      tabInternalBg: dt === "internal" ? activePillBg : inactivePillBg,
+      tabInternalFg: dt === "internal" ? activePillFg : inactivePillFg,
+      tabInternalShadow: dt === "internal" ? activePillShadow : inactivePillShadow,
+      tabAttachmentsBg: dt === "attachments" ? activePillBg : inactivePillBg,
+      tabAttachmentsFg: dt === "attachments" ? activePillFg : inactivePillFg,
+      tabAttachmentsShadow: dt === "attachments" ? activePillShadow : inactivePillShadow,
+      messagesUnread: false,
+      internalUnread: false,
+      showTabAppeal: dt === "appeal",
+      showTabMessages: dt === "messages",
+      showTabInternal: dt === "internal",
+      showTabAttachments: dt === "attachments",
+      detailMessages: messages,
+      detailNoMessages: messages.length === 0,
+      messageDraft: this.state.messageDraft,
+      setMessageDraft: this.setMessageDraft,
+      sendMessage: this.sendMessage,
+      detailNotes: notes,
+      detailNoNotes: notes.length === 0,
+      noteDraft: this.state.noteDraft,
+      setNoteDraft: this.setNoteDraft,
+      addNote: this.addNote,
+      detailAttachments: attachments,
+      detailNoAttachments: attachments.length === 0,
+      assigneeLabel: assignee || "Не назначен",
+      assigneeTextColor: assignee ? "#0F172A" : "#94A3B8",
+      assigneeAvatarBg: assignee ? "#2563EB" : "#CBD5E1",
+      assigneeInitials,
+      assignButtonLabel: assignee ? "Изменить" : "Назначить",
+      openAssignSheet: this.openAssignSheet,
+      closeAssignSheet: this.closeAssignSheet,
+      stopPropagation: this.stopPropagation,
+      assignSheetOpen: this.state.assignSheetOpen,
+      assignableUsers,
+    };
+  }
+}
+</script>
+</body>
+</html>
