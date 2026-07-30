@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/authStore";
 import { useAccessRequests } from "@/hooks/api";
+import { Button } from "@/components/ui/button";
 
 // "Обращения" видно по любому из трёх read-permission (в т.ч. Администратору с
 // appeal.read_all для ОБТ) — остальные пункты завязаны на одно право.
@@ -57,6 +58,9 @@ function SidebarLink({ to, icon: Icon, label, badge }: { to: string; icon: Lucid
 export function Sidebar() {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const roleNames = useAuthStore((s) => s.user?.roleNames ?? []);
+  const channels = useAuthStore((s) => s.user?.channels ?? []);
+  const activeChannel = useAuthStore((s) => s.activeChannel);
+  const setActiveChannel = useAuthStore((s) => s.setActiveChannel);
   const canManageUsers = hasPermission("user.manage");
   // Отдельный пункт для HRD без user.manage — у Administrator те же заявки уже
   // доступны на "Пользователи", дублировать пункт меню незачем.
@@ -73,6 +77,31 @@ export function Sidebar() {
         <Flame className="size-5 text-amber-500" />
         HotLine
       </div>
+      {/* Переключатель канала (Фаза 7, PLAN.md §6) — только для тех, у кого явно
+       * выдан доступ к обоим каналам; для всех остальных (в т.ч. «Продажи»,
+       * у которых только CUSTOMER) переключать нечего, и переключатель не занимает место. */}
+      {channels.length > 1 && (
+        <div className="px-3 pb-2">
+          <div className="inline-flex w-full rounded-md border border-border bg-surface p-1">
+            <Button
+              variant={activeChannel === "EMPLOYEE" ? "default" : "ghost"}
+              size="sm"
+              className="flex-1"
+              onClick={() => setActiveChannel("EMPLOYEE")}
+            >
+              Сотрудники
+            </Button>
+            <Button
+              variant={activeChannel === "CUSTOMER" ? "default" : "ghost"}
+              size="sm"
+              className="flex-1"
+              onClick={() => setActiveChannel("CUSTOMER")}
+            >
+              Клиенты
+            </Button>
+          </div>
+        </div>
+      )}
       <nav className="flex flex-col gap-1 px-3">
         {showAccessRequests && (
           <SidebarLink to="/access-requests" icon={UserCheck} label="Заявки на доступ" badge={pendingCount} />

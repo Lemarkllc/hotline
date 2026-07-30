@@ -36,6 +36,7 @@ export function AppealDetailPage() {
   const { id = "" } = useParams();
   const { data: appeal, isLoading } = useAppeal(id);
   const hasPermission = useAuthStore((s) => s.hasPermission);
+  const activeChannel = useAuthStore((s) => s.activeChannel);
 
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [finalAnswer, setFinalAnswer] = useState("");
@@ -63,20 +64,23 @@ export function AppealDetailPage() {
     }
   }, [appeal]);
 
-  const canReadAuthor = hasPermission("appeal.read_author");
-  const canClassify = hasPermission("appeal.read_all");
-  const canAssign = hasPermission("appeal.assign");
-  const canClose = hasPermission("appeal.close");
-  const canReadAudit = hasPermission("audit.read");
+  // Явный channel = appeal.channel, не глобальный activeChannel переключателя —
+  // у конкретно этой карточки канал фиксирован независимо от того, что сейчас
+  // выбрано в Sidebar (Фаза 7, PLAN.md §6).
+  const canReadAuthor = hasPermission("appeal.read_author", appeal?.channel);
+  const canClassify = hasPermission("appeal.read_all", appeal?.channel);
+  const canAssign = hasPermission("appeal.assign", appeal?.channel);
+  const canClose = hasPermission("appeal.close", appeal?.channel);
+  const canReadAudit = hasPermission("audit.read", appeal?.channel);
 
   const changeStatus = useChangeStatus(id);
   const setWorkingEditMutation = useSetWorkingEdit(id);
   const setEpicMutation = useSetEpic(id);
   const assignMutation = useAssignAppeal(id);
   const addComment = useAddComment(id);
-  const { data: epics } = useEpics("EMPLOYEE");
+  const { data: epics } = useEpics(appeal?.channel ?? activeChannel);
   // enabled: без permission эти запросы гарантированно вернут 403 — не дёргаем их зря.
-  const { data: managers } = useAssignableUsers("EMPLOYEE", canAssign);
+  const { data: managers } = useAssignableUsers(appeal?.channel ?? activeChannel, canAssign);
   const { data: auditEntries } = useAuditLog({ appealId: id }, canReadAudit);
   const { data: mentionableUsers } = useMentionableUsers(id, activeTab === "internal");
   const getAttachmentUrl = useAttachmentUrl();
@@ -347,8 +351,24 @@ export function AppealDetailPage() {
           {appeal.rating && (
             <Card>
               <CardContent className="p-4 text-sm">
-                Оценка автора: <span className="font-semibold tabular-nums">{appeal.rating.score}/5</span>
-                {appeal.rating.comment && <p className="mt-1 text-muted-foreground">{appeal.rating.comment}</p>}
+                {appeal.rating.score !== null ? (
+                  <>
+                    Оценка автора: <span className="font-semibold tabular-nums">{appeal.rating.score}/5</span>
+                    {appeal.rating.comment && <p className="mt-1 text-muted-foreground">{appeal.rating.comment}</p>}
+                  </>
+                ) : (
+                  // CUSTOMER — NPS-style, два отдельных числа вместо score (Фаза 7, PLAN.md §6).
+                  <div className="flex flex-col gap-1">
+                    <span>
+                      Порекомендовал(а) бы нас:{" "}
+                      <span className="font-semibold tabular-nums">{appeal.rating.wouldRecommendScore}/5</span>
+                    </span>
+                    <span>
+                      Обратится ли снова:{" "}
+                      <span className="font-semibold tabular-nums">{appeal.rating.wouldReturnScore}/5</span>
+                    </span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

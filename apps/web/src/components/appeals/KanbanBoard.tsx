@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useAppeals, useChangeStatusAny, type AppealDTO } from "@/hooks/api";
+import { useAuthStore } from "@/lib/authStore";
 
 const COLUMNS: AppealStatus[] = ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "CLOSED"];
 
@@ -46,9 +47,16 @@ function AppealCard({ appeal }: { appeal: AppealDTO }) {
         <TypeLabel type={appeal.type} />
         <div className="flex items-center justify-between">
           <ModeBadge mode={appeal.mode} />
-          {appeal.rating && appeal.rating.score <= 2 && (
-            <span className="text-xs font-medium text-destructive">Низкая оценка</span>
-          )}
+          {appeal.rating &&
+            // score — EMPLOYEE; wouldRecommendScore/wouldReturnScore — CUSTOMER (NPS-style,
+            // Фаза 7). score===null для клиентских обращений, а "null <= 2" в JS истинно —
+            // проверять надо явно на !== null, иначе ложное "Низкая оценка" на каждой
+            // клиентской карточке с рейтингом.
+            ((appeal.rating.score !== null && appeal.rating.score <= 2) ||
+              (appeal.rating.wouldRecommendScore !== null && appeal.rating.wouldRecommendScore <= 2) ||
+              (appeal.rating.wouldReturnScore !== null && appeal.rating.wouldReturnScore <= 2)) && (
+              <span className="text-xs font-medium text-destructive">Низкая оценка</span>
+            )}
         </div>
       </CardContent>
     </Card>
@@ -99,9 +107,10 @@ function KanbanColumn({
 /** Kanban — просто другое визуальное представление того же реестра обращений
  * (см. AppealsPage), не отдельный раздел с собственными данными. */
 export function KanbanBoard() {
+  const activeChannel = useAuthStore((s) => s.activeChannel);
   // API ограничивает pageSize максимумом 100 — для MVP-масштаба (до ~200 сотрудников)
   // этого достаточно, чтобы показать весь актуальный backlog на доске.
-  const { data } = useAppeals({ channel: "EMPLOYEE", page: 1, pageSize: 100 });
+  const { data } = useAppeals({ channel: activeChannel, page: 1, pageSize: 100 });
   const changeStatus = useChangeStatusAny();
   const [pendingCloseId, setPendingCloseId] = useState<string | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);

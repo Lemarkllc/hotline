@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
-import { APPEAL_STATUS_LABELS, EMPLOYEE_APPEAL_TYPE_LABELS, type EmployeeAppealType } from "@hotline/shared";
+import { APPEAL_STATUS_LABELS } from "@hotline/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { APPEAL_TYPE_LABELS } from "@/components/appeals/badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,10 +15,11 @@ function isoDate(d: Date): string {
 
 export function ReportsPage() {
   const hasPermission = useAuthStore((s) => s.hasPermission);
+  const activeChannel = useAuthStore((s) => s.activeChannel);
   const [from, setFrom] = useState(() => isoDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
   const [to, setTo] = useState(() => isoDate(new Date()));
 
-  const { data } = useReportSummary("EMPLOYEE", from, to);
+  const { data } = useReportSummary(activeChannel, from, to);
   const canExport = hasPermission("report.export");
   const canReadAuthor = hasPermission("appeal.read_author");
 
@@ -47,10 +49,10 @@ export function ReportsPage() {
         </div>
         {canExport && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => downloadReportExport("EMPLOYEE", from, to, "csv", canReadAuthor)}>
+            <Button variant="outline" onClick={() => downloadReportExport(activeChannel, from, to, "csv", canReadAuthor)}>
               <Download className="size-4" /> CSV
             </Button>
-            <Button variant="outline" onClick={() => downloadReportExport("EMPLOYEE", from, to, "xlsx", canReadAuthor)}>
+            <Button variant="outline" onClick={() => downloadReportExport(activeChannel, from, to, "xlsx", canReadAuthor)}>
               <Download className="size-4" /> XLSX
             </Button>
           </div>
@@ -82,7 +84,7 @@ export function ReportsPage() {
             <ul className="flex flex-col gap-1 text-sm">
               {Object.entries(data?.byType ?? {}).map(([type, count]) => (
                 <li key={type} className="flex justify-between">
-                  <span>{EMPLOYEE_APPEAL_TYPE_LABELS[type as EmployeeAppealType] ?? type}</span>
+                  <span>{APPEAL_TYPE_LABELS[type] ?? type}</span>
                   <span className="tabular-nums">{count}</span>
                 </li>
               ))}

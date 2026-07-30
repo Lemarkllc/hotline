@@ -131,7 +131,12 @@ export interface AppealDTO {
   }[];
   messages: { id: string; fromHrd: boolean; text: string; createdAt: string }[];
   statusHistory: { fromStatus: string | null; toStatus: string; createdAt: string }[];
-  rating: { score: number; comment: string | null } | null;
+  rating: {
+    score: number | null;
+    comment: string | null;
+    wouldRecommendScore: number | null;
+    wouldReturnScore: number | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;

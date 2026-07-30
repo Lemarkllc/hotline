@@ -1,19 +1,15 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Inbox, KanbanSquare, List, TrendingDown, X } from "lucide-react";
-import {
-  APPEAL_STATUSES,
-  APPEAL_STATUS_LABELS,
-  EMPLOYEE_APPEAL_TYPE_LABELS,
-  type EmployeeAppealType,
-} from "@hotline/shared";
+import { APPEAL_STATUSES, APPEAL_STATUS_LABELS } from "@hotline/shared";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ModeBadge, StatusBadge, TypeLabel } from "@/components/appeals/badges";
+import { APPEAL_TYPE_LABELS, ModeBadge, StatusBadge, TypeLabel } from "@/components/appeals/badges";
 import { KanbanBoard } from "@/components/appeals/KanbanBoard";
 import { useAppeals } from "@/hooks/api";
+import { useAuthStore } from "@/lib/authStore";
 
 const PAGE_SIZE = 20;
 type View = "list" | "kanban";
@@ -35,6 +31,7 @@ function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
  * визуальное представление того же реестра (запрос пользователя), поэтому
  * переключается тут же, а не отдельным пунктом меню. */
 export function AppealsRegistryPage() {
+  const activeChannel = useAuthStore((s) => s.activeChannel);
   const [searchParams, setSearchParams] = useSearchParams();
   const view: View = searchParams.get("view") === "kanban" ? "kanban" : "list";
   const [page, setPage] = useState(1);
@@ -51,7 +48,7 @@ export function AppealsRegistryPage() {
   const [lowRatingOnly, setLowRatingOnly] = useState(() => searchParams.get("lowRatingOnly") === "true");
 
   const { data, isLoading } = useAppeals({
-    channel: "EMPLOYEE",
+    channel: activeChannel,
     page,
     pageSize: PAGE_SIZE,
     status,
@@ -137,7 +134,7 @@ export function AppealsRegistryPage() {
                 onClick={() => setType(undefined)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm hover:bg-background"
               >
-                Тип: {EMPLOYEE_APPEAL_TYPE_LABELS[type as EmployeeAppealType] ?? type}
+                Тип: {APPEAL_TYPE_LABELS[type] ?? type}
                 <X className="size-3.5" />
               </button>
             )}

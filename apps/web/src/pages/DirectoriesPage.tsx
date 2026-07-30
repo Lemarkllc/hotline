@@ -1,20 +1,35 @@
 import { useState } from "react";
+import type { Channel } from "@hotline/shared";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCreateEpic, useEpics, useSetEpicActive } from "@/hooks/api";
 
-/** SRS §34.8 — справочники (пока только эпики; шаблоны/лимиты — вне MVP-скоупа). */
+/** SRS §34.8 — справочники (пока только эпики; шаблоны/лимиты — вне MVP-скоупа).
+ * Переключатель канала локальный для страницы, не завязан на глобальный activeChannel
+ * (Sidebar) — эта страница видна только Administrator (user.manage), а не «Продажам»,
+ * и Admin вполне может администрировать оба справочника за один визит. */
 export function DirectoriesPage() {
-  const { data: epics } = useEpics("EMPLOYEE");
+  const [channel, setChannel] = useState<Channel>("EMPLOYEE");
+  const { data: epics } = useEpics(channel);
   const create = useCreateEpic();
   const setActive = useSetEpicActive();
   const [name, setName] = useState("");
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Справочники — Эпики</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Справочники — Эпики</h1>
+        <div className="inline-flex rounded-md border border-border bg-surface p-1">
+          <Button variant={channel === "EMPLOYEE" ? "default" : "ghost"} size="sm" onClick={() => setChannel("EMPLOYEE")}>
+            Сотрудники
+          </Button>
+          <Button variant={channel === "CUSTOMER" ? "default" : "ghost"} size="sm" onClick={() => setChannel("CUSTOMER")}>
+            Клиенты
+          </Button>
+        </div>
+      </div>
       <Card>
         <CardContent className="flex flex-col gap-3 p-4">
           <div className="flex gap-2">
@@ -22,7 +37,7 @@ export function DirectoriesPage() {
             <Button
               disabled={!name.trim() || create.isPending}
               onClick={async () => {
-                await create.mutateAsync({ channel: "EMPLOYEE", name });
+                await create.mutateAsync({ channel, name });
                 setName("");
               }}
             >

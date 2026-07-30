@@ -23,15 +23,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  APPEAL_STATUS_LABELS,
-  EMPLOYEE_APPEAL_TYPE_LABELS,
-  type AppealStatus,
-  type EmployeeAppealType,
-} from "@hotline/shared";
+import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { APPEAL_TYPE_LABELS } from "@/components/appeals/badges";
 import { cn } from "@/lib/utils";
 import { useReportSummary } from "@/hooks/api";
+import { useAuthStore } from "@/lib/authStore";
 
 const TYPE_CHART_COLORS = ["#2563EB", "#7C3AED", "#16A34A", "#D97706", "#DC2626"];
 
@@ -101,6 +98,7 @@ function KpiCard({
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const activeChannel = useAuthStore((s) => s.activeChannel);
   const [days] = useState(30);
   const { from, to } = useMemo(() => {
     const now = new Date();
@@ -108,7 +106,7 @@ export function DashboardPage() {
     return { from: past.toISOString(), to: now.toISOString() };
   }, [days]);
 
-  const { data, isLoading } = useReportSummary("EMPLOYEE", from, to);
+  const { data, isLoading } = useReportSummary(activeChannel, from, to);
 
   if (isLoading || !data) {
     return <p className="text-muted-foreground">Загрузка...</p>;
@@ -121,7 +119,7 @@ export function DashboardPage() {
   }));
   const typeData = Object.entries(data.byType).map(([type, count]) => ({
     key: type,
-    name: EMPLOYEE_APPEAL_TYPE_LABELS[type as EmployeeAppealType] ?? type,
+    name: APPEAL_TYPE_LABELS[type] ?? type,
     value: count,
   }));
 

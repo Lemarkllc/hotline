@@ -2,12 +2,20 @@ import { EyeOff, ShieldCheck } from "lucide-react";
 import {
   APPEAL_MODE_LABELS,
   APPEAL_STATUS_LABELS,
+  CUSTOMER_APPEAL_TYPE_LABELS,
   EMPLOYEE_APPEAL_TYPE_LABELS,
   type AppealMode,
   type AppealStatus,
-  type EmployeeAppealType,
 } from "@hotline/shared";
 import { Badge } from "@/components/ui/badge";
+
+// Объединённая карта вместо только EMPLOYEE — иначе тип клиентского обращения
+// (Фаза 7) отображался бы как есть только по случайному совпадению текста
+// (COMPLAINT/GRATITUDE у обоих каналов читаются одинаково, но это не гарантия).
+export const APPEAL_TYPE_LABELS: Record<string, string> = {
+  ...EMPLOYEE_APPEAL_TYPE_LABELS,
+  ...CUSTOMER_APPEAL_TYPE_LABELS,
+};
 
 const STATUS_VARIANT: Record<AppealStatus, "default" | "warning" | "success"> = {
   OPEN: "default",
@@ -40,7 +48,7 @@ export function ModeBadge({ mode }: { mode: AppealMode }) {
 }
 
 export function TypeLabel({ type }: { type: string }) {
-  return <span>{EMPLOYEE_APPEAL_TYPE_LABELS[type as EmployeeAppealType] ?? type}</span>;
+  return <span>{APPEAL_TYPE_LABELS[type] ?? type}</span>;
 }
 
 export { APPEAL_MODE_LABELS };
