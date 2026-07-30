@@ -127,6 +127,40 @@ importers:
         specifier: ^2.1.1
         version: 2.1.9(@types/node@20.19.43)
 
+  apps/bot-customer:
+    dependencies:
+      '@grammyjs/conversations':
+        specifier: ^2.0.1
+        version: 2.1.1(grammy@1.45.0)
+      '@grammyjs/runner':
+        specifier: ^2.0.3
+        version: 2.0.3(grammy@1.45.0)
+      '@hotline/bot-core':
+        specifier: workspace:*
+        version: link:../../packages/bot-core
+      '@hotline/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      grammy:
+        specifier: ^1.31.0
+        version: 1.45.0
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.11.1
+    devDependencies:
+      '@types/node':
+        specifier: ^20.16.10
+        version: 20.19.43
+      tsx:
+        specifier: ^4.19.1
+        version: 4.23.1
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   apps/bot-employee:
     dependencies:
       '@grammyjs/conversations':

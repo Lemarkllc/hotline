@@ -112,14 +112,49 @@ export class ApiClient {
     });
   }
 
+  // --- Канал CUSTOMER (Фаза 7, PLAN.md §6) — bot-customer ---
+
+  identifyExternalContact(telegramId: string, fullName?: string, consentVersion?: string) {
+    return this.request<{ contactId: string; hasConsent: boolean; isNew: boolean }>(
+      "POST",
+      "/auth/customer-telegram",
+      { telegramId, fullName, consentVersion },
+    );
+  }
+
+  createCustomerAppeal(input: { telegramId: string; type: string; mode: "OPEN" | "CONFIDENTIAL"; originalText: string }) {
+    return this.request<{ id: string; publicNumber: string }>("POST", "/customer/appeals", input);
+  }
+
+  listMyCustomerAppeals(telegramId: string, page = 1, pageSize = 5, bucket: "OPEN" | "CLOSED" = "OPEN") {
+    return this.request<{ items: unknown[]; total: number }>(
+      "GET",
+      `/customer/appeals/mine?telegramId=${telegramId}&page=${page}&pageSize=${pageSize}&bucket=${bucket}`,
+    );
+  }
+
+  getMyCustomerAppeal(telegramId: string, id: string) {
+    return this.request<Record<string, unknown>>("GET", `/customer/appeals/mine/${id}?telegramId=${telegramId}`);
+  }
+
+  submitCustomerRating(telegramId: string, appealId: string, wouldRecommendScore: number, wouldReturnScore: number) {
+    return this.request<{ ok: true }>("POST", `/customer/appeals/${appealId}/rating`, {
+      telegramId,
+      wouldRecommendScore,
+      wouldReturnScore,
+    });
+  }
+
   listPendingNotifications() {
     return this.request<
       {
         id: string;
         userId: string | null;
+        externalContactId: string | null;
         appealId: string | null;
         payload: Record<string, unknown>;
         user: { telegramId: string | null } | null;
+        externalContact: { telegramId: string | null } | null;
       }[]
     >("GET", "/notifications/pending");
   }
