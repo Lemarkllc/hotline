@@ -8,9 +8,66 @@
     <meta name="theme-color" content="#d97706" />
     <link rel="icon" href="/icons/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <style>
+      /* Статический сплэш (не React-компонент — должен появиться раньше, чем JS
+       * успеет распарситься/выполниться). Только мобильная ширина — на десктопе
+       * панель открывают как обычный веб-инструмент, а не "запускают приложение",
+       * заставка там неуместна. Брейкпоинт совпадает с useIsMobile() (767px). */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: #f8fafc;
+        transition: opacity 0.25s ease;
+      }
+      #app-splash img {
+        width: 76px;
+        height: 76px;
+        border-radius: 20px;
+      }
+      #app-splash .wordmark {
+        font-family: "Inter", system-ui, sans-serif;
+        font-size: 22px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      #app-splash .wordmark span {
+        color: #d97706;
+      }
+      @media (min-width: 768px) {
+        #app-splash {
+          display: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash" aria-hidden="true">
+      <img src="/icons/icon-192.png" alt="" width="76" height="76" />
+      <div class="wordmark">Hot<span>Line</span></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Держим сплэш минимум 500мс независимо от того, как быстро отработал JS —
+      // иначе на быстром соединении он мигнёт на один кадр и будет больше похож на
+      // баг, чем на осознанный экран запуска. Дальше эстафету принимает React-скелетон
+      // (см. App.tsx) — уже с реальным статусом загрузки данных пользователя.
+      window.addEventListener("load", function () {
+        setTimeout(function () {
+          var el = document.getElementById("app-splash");
+          if (!el) return;
+          el.style.opacity = "0";
+          setTimeout(function () {
+            el.remove();
+          }, 250);
+        }, 500);
+      });
+    </script>
   </body>
 </html>

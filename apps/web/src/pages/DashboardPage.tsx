@@ -30,6 +30,7 @@ import { useAppeals, useReportSummary } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileDashboard } from "@/components/mobile/MobileDashboard";
+import { AppSkeleton } from "@/components/mobile/AppSkeleton";
 
 const TYPE_CHART_COLORS = ["#2563EB", "#7C3AED", "#16A34A", "#D97706", "#DC2626"];
 
@@ -115,7 +116,10 @@ export function DashboardPage() {
   const { data: recent } = useAppeals({ channel: activeChannel, page: 1, pageSize: 3 });
 
   if (isLoading || !data) {
-    return <p className="text-muted-foreground">Загрузка...</p>;
+    // На мобильном — тот же скелетон, что и на старте приложения (см. App.tsx/AppSkeleton):
+    // это первый экран после входа, "Загрузка..." голым текстом здесь так же чужеродно
+    // смотрелась бы после сплэша, как и на самом старте.
+    return isMobile ? <AppSkeleton /> : <p className="text-muted-foreground">Загрузка...</p>;
   }
 
   if (isMobile) {

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronLeft, Download, Lock, Paperclip, Send, ShieldAlert } from "lucide-react";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { cn } from "@/lib/utils";
 import { statusColor, APPEAL_TYPE_LABELS } from "@/components/appeals/badges";
 import { MentionTextarea } from "@/components/appeals/MentionTextarea";
 import { BottomSheet, BottomSheetContent, BottomSheetTitle, BottomSheetTrigger } from "@/components/ui/bottom-sheet";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 import type { AppealDTO } from "@/hooks/api";
 
 type DetailTab = "appeal" | "messages" | "internal" | "attachments";
@@ -89,6 +91,8 @@ export function AppealDetailMobile({
   onDownloadAttachment: (attachmentId: string) => void;
 }) {
   const [assignSheetOpen, setAssignSheetOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const { pullDistance, refreshing, threshold } = usePullToRefresh(contentRef);
 
   return (
     <div className="fixed inset-0 z-20 flex animate-in slide-in-from-right flex-col bg-background duration-300">
@@ -123,7 +127,8 @@ export function AppealDetailMobile({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4">
+      <div ref={contentRef} className="flex-1 overflow-y-auto px-4 pb-6 pt-4">
+        <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} threshold={threshold} />
         {/* Author card */}
         <button
           type="button"
