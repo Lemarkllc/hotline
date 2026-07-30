@@ -73,6 +73,18 @@ services:
       api: { condition: service_healthy }
     restart: unless-stopped
 
+  bot-customer:
+    build:
+      context: .
+      target: bot-customer
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      BOT_API_BASE_URL: http://api:4000/api/v1
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
   web:
     build:
       context: .

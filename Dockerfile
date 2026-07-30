@@ -18,6 +18,7 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/api/package.json apps/api/tsconfig.json apps/api/vitest.config.ts ./apps/api/
 COPY apps/bot-employee/package.json apps/bot-employee/tsconfig.json ./apps/bot-employee/
+COPY apps/bot-customer/package.json apps/bot-customer/tsconfig.json ./apps/bot-customer/
 COPY apps/web/package.json apps/web/tsconfig.json apps/web/vite.config.ts apps/web/tailwind.config.ts apps/web/postcss.config.js ./apps/web/
 RUN pnpm install --frozen-lockfile
 
@@ -26,6 +27,7 @@ COPY apps/api/prisma ./apps/api/prisma
 COPY apps/api/docker-entrypoint.sh ./apps/api/docker-entrypoint.sh
 RUN chmod +x ./apps/api/docker-entrypoint.sh
 COPY apps/bot-employee/src ./apps/bot-employee/src
+COPY apps/bot-customer/src ./apps/bot-customer/src
 COPY apps/web/index.html ./apps/web/index.html
 COPY apps/web/src ./apps/web/src
 COPY apps/web/public ./apps/web/public
@@ -41,6 +43,7 @@ RUN pnpm --filter @hotline/shared run build && \
     pnpm --filter @hotline/api exec prisma generate && \
     pnpm --filter @hotline/api run build && \
     pnpm --filter @hotline/bot-employee run build && \
+    pnpm --filter @hotline/bot-customer run build && \
     pnpm --filter @hotline/web run build
 
 # "build" (выше) специально остаётся С devDependencies (tsx и т.п.) — это
@@ -67,6 +70,12 @@ FROM base AS bot-employee
 ENV NODE_ENV=production
 COPY --from=build-prod /app /app
 WORKDIR /app/apps/bot-employee
+CMD ["node", "dist/index.js"]
+
+FROM base AS bot-customer
+ENV NODE_ENV=production
+COPY --from=build-prod /app /app
+WORKDIR /app/apps/bot-customer
 CMD ["node", "dist/index.js"]
 
 FROM caddy:2-alpine AS web
