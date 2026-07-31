@@ -64,6 +64,7 @@ export const EMPLOYEE_APPEAL_TYPES = [
   "VIOLATION",
   "QUESTION",
   "GRATITUDE",
+  "RESIGNATION",
 ] as const;
 export type EmployeeAppealType = (typeof EMPLOYEE_APPEAL_TYPES)[number];
 
@@ -73,6 +74,17 @@ export const EMPLOYEE_APPEAL_TYPE_LABELS: Record<EmployeeAppealType, string> = {
   VIOLATION: "Нарушение",
   QUESTION: "Вопрос",
   GRATITUDE: "Благодарность",
+  RESIGNATION: "Увольнение",
+};
+
+/** Исход закрытия заявления на увольнение (type="RESIGNATION") — не общий AppealStatus,
+ * см. Appeal.resignationOutcome в schema.prisma и appealService.changeStatus. */
+export const RESIGNATION_OUTCOMES = ["TERMINATED", "WITHDRAWN"] as const;
+export type ResignationOutcome = (typeof RESIGNATION_OUTCOMES)[number];
+
+export const RESIGNATION_OUTCOME_LABELS: Record<ResignationOutcome, string> = {
+  TERMINATED: "Уволен(а)",
+  WITHDRAWN: "Отозвано",
 };
 
 export const APPEAL_MODE_LABELS: Record<AppealMode, string> = {

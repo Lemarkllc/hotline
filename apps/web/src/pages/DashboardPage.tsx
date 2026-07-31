@@ -8,6 +8,8 @@ import {
   Star,
   Timer,
   TrendingDown,
+  UserCheck,
+  UserX,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -32,7 +34,22 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileDashboard } from "@/components/mobile/MobileDashboard";
 import { AppSkeleton } from "@/components/mobile/AppSkeleton";
 
-const TYPE_CHART_COLORS = ["#2563EB", "#7C3AED", "#16A34A", "#D97706", "#DC2626"];
+// Привязано к конкретному типу (не позиции в массиве) — иначе следующий добавленный
+// тип молча переиспользует чужой цвет (см. PLAN.md "Заявление на увольнение").
+const TYPE_CHART_COLORS: Record<string, string> = {
+  COMPLAINT: "#2563EB",
+  SUGGESTION: "#7C3AED",
+  VIOLATION: "#DC2626",
+  QUESTION: "#0891B2",
+  GRATITUDE: "#16A34A",
+  RESIGNATION: "#D97706",
+};
+const TYPE_CHART_FALLBACK_COLOR = "#64748B";
+
+const RESIGNATION_OUTCOME_COLORS: Record<"TERMINATED" | "WITHDRAWN", string> = {
+  TERMINATED: "#DC2626",
+  WITHDRAWN: "#16A34A",
+};
 
 /** Тот же цветовой язык, что и в Kanban-колонках (KanbanBoard.tsx) — воронка
  * читается одинаково что на доске, что на дашборде. */
@@ -136,6 +153,10 @@ export function DashboardPage() {
     name: APPEAL_TYPE_LABELS[type] ?? type,
     value: count,
   }));
+  const resignationData = [
+    { key: "TERMINATED" as const, name: "Уволено", value: data.resignationsTerminated },
+    { key: "WITHDRAWN" as const, name: "Удержано", value: data.resignationsWithdrawn },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -186,6 +207,20 @@ export function DashboardPage() {
           icon={Timer}
           accent="slate"
         />
+        <KpiCard
+          label="Уволено"
+          value={data.resignationsTerminated}
+          icon={UserX}
+          accent="destructive"
+          to="/appeals?type=RESIGNATION"
+        />
+        <KpiCard
+          label="Удержано"
+          value={data.resignationsWithdrawn}
+          icon={UserCheck}
+          accent="success"
+          to="/appeals?type=RESIGNATION"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -231,12 +266,38 @@ export function DashboardPage() {
                   cursor="pointer"
                   onClick={(entry) => navigate(`/appeals?type=${entry.key}`)}
                 >
-                  {typeData.map((d, i) => (
-                    <Cell key={d.key} fill={TYPE_CHART_COLORS[i % TYPE_CHART_COLORS.length]} />
+                  {typeData.map((d) => (
+                    <Cell key={d.key} fill={TYPE_CHART_COLORS[d.key] ?? TYPE_CHART_FALLBACK_COLOR} />
                   ))}
                 </Pie>
                 <Tooltip />
               </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Увольнения: уволено vs удержано</CardTitle>
+          </CardHeader>
+          <CardContent className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={resignationData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar
+                  dataKey="value"
+                  radius={[4, 4, 0, 0]}
+                  cursor="pointer"
+                  onClick={() => navigate("/appeals?type=RESIGNATION")}
+                >
+                  {resignationData.map((d) => (
+                    <Cell key={d.key} fill={RESIGNATION_OUTCOME_COLORS[d.key]} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

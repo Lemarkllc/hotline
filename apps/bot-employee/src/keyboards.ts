@@ -7,6 +7,7 @@ const TYPE_DESCRIPTIONS: Record<string, string> = {
   VIOLATION: "сообщить о несоблюдении правил",
   QUESTION: "получить официальный ответ",
   GRATITUDE: "отметить хорошую работу",
+  RESIGNATION: "подать заявление на увольнение",
 };
 
 export function typeKeyboard(): InlineKeyboard {
@@ -48,17 +49,14 @@ export function attachmentsKeyboard(count: number): InlineKeyboard {
   return kb;
 }
 
-export function previewKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text("Отправить", "submit")
-    .row()
-    .text("Изменить текст", "edit_text")
-    .row()
-    .text("Изменить режим", "edit_mode")
-    .row()
-    .text("Изменить вложения", "edit_attachments")
-    .row()
-    .text("Отменить", "cancel");
+/** hideModeEdit — для заявления на увольнение режим всегда OPEN и не редактируется
+ * (см. newAppeal.ts, isResignation), поэтому кнопка "Изменить режим" не показывается. */
+export function previewKeyboard(hideModeEdit = false): InlineKeyboard {
+  const kb = new InlineKeyboard().text("Отправить", "submit").row().text("Изменить текст", "edit_text").row();
+  if (!hideModeEdit) {
+    kb.text("Изменить режим", "edit_mode").row();
+  }
+  return kb.text("Изменить вложения", "edit_attachments").row().text("Отменить", "cancel");
 }
 
 export function ratingKeyboard(appealId: string): InlineKeyboard {

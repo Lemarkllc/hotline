@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { APPEAL_MODES, CUSTOMER_APPEAL_TYPES, EMPLOYEE_APPEAL_TYPES } from "./enums.js";
 
-/** Используется и ботом (перед отправкой в API), и API (как источник валидации на сервере). */
+/** Используется и ботом (перед отправкой в API), и API (как источник валидации на сервере).
+ * Намеренно ОСТАЁТСЯ голым ZodObject (не .superRefine()) — apps/api/src/validators/
+ * appeal.schema.ts делает .extend({ telegramId }) поверх него, а .extend() недоступен
+ * на ZodEffects (результат .refine()/.superRefine()). Type/mode-специфичные правила
+ * (RESIGNATION → mode всегда OPEN, вложение обязательно) навешаны через
+ * refineEmployeeAppealRules() ПОСЛЕ .extend() в потребителе, а не здесь. */
 export const createEmployeeAppealSchema = z.object({
   type: z.enum(EMPLOYEE_APPEAL_TYPES),
   mode: z.enum(APPEAL_MODES),
@@ -9,6 +14,32 @@ export const createEmployeeAppealSchema = z.object({
   attachmentIds: z.array(z.string().uuid()).max(10, "Не более 10 вложений").default([]),
 });
 export type CreateEmployeeAppealInput = z.infer<typeof createEmployeeAppealSchema>;
+
+/** Заявление на увольнение — всегда открытое (HR физически не может обработать
+ * анонимное увольнение) и требует хотя бы одно вложение (копия подписанного
+ * заявления). Серверная проверка, не только шаг бота — иначе оба правила можно
+ * обойти прямым вызовом API в обход диалога. Общая функция, а не .superRefine()
+ * прямо на схеме — см. комментарий у createEmployeeAppealSchema про .extend(). */
+export function refineEmployeeAppealRules<T extends { type: string; mode: string; attachmentIds: string[] }>(
+  data: T,
+  ctx: z.RefinementCtx,
+): void {
+  if (data.type !== "RESIGNATION") return;
+  if (data.mode !== "OPEN") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["mode"],
+      message: "Заявление на увольнение не может быть конфиденциальным",
+    });
+  }
+  if (data.attachmentIds.length < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["attachmentIds"],
+      message: "Заявление на увольнение требует фото копии подписанного заявления",
+    });
+  }
+}
 
 /** Фаза 7 (PLAN.md §6) — тот же режим OPEN/CONFIDENTIAL, что и у сотрудников (решено
  * 17.07.2026), но короче список типов (см. CUSTOMER_APPEAL_TYPES). */

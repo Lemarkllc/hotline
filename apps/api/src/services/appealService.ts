@@ -4,6 +4,7 @@ import {
   type AppealMode,
   type AppealStatus,
   type Channel,
+  type ResignationOutcome,
 } from "@hotline/shared";
 import {
   appealRepository,
@@ -16,6 +17,7 @@ import { getPresignedDownloadUrl } from "@/lib/storage.js";
 import { auditService } from "@/services/auditService.js";
 import { authService } from "@/services/authService.js";
 import { notificationService } from "@/services/notificationService.js";
+import { userService } from "@/services/userService.js";
 import type { AuthenticatedUser } from "@/types/index.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/types/index.js";
 import { canRevealAuthor, canSeeAuthor, hasChannelPermission } from "@/utils/authz.js";
@@ -27,6 +29,8 @@ export interface AppealDTO {
   type: string;
   mode: AppealMode;
   status: AppealStatus;
+  /** Только type="RESIGNATION" — исход закрытия (см. Appeal.resignationOutcome). */
+  resignationOutcome: ResignationOutcome | null;
   epic: { id: string; name: string } | null;
   originalText: string;
   workingEdit: string | null;
@@ -177,6 +181,7 @@ export class AppealService {
     toStatus: AppealStatus,
     reason: string | undefined,
     finalAnswer: string | undefined,
+    resignationOutcome: ResignationOutcome | undefined,
   ): Promise<AppealDTO> {
     const appeal = await appealRepository.findById(id);
     if (!appeal) throw new NotFoundError("Обращение не найдено");
@@ -197,6 +202,12 @@ export class AppealService {
       if (!finalAnswer?.trim()) {
         throw new ValidationError("Закрытие требует итогового ответа (FR-WF-005)");
       }
+      // Заявление на увольнение — не общий статус, а исход внутри CLOSED (см. PLAN.md
+      // "Заявление на увольнение"): без выбора "Уволить"/"Отозвано" непонятно, нужно ли
+      // автоматически блокировать сотрудника ниже.
+      if (appeal.type === "RESIGNATION" && !resignationOutcome) {
+        throw new ValidationError("Закрытие заявления на увольнение требует выбора исхода");
+      }
       await appealRepository.addComment({
         appealId: id,
         authorId: user.id,
@@ -204,15 +215,32 @@ export class AppealService {
         text: finalAnswer,
         isFinalAnswer: true,
       });
-      await appealRepository.addMessage(id, true, finalAnswer);
+      await appealRepository.addMessage(id, true, finalAnswer, user.id);
     }
 
     if (appeal.status === "CLOSED" && toStatus === "IN_PROGRESS" && !reason?.trim()) {
       throw new ValidationError("Повторное открытие требует причины (FR-WF-006)");
     }
 
-    await appealRepository.changeStatus(id, toStatus, user.id, reason);
+    // Реоткрытие сбрасывает исход — он больше не финальный. Сотрудника, уже
+    // заблокированного при исходе TERMINATED, обратно НЕ разблокируем автоматически:
+    // осознанная асимметрия, разблокировка — отдельное ручное решение (страница
+    // "Пользователи"), а не побочный эффект реоткрытия обращения.
+    const nextResignationOutcome =
+      appeal.type === "RESIGNATION" && appeal.status === "CLOSED" && toStatus === "IN_PROGRESS"
+        ? null
+        : toStatus === "CLOSED"
+          ? (resignationOutcome ?? null)
+          : undefined;
+
+    await appealRepository.changeStatus(id, toStatus, user.id, reason, nextResignationOutcome);
     await notificationService.notifyStatusChanged(id, toStatus, toStatus === "CLOSED" ? finalAnswer : undefined);
+
+    if (toStatus === "CLOSED" && appeal.type === "RESIGNATION" && resignationOutcome === "TERMINATED") {
+      // appeal.authorUserId гарантированно есть — RESIGNATION существует только на
+      // канале EMPLOYEE, где автор всегда User (никогда ExternalContact).
+      await userService.blockUser(user, appeal.authorUserId!, `Уволен(а) по заявлению ${appeal.publicNumber}`);
+    }
 
     const updated = await appealRepository.findById(id);
     return this.serializeForStaff(updated!, user);
@@ -472,6 +500,7 @@ export class AppealService {
       type: appeal.type,
       mode: appeal.mode,
       status: appeal.status,
+      resignationOutcome: appeal.resignationOutcome,
       epic: appeal.epic ? { id: appeal.epic.id, name: appeal.epic.name } : null,
       originalText: appeal.originalText,
       workingEdit: appeal.workingEdit,
@@ -583,6 +612,7 @@ export class AppealService {
       type: appeal.type,
       mode: appeal.mode,
       status: appeal.status,
+      resignationOutcome: appeal.resignationOutcome,
       epic: appeal.epic ? { id: appeal.epic.id, name: appeal.epic.name } : null,
       originalText: appeal.originalText,
       workingEdit: null, // автору рабочая редакция не показывается — это внутренний инструмент HRD

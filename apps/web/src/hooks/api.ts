@@ -112,6 +112,8 @@ export interface AppealDTO {
   type: string;
   mode: "OPEN" | "CONFIDENTIAL";
   status: "OPEN" | "UNDER_REVIEW" | "IN_PROGRESS" | "CLOSED";
+  /** Только type="RESIGNATION" — исход закрытия. */
+  resignationOutcome: "TERMINATED" | "WITHDRAWN" | null;
   epic: { id: string; name: string } | null;
   originalText: string;
   workingEdit: string | null;
@@ -156,8 +158,12 @@ function useInvalidateAppeal(id?: string) {
 export function useChangeStatus(id: string) {
   const invalidate = useInvalidateAppeal(id);
   return useMutation({
-    mutationFn: (input: { toStatus: string; reason?: string; finalAnswer?: string }) =>
-      apiRequest<AppealDTO>(`/appeals/${id}/status`, { method: "PATCH", body: input }),
+    mutationFn: (input: {
+      toStatus: string;
+      reason?: string;
+      finalAnswer?: string;
+      resignationOutcome?: "TERMINATED" | "WITHDRAWN";
+    }) => apiRequest<AppealDTO>(`/appeals/${id}/status`, { method: "PATCH", body: input }),
     onSuccess: invalidate,
   });
 }
@@ -167,8 +173,16 @@ export function useChangeStatus(id: string) {
 export function useChangeStatusAny() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...input }: { id: string; toStatus: string; reason?: string; finalAnswer?: string }) =>
-      apiRequest<AppealDTO>(`/appeals/${id}/status`, { method: "PATCH", body: input }),
+    mutationFn: ({
+      id,
+      ...input
+    }: {
+      id: string;
+      toStatus: string;
+      reason?: string;
+      finalAnswer?: string;
+      resignationOutcome?: "TERMINATED" | "WITHDRAWN";
+    }) => apiRequest<AppealDTO>(`/appeals/${id}/status`, { method: "PATCH", body: input }),
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({ queryKey: ["appeals"] });
       void qc.invalidateQueries({ queryKey: ["appeal", vars.id] });
@@ -393,6 +407,9 @@ export interface ReportSummary {
   avgClosingMinutes: number | null;
   reopenedCount: number;
   backlogAtPeriodEnd: number;
+  /** Заявления на увольнение (type="RESIGNATION"), закрытые в периоде — по исходу. */
+  resignationsTerminated: number;
+  resignationsWithdrawn: number;
 }
 
 export function useReportSummary(channel: Channel, from: string, to: string) {

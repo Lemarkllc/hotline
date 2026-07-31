@@ -5,16 +5,20 @@ import {
   createEmployeeAppealSchema,
   customerRatingSchema,
   paginationSchema,
+  refineEmployeeAppealRules,
+  RESIGNATION_OUTCOMES,
 } from "@hotline/shared";
 
 export { ratingSchema, createCommentSchema } from "@hotline/shared";
 
 const telegramIdField = z.union([z.string(), z.number()]).transform((v) => String(v));
 
-/** Обращение всегда создаётся ботом от имени конкретного Telegram-пользователя. */
-export const createAppealBotSchema = createEmployeeAppealSchema.extend({
-  telegramId: telegramIdField,
-});
+/** Обращение всегда создаётся ботом от имени конкретного Telegram-пользователя.
+ * .superRefine() — после .extend(), не в самой createEmployeeAppealSchema (та
+ * специально голый ZodObject, см. её комментарий в packages/shared/src/schemas.ts). */
+export const createAppealBotSchema = createEmployeeAppealSchema
+  .extend({ telegramId: telegramIdField })
+  .superRefine(refineEmployeeAppealRules);
 
 /** Фаза 7 (PLAN.md §6) — бот клиентов, без attachmentIds в этом заходе (см.
  * appealService "Канал CUSTOMER"). */
@@ -61,6 +65,9 @@ export const changeStatusSchema = z.object({
   toStatus: z.enum(APPEAL_STATUSES),
   reason: z.string().trim().max(1000).optional(),
   finalAnswer: z.string().trim().max(4000).optional(),
+  /** Только для закрытия обращения type="RESIGNATION" — appealService.changeStatus
+   * требует его отдельно (тут просто формат значения). */
+  resignationOutcome: z.enum(RESIGNATION_OUTCOMES).optional(),
 });
 
 export const assignSchema = z.object({

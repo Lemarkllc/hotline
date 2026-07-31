@@ -27,23 +27,36 @@ export class ReportService {
 
     const baseWhere = { channel, deletedAt: null, createdAt: { gte: from, lte: to } } as const;
 
-    const [createdCount, byStatus, byType, byEpic, ratingAgg, lowRatingCount, ratedCount, reopenedCount, backlogCount] =
-      await Promise.all([
-        prisma.appeal.count({ where: baseWhere }),
-        prisma.appeal.groupBy({ by: ["status"], where: baseWhere, _count: true }),
-        prisma.appeal.groupBy({ by: ["type"], where: baseWhere, _count: true }),
-        prisma.appeal.groupBy({ by: ["epicId"], where: baseWhere, _count: true }),
-        prisma.rating.aggregate({
-          where: { appeal: baseWhere },
-          _avg: { score: true },
-        }),
-        prisma.rating.count({ where: { appeal: baseWhere, score: { lte: 2 } } }),
-        prisma.rating.count({ where: { appeal: baseWhere } }),
-        prisma.appealStatusHistory.count({
-          where: { appeal: baseWhere, fromStatus: "CLOSED", toStatus: "IN_PROGRESS" },
-        }),
-        prisma.appeal.count({ where: { channel, deletedAt: null, createdAt: { lte: to }, status: { not: "CLOSED" } } }),
-      ]);
+    const [
+      createdCount,
+      byStatus,
+      byType,
+      byEpic,
+      ratingAgg,
+      lowRatingCount,
+      ratedCount,
+      reopenedCount,
+      backlogCount,
+      resignationsTerminated,
+      resignationsWithdrawn,
+    ] = await Promise.all([
+      prisma.appeal.count({ where: baseWhere }),
+      prisma.appeal.groupBy({ by: ["status"], where: baseWhere, _count: true }),
+      prisma.appeal.groupBy({ by: ["type"], where: baseWhere, _count: true }),
+      prisma.appeal.groupBy({ by: ["epicId"], where: baseWhere, _count: true }),
+      prisma.rating.aggregate({
+        where: { appeal: baseWhere },
+        _avg: { score: true },
+      }),
+      prisma.rating.count({ where: { appeal: baseWhere, score: { lte: 2 } } }),
+      prisma.rating.count({ where: { appeal: baseWhere } }),
+      prisma.appealStatusHistory.count({
+        where: { appeal: baseWhere, fromStatus: "CLOSED", toStatus: "IN_PROGRESS" },
+      }),
+      prisma.appeal.count({ where: { channel, deletedAt: null, createdAt: { lte: to }, status: { not: "CLOSED" } } }),
+      prisma.appeal.count({ where: { ...baseWhere, type: "RESIGNATION", resignationOutcome: "TERMINATED" } }),
+      prisma.appeal.count({ where: { ...baseWhere, type: "RESIGNATION", resignationOutcome: "WITHDRAWN" } }),
+    ]);
 
     const timingRows = await prisma.$queryRaw<TimingRow[]>`
       SELECT
@@ -79,6 +92,8 @@ export class ReportService {
       avgClosingMinutes,
       reopenedCount,
       backlogAtPeriodEnd: backlogCount,
+      resignationsTerminated,
+      resignationsWithdrawn,
     };
   }
 

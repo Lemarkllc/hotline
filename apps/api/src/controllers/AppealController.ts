@@ -92,8 +92,15 @@ export class AppealController extends BaseController {
 
   async changeStatus(req: Request, res: Response): Promise<void> {
     try {
-      const { toStatus, reason, finalAnswer } = req.body as z.infer<typeof changeStatusSchema>;
-      const dto = await appealService.changeStatus(req.user!, pathParam(req, "id"), toStatus, reason, finalAnswer);
+      const { toStatus, reason, finalAnswer, resignationOutcome } = req.body as z.infer<typeof changeStatusSchema>;
+      const dto = await appealService.changeStatus(
+        req.user!,
+        pathParam(req, "id"),
+        toStatus,
+        reason,
+        finalAnswer,
+        resignationOutcome,
+      );
       this.handleSuccess(res, dto);
     } catch (error) {
       this.handleError(error, res, "changeStatus");

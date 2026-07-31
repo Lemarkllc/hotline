@@ -4,7 +4,9 @@ import { Download, EyeOff, Paperclip, ShieldAlert } from "lucide-react";
 import {
   APPEAL_STATUS_LABELS,
   APPEAL_STATUS_TRANSITIONS,
+  RESIGNATION_OUTCOME_LABELS,
   type AppealStatus,
+  type ResignationOutcome,
 } from "@hotline/shared";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,6 +46,7 @@ export function AppealDetailPage() {
 
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [finalAnswer, setFinalAnswer] = useState("");
+  const [resignationOutcome, setResignationOutcome] = useState<ResignationOutcome | "">("");
   const [workingEdit, setWorkingEdit] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [newInternalNote, setNewInternalNote] = useState("");
@@ -195,16 +198,42 @@ export function AppealDetailPage() {
         <DialogTitle>Закрытие обращения</DialogTitle>
         <DialogDescription>Закрытие требует итогового ответа автору (FR-WF-005).</DialogDescription>
         <Textarea rows={4} value={finalAnswer} onChange={(e) => setFinalAnswer(e.target.value)} className="mt-4" />
+        {appeal.type === "RESIGNATION" && (
+          <div className="mt-4 flex flex-col gap-1">
+            <Label>Исход</Label>
+            <Select
+              value={resignationOutcome}
+              onValueChange={(v) => setResignationOutcome(v as ResignationOutcome)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите исход" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TERMINATED">{RESIGNATION_OUTCOME_LABELS.TERMINATED}</SelectItem>
+                <SelectItem value="WITHDRAWN">{RESIGNATION_OUTCOME_LABELS.WITHDRAWN}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>
             Отменить
           </Button>
           <Button
-            disabled={!finalAnswer.trim() || changeStatus.isPending}
+            disabled={
+              !finalAnswer.trim() ||
+              changeStatus.isPending ||
+              (appeal.type === "RESIGNATION" && !resignationOutcome)
+            }
             onClick={async () => {
-              await changeStatus.mutateAsync({ toStatus: "CLOSED", finalAnswer });
+              await changeStatus.mutateAsync({
+                toStatus: "CLOSED",
+                finalAnswer,
+                resignationOutcome: resignationOutcome || undefined,
+              });
               setCloseDialogOpen(false);
               setFinalAnswer("");
+              setResignationOutcome("");
             }}
           >
             Закрыть обращение
@@ -613,16 +642,42 @@ export function AppealDetailPage() {
           <DialogTitle>Закрытие обращения</DialogTitle>
           <DialogDescription>Закрытие требует итогового ответа автору (FR-WF-005).</DialogDescription>
           <Textarea rows={4} value={finalAnswer} onChange={(e) => setFinalAnswer(e.target.value)} className="mt-4" />
+          {appeal.type === "RESIGNATION" && (
+            <div className="mt-4 flex flex-col gap-1">
+              <Label>Исход</Label>
+              <Select
+                value={resignationOutcome}
+                onValueChange={(v) => setResignationOutcome(v as ResignationOutcome)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите исход" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TERMINATED">{RESIGNATION_OUTCOME_LABELS.TERMINATED}</SelectItem>
+                  <SelectItem value="WITHDRAWN">{RESIGNATION_OUTCOME_LABELS.WITHDRAWN}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>
               Отменить
             </Button>
             <Button
-              disabled={!finalAnswer.trim() || changeStatus.isPending}
+              disabled={
+                !finalAnswer.trim() ||
+                changeStatus.isPending ||
+                (appeal.type === "RESIGNATION" && !resignationOutcome)
+              }
               onClick={async () => {
-                await changeStatus.mutateAsync({ toStatus: "CLOSED", finalAnswer });
+                await changeStatus.mutateAsync({
+                  toStatus: "CLOSED",
+                  finalAnswer,
+                  resignationOutcome: resignationOutcome || undefined,
+                });
                 setCloseDialogOpen(false);
                 setFinalAnswer("");
+                setResignationOutcome("");
               }}
             >
               Закрыть обращение

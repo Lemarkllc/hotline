@@ -36,6 +36,7 @@ export const GUIDED_QUESTIONS: Record<EmployeeAppealType, string[]> = {
     "За что именно?",
     "Можно ли передать благодарность открыто?",
   ],
+  RESIGNATION: ["Причина увольнения:"],
 };
 
 export const URGENT_VIOLATION_WARNING =

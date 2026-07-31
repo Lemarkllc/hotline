@@ -1,11 +1,19 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { APPEAL_STATUS_LABELS, APPEAL_STATUS_TRANSITIONS, type AppealStatus } from "@hotline/shared";
+import {
+  APPEAL_STATUS_LABELS,
+  APPEAL_STATUS_TRANSITIONS,
+  RESIGNATION_OUTCOME_LABELS,
+  type AppealStatus,
+  type ResignationOutcome,
+} from "@hotline/shared";
 import { Card, CardContent } from "@/components/ui/card";
 import { ModeBadge, TypeLabel } from "@/components/appeals/badges";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppeals, useChangeStatusAny, type AppealDTO } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
 
@@ -112,7 +120,7 @@ export function KanbanBoard() {
   // этого достаточно, чтобы показать весь актуальный backlog на доске.
   const { data } = useAppeals({ channel: activeChannel, page: 1, pageSize: 100 });
   const changeStatus = useChangeStatusAny();
-  const [pendingCloseId, setPendingCloseId] = useState<string | null>(null);
+  const [pendingClose, setPendingClose] = useState<AppealDTO | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
 
   const appealsByStatus = new Map<AppealStatus, AppealDTO[]>(COLUMNS.map((s) => [s, []]));
@@ -132,7 +140,7 @@ export function KanbanBoard() {
       return;
     }
     if (toStatus === "CLOSED") {
-      setPendingCloseId(appealId);
+      setPendingClose(appeal);
       return;
     }
     changeStatus.mutate({ id: appealId, toStatus });
@@ -161,24 +169,32 @@ export function KanbanBoard() {
         </DialogContent>
       </Dialog>
 
-      <CloseAppealDialog appealId={pendingCloseId} onClose={() => setPendingCloseId(null)} />
+      <CloseAppealDialog appeal={pendingClose} onClose={() => setPendingClose(null)} />
     </div>
   );
 }
 
-function CloseAppealDialog({ appealId, onClose }: { appealId: string | null; onClose: () => void }) {
+function CloseAppealDialog({ appeal, onClose }: { appeal: AppealDTO | null; onClose: () => void }) {
   const [finalAnswer, setFinalAnswer] = useState("");
+  const [resignationOutcome, setResignationOutcome] = useState<ResignationOutcome | "">("");
   const changeStatus = useChangeStatusAny();
+  const isResignation = appeal?.type === "RESIGNATION";
 
   async function handleSubmit() {
-    if (!appealId) return;
-    await changeStatus.mutateAsync({ id: appealId, toStatus: "CLOSED", finalAnswer });
+    if (!appeal) return;
+    await changeStatus.mutateAsync({
+      id: appeal.id,
+      toStatus: "CLOSED",
+      finalAnswer,
+      resignationOutcome: resignationOutcome || undefined,
+    });
     setFinalAnswer("");
+    setResignationOutcome("");
     onClose();
   }
 
   return (
-    <Dialog open={Boolean(appealId)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={Boolean(appeal)} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogTitle>Закрытие обращения</DialogTitle>
         <DialogDescription>Закрытие требует итогового ответа автору (FR-WF-005).</DialogDescription>
@@ -189,11 +205,28 @@ function CloseAppealDialog({ appealId, onClose }: { appealId: string | null; onC
           value={finalAnswer}
           onChange={(e) => setFinalAnswer(e.target.value)}
         />
+        {isResignation && (
+          <div className="mt-4 flex flex-col gap-1">
+            <Label>Исход</Label>
+            <Select value={resignationOutcome} onValueChange={(v) => setResignationOutcome(v as ResignationOutcome)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите исход" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TERMINATED">{RESIGNATION_OUTCOME_LABELS.TERMINATED}</SelectItem>
+                <SelectItem value="WITHDRAWN">{RESIGNATION_OUTCOME_LABELS.WITHDRAWN}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Отменить
           </Button>
-          <Button disabled={!finalAnswer.trim() || changeStatus.isPending} onClick={handleSubmit}>
+          <Button
+            disabled={!finalAnswer.trim() || changeStatus.isPending || (isResignation && !resignationOutcome)}
+            onClick={handleSubmit}
+          >
             Закрыть обращение
           </Button>
         </DialogFooter>

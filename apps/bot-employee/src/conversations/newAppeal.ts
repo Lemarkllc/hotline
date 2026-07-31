@@ -103,23 +103,41 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
   // @grammyjs/conversations (https://github.com/grammyjs/conversations/issues/32),
   // намертво вешающее механизм повтора разговора после второго файла. Здесь конверсация
   // только включает/выключает режим сбора и ждёт финальную кнопку.
-  async function collectAttachments(): Promise<string[] | "cancel"> {
+  /** requireAtLeastOne — для заявления на увольнение вложение (копия подписанного
+   * заявления) обязательно: нельзя нажать «Перейти дальше» с пустым списком. */
+  async function collectAttachments(requireAtLeastOne = false): Promise<string[] | "cancel"> {
     await conversation.external((c) => {
       c.session.draftAttachmentIds = [];
     });
     await ctx.reply(
-      "Можно приложить до 10 фото или видео — просто отправьте их сюда файлом (через скрепку), " +
-        "как обычное сообщение. Когда закончите — нажмите «Перейти дальше».",
+      requireAtLeastOne
+        ? "Прикрепите фото копии подписанного заявления на увольнение — отправьте его сюда файлом " +
+            "(через скрепку). Когда закончите — нажмите «Перейти дальше»."
+        : "Можно приложить до 10 фото или видео — просто отправьте их сюда файлом (через скрепку), " +
+            "как обычное сообщение. Когда закончите — нажмите «Перейти дальше».",
       { reply_markup: attachmentsKeyboard(0) },
     );
-    const answer = await conversation.waitForCallbackQuery(["attach_done", "cancel"]);
-    await answer.answerCallbackQuery();
-    const ids = await conversation.external((c) => {
-      const result = c.session.draftAttachmentIds ?? [];
-      c.session.draftAttachmentIds = undefined;
-      return result;
-    });
-    return answer.callbackQuery.data === "cancel" ? "cancel" : ids;
+    for (;;) {
+      const answer = await conversation.waitForCallbackQuery(["attach_done", "cancel"]);
+      await answer.answerCallbackQuery();
+      if (answer.callbackQuery.data === "cancel") {
+        await conversation.external((c) => {
+          c.session.draftAttachmentIds = undefined;
+        });
+        return "cancel";
+      }
+      const ids = await conversation.external((c) => c.session.draftAttachmentIds ?? []);
+      if (requireAtLeastOne && ids.length === 0) {
+        await ctx.reply("Нужно приложить хотя бы одно фото копии заявления, прежде чем продолжить.", {
+          reply_markup: attachmentsKeyboard(0),
+        });
+        continue;
+      }
+      await conversation.external((c) => {
+        c.session.draftAttachmentIds = undefined;
+      });
+      return ids;
+    }
   }
 
   let type = await pickType();
@@ -128,10 +146,19 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
     return;
   }
 
-  let mode = await pickMode();
-  if (mode === "cancel") {
-    await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
-    return;
+  // Заявление на увольнение всегда открытое — HR физически не может обработать
+  // анонимное увольнение (см. PLAN.md). Бот не показывает выбор режима вообще.
+  const isResignation = type === "RESIGNATION";
+  let mode: AppealMode;
+  if (isResignation) {
+    mode = "OPEN";
+  } else {
+    const result = await pickMode();
+    if (result === "cancel") {
+      await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
+      return;
+    }
+    mode = result;
   }
 
   let originalText = await collectText(type);
@@ -140,7 +167,7 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
     return;
   }
 
-  let attachmentIds = await collectAttachments();
+  let attachmentIds = await collectAttachments(isResignation);
   if (attachmentIds === "cancel") {
     await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
     return;
@@ -153,7 +180,7 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
         `Текст: ${originalText}\n` +
         `Вложения: ${attachmentIds.length}\n\n` +
         "Проверьте данные перед отправкой.",
-      { reply_markup: previewKeyboard() },
+      { reply_markup: previewKeyboard(isResignation) },
     );
     const answer = await conversation.waitForCallbackQuery([
       "submit",
@@ -177,7 +204,7 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
       }
       originalText = result;
     }
-    if (answer.callbackQuery.data === "edit_mode") {
+    if (answer.callbackQuery.data === "edit_mode" && !isResignation) {
       const result = await pickMode();
       if (result === "cancel") {
         await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
@@ -186,7 +213,7 @@ export async function newAppeal(conversation: BotConversation, ctx: Context): Pr
       mode = result;
     }
     if (answer.callbackQuery.data === "edit_attachments") {
-      const result = await collectAttachments();
+      const result = await collectAttachments(isResignation);
       if (result === "cancel") {
         await ctx.reply("Создание обращения отменено.", { reply_markup: MAIN_MENU_KEYBOARD });
         return;

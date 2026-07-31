@@ -38,6 +38,13 @@ enum AppealStatus {
   CLOSED
 }
 
+/// Исход закрытия заявления на увольнение (type="RESIGNATION", EMPLOYEE) — не общий
+/// статус, живёт рядом с AppealStatus.CLOSED, не вместо него. См. Appeal.resignationOutcome.
+enum ResignationOutcome {
+  TERMINATED
+  WITHDRAWN
+}
+
 enum CommentVisibility {
   INTERNAL
   PUBLIC
@@ -239,6 +246,12 @@ model Appeal {
 
   originalText String
   workingEdit  String?
+
+  /// Только для type="RESIGNATION" (EMPLOYEE) — заполняется при закрытии, определяет
+  /// исход (реально уволен / отозвал заявление). null для всех остальных типов и пока
+  /// заявление на увольнение не закрыто. Сбрасывается в null при реоткрытии — исход
+  /// больше не финальный.
+  resignationOutcome ResignationOutcome?
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

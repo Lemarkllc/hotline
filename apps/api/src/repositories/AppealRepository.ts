@@ -5,6 +5,7 @@ import type {
   Channel,
   CommentVisibility,
   Prisma,
+  ResignationOutcome,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma.js";
 import { formatPublicNumber, sequenceKey } from "@/utils/appealNumber.js";
@@ -180,6 +181,9 @@ export class AppealRepository {
     toStatus: AppealStatus,
     changedById: string | null,
     reason?: string,
+    /** undefined — не трогать поле, null — сбросить (реоткрытие), значение — записать
+     * исход (закрытие RESIGNATION). См. appealService.changeStatus. */
+    resignationOutcome?: ResignationOutcome | null,
   ): Promise<Appeal> {
     return prisma.$transaction(async (tx) => {
       const current = await tx.appeal.findUniqueOrThrow({ where: { id: appealId } });
@@ -192,6 +196,7 @@ export class AppealRepository {
             toStatus === "CLOSED"
               ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
               : current.reopenDeadlineAt,
+          ...(resignationOutcome !== undefined ? { resignationOutcome } : {}),
         },
       });
       await tx.appealStatusHistory.create({
