@@ -260,7 +260,7 @@ export function createBot(): Bot<BotContext> {
     if (appealId) {
       ctx.session.awaitingReplyForAppealId = undefined;
       await apiClient.replyToClarification(String(ctx.from!.id), appealId, ctx.message.text);
-      await ctx.reply("Ответ передан HRD.");
+      await ctx.reply("Сообщение передано.");
       return;
     }
     if (!(await requireActiveUser(ctx))) return;
