@@ -149,6 +149,15 @@ export class ApiClient {
     return this.request<{ ok: true }>("POST", `/customer/appeals/${appealId}/reply`, { telegramId, text });
   }
 
+  // channel-специфичный путь — /notifications/pending раньше был общий на оба бота
+  // (requireBotService только проверяет общий BOT_SERVICE_TOKEN, не то, какой именно
+  // бот стучится), из-за чего bot-customer получал в т.ч. EMPLOYEE-уведомления, не
+  // находил у них externalContact, тихо ничего не делал — но поллер всё равно ack'ал
+  // их как успешно обработанные, и bot-employee реальный адресат больше их не видел.
+  private get notificationsBasePath(): string {
+    return this.options.channel === "CUSTOMER" ? "/customer/notifications" : "/notifications";
+  }
+
   listPendingNotifications() {
     return this.request<
       {
@@ -160,10 +169,10 @@ export class ApiClient {
         user: { telegramId: string | null } | null;
         externalContact: { telegramId: string | null } | null;
       }[]
-    >("GET", "/notifications/pending");
+    >("GET", `${this.notificationsBasePath}/pending`);
   }
 
   ackNotification(id: string) {
-    return this.request<{ ok: true }>("POST", `/notifications/${id}/ack`);
+    return this.request<{ ok: true }>("POST", `${this.notificationsBasePath}/${id}/ack`);
   }
 }

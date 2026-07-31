@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import type { Channel } from "@hotline/shared";
 import { notificationRepository } from "@/repositories/NotificationRepository.js";
 import { appealRepository } from "@/repositories/AppealRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
@@ -258,9 +259,15 @@ export class NotificationService {
     return notificationRepository.listPendingTypesForAppeal(userId, appealId);
   }
 
-  listPendingForBot(channel: "TELEGRAM" | "WEB" = "TELEGRAM") {
-    return notificationRepository.listPending().then((items) =>
-      items.filter((i) => i.channel === channel),
+  /**
+   * botChannel (EMPLOYEE/CUSTOMER) — какой бот спрашивает, protocol — какой транспорт
+   * уведомления (TELEGRAM/WEB). Раньше здесь фильтровался только protocol, а
+   * botChannel не было вовсе — оба бота получали друг друга уведомления и молча
+   * "съедали" (ack) чужие как no-op, см. комментарий у NotificationRepository.listPending.
+   */
+  listPendingForBot(botChannel: Channel, protocol: "TELEGRAM" | "WEB" = "TELEGRAM") {
+    return notificationRepository.listPending(botChannel).then((items) =>
+      items.filter((i) => i.channel === protocol),
     );
   }
 

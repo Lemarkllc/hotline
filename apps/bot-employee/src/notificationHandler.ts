@@ -34,35 +34,10 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         break;
       }
       case "hrd_message": {
-        // Временное диагностическое логирование (жалоба: Telegram подтверждает
-        // sendMessage 200 OK, но получатель сообщение физически не видит) — печатаем
-        // именно то, что реально вернул Telegram (chat.id/type, message_id), чтобы
-        // понять, куда на самом деле улетает сообщение. Снять после диагностики.
-        console.log("[hrd_message] отправка", {
-          notificationId: notification.id,
+        await bot.api.sendMessage(
           telegramId,
-          telegramIdType: typeof telegramId,
-          appealId: notification.appealId,
-        });
-        try {
-          const sent = await bot.api.sendMessage(
-            telegramId,
-            `Уточнение по обращению ${payload.publicNumber}:\n${payload.text}\n\nОтветьте следующим сообщением.`,
-          );
-          console.log("[hrd_message] Telegram ответ", {
-            notificationId: notification.id,
-            message_id: sent.message_id,
-            chat: sent.chat,
-            date: sent.date,
-          });
-        } catch (error) {
-          console.error("[hrd_message] sendMessage упал", {
-            notificationId: notification.id,
-            telegramId,
-            error: error instanceof Error ? { name: error.name, message: error.message } : error,
-          });
-          throw error;
-        }
+          `Уточнение по обращению ${payload.publicNumber}:\n${payload.text}\n\nОтветьте следующим сообщением.`,
+        );
         if (notification.appealId) {
           await patchSession<SessionData>(redis, SESSION_PREFIX, telegramId, {
             awaitingReplyForAppealId: notification.appealId,

@@ -1,4 +1,5 @@
 import type { Notification, NotificationChannel, Prisma } from "@prisma/client";
+import type { Channel } from "@hotline/shared";
 import { prisma } from "@/lib/prisma.js";
 
 // include user.telegramId и externalContact.telegramId — боту нужен именно telegramId,
@@ -21,9 +22,22 @@ export class NotificationRepository {
     return prisma.notification.create({ data });
   }
 
-  listPending(limit = 50): Promise<PendingNotification[]> {
+  /**
+   * channel обязателен — bot-employee и bot-customer опрашивают ЭТОТ метод независимо
+   * друг от друга (Фаза 7), и до этой правки оба видели ВЕСЬ общий PENDING-список без
+   * фильтра: чужой бот получал notification, ловил "нет telegramId" (userId и
+   * externalContactId взаимоисключающие), тихо ничего не делал в своём handler'е — но
+   * поллер (packages/bot-core) всё равно вызывал ack() на успешно (без throw)
+   * отработавший handler. Уведомление помечалось SENT, реально не будучи доставленным,
+   * и настоящий адресат-бот на следующем тике уже не видел его в PENDING. Отсюда
+   * "иногда не доходит" — вероятностная гонка между двумя поллерами, а не постоянный сбой.
+   */
+  listPending(channel: Channel, limit = 50): Promise<PendingNotification[]> {
     return prisma.notification.findMany({
-      where: { status: "PENDING" },
+      where: {
+        status: "PENDING",
+        ...(channel === "EMPLOYEE" ? { userId: { not: null } } : { externalContactId: { not: null } }),
+      },
       include: PENDING_INCLUDE,
       orderBy: { createdAt: "asc" },
       take: limit,
