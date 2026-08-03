@@ -16,9 +16,26 @@ export class ApiError extends Error {
 
 let refreshPromise: Promise<boolean> | null = null;
 
+/**
+ * Разлогин, который не полагается только на то, что RequireAuth (реактивно
+ * подписанный на accessToken) успеет перерендериться — жёсткий редирект гарантирует
+ * выход из "залогинен в интерфейсе, но сервер уже не отвечает" состояния (сессия
+ * истекла, пока вкладка простаивала) независимо от того, какой компонент сейчас
+ * смонтирован. Проверка pathname — чтобы не зациклить редирект, если уже на /login.
+ */
+function forceLogout(): void {
+  useAuthStore.getState().logout();
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+}
+
 async function tryRefresh(): Promise<boolean> {
-  const { refreshToken, setTokens, logout } = useAuthStore.getState();
-  if (!refreshToken) return false;
+  const { refreshToken, setTokens } = useAuthStore.getState();
+  if (!refreshToken) {
+    forceLogout();
+    return false;
+  }
   try {
     const res = await fetch(`${BASE_URL}/auth/refresh`, {
       method: "POST",
@@ -26,14 +43,14 @@ async function tryRefresh(): Promise<boolean> {
       body: JSON.stringify({ refreshToken }),
     });
     if (!res.ok) {
-      logout();
+      forceLogout();
       return false;
     }
     const data = (await res.json()) as { accessToken: string; refreshToken: string };
     setTokens(data.accessToken, data.refreshToken);
     return true;
   } catch {
-    logout();
+    forceLogout();
     return false;
   }
 }
@@ -78,7 +95,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       refreshPromise = null;
     });
     const refreshed = await refreshPromise;
-    if (refreshed) res = await doFetch();
+    if (refreshed) {
+      res = await doFetch();
+      // Токен обновился, но запрос всё равно 401 — учётку заблокировали/удалили
+      // между рефрешем и повтором запроса (см. requireWebAuth: "заблокирован"
+      // тоже 401). Разлогиниваем сразу, а не оставляем висеть на ошибке.
+      if (res.status === 401) forceLogout();
+    }
   }
 
   const text = await res.text();

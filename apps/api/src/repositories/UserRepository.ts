@@ -64,6 +64,10 @@ export class UserRepository {
     return prisma.user.update({ where: { id }, data: { status: "BLOCKED", blockReason: reason } });
   }
 
+  unblockUser(id: string): Promise<User> {
+    return prisma.user.update({ where: { id }, data: { status: "ACTIVE", blockReason: null } });
+  }
+
   archiveUser(id: string): Promise<User> {
     return prisma.user.update({ where: { id }, data: { status: "ARCHIVED" } });
   }

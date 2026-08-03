@@ -136,6 +136,23 @@ export class UserService {
     });
   }
 
+  /** Разблокировка (например, сотрудник вернулся после исхода "Отозвано" вручную,
+   * или блокировка по заявлению на увольнение была ошибочной) — не восстанавливает
+   * доступ к каналам автоматически, только статус ACTIVE; UserChannelAccess не трогаем. */
+  async unblockUser(admin: AuthenticatedUser, userId: string): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new NotFoundError("Пользователь не найден");
+    if (user.status !== "BLOCKED") throw new ValidationError("Пользователь не заблокирован");
+    await userRepository.unblockUser(userId);
+    await auditService.record({
+      actorId: admin.id,
+      action: "user.unblocked",
+      objectType: "User",
+      objectId: userId,
+      result: "success",
+    });
+  }
+
   async archiveUser(admin: AuthenticatedUser, userId: string): Promise<void> {
     const user = await userRepository.findById(userId);
     if (!user) throw new NotFoundError("Пользователь не найден");

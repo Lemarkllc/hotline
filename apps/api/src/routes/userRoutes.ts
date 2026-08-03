@@ -76,6 +76,12 @@ userRoutes.post(
   asyncErrorWrapper((req, res) => userController.block(req, res)),
 );
 userRoutes.post(
+  "/:id/unblock",
+  requireWebAuth,
+  requirePermission("user.manage"),
+  asyncErrorWrapper((req, res) => userController.unblock(req, res)),
+);
+userRoutes.post(
   "/:id/archive",
   requireWebAuth,
   requirePermission("user.manage"),

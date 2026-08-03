@@ -18,6 +18,7 @@ import {
   useBlockUser,
   useCreateWebAccount,
   useResetPassword,
+  useUnblockUser,
   useUpdateUser,
   useUsers,
   type UserDTO,
@@ -160,6 +161,7 @@ function EditUserDialog({ user }: { user: UserDTO }) {
 export function UsersPage() {
   const { data: users } = useUsers();
   const block = useBlockUser();
+  const unblock = useUnblockUser();
   const resetPassword = useResetPassword();
 
   return (
@@ -216,6 +218,18 @@ export function UsersPage() {
                       }}
                     >
                       Заблокировать
+                    </Button>
+                  )}
+                  {u.status === "BLOCKED" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={unblock.isPending}
+                      onClick={() => {
+                        if (window.confirm(`Разблокировать ${u.fullName}?`)) unblock.mutate(u.id);
+                      }}
+                    >
+                      Разблокировать
                     </Button>
                   )}
                 </div>

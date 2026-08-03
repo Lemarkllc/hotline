@@ -357,6 +357,14 @@ export function useBlockUser() {
   });
 }
 
+export function useUnblockUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiRequest(`/users/${id}/unblock`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({

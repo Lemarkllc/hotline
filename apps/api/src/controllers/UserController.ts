@@ -101,6 +101,15 @@ export class UserController extends BaseController {
     }
   }
 
+  async unblock(req: Request, res: Response): Promise<void> {
+    try {
+      await userService.unblockUser(req.user!, pathParam(req, "id"));
+      this.handleSuccess(res, { ok: true });
+    } catch (error) {
+      this.handleError(error, res, "unblock");
+    }
+  }
+
   async archive(req: Request, res: Response): Promise<void> {
     try {
       await userService.archiveUser(req.user!, pathParam(req, "id"));
