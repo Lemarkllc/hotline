@@ -6,6 +6,15 @@
 		reverse_proxy api:4000
 	}
 
+	# Presigned-ссылки на вложения (см. apps/api/src/lib/storage.ts) подписываются
+	# публичным адресом — MinIO сам наружу не выставлен (только внутри docker-сети),
+	# поэтому запросы на путь бакета проксируются сюда как есть, БЕЗ обрезки
+	# префикса: подпись SigV4 учитывает путь запроса, а бакет — уже первый сегмент
+	# пути при path-style S3 (forcePathStyle=true), так что пути совпадают 1-в-1.
+	handle /{$S3_BUCKET}/* {
+		reverse_proxy minio:9000
+	}
+
 	handle {
 		root * /usr/share/caddy
 		try_files {path} /index.html

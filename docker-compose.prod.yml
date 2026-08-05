@@ -50,6 +50,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: http://minio:9000
+      # Presigned-ссылки на вложения подписываются публичным адресом — MinIO сам
+      # наружу не выставлен, только через Caddy (см. Caddyfile, web-сервис ниже).
+      S3_PUBLIC_ENDPOINT: https://${DOMAIN}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -93,6 +96,8 @@ services:
         VITE_API_BASE_URL: /api/v1
     environment:
       DOMAIN: ${DOMAIN}
+      # Подстановка {$S3_BUCKET} в Caddyfile — путь бакета проксируется на MinIO.
+      S3_BUCKET: ${S3_BUCKET}
     ports:
       - "80:80"
       - "443:443"

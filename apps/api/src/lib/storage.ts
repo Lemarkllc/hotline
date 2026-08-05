@@ -25,6 +25,20 @@ const s3 = new S3Client({
   },
 });
 
+/** Отдельный клиент ТОЛЬКО для подписи presigned-ссылок (getSignedUrl не делает
+ * сетевых запросов — просто считает подпись по конфигу клиента) — см. комментарий
+ * у config.storage.publicEndpoint про то, зачем публичный адрес отличается от
+ * внутреннего. */
+const s3PublicSigner = new S3Client({
+  endpoint: config.storage.publicEndpoint || config.storage.endpoint,
+  region: config.storage.region,
+  forcePathStyle: config.storage.forcePathStyle,
+  credentials: {
+    accessKeyId: config.storage.accessKeyId,
+    secretAccessKey: config.storage.secretAccessKey,
+  },
+});
+
 /** Идемпотентно — вызывается один раз при старте сервера (server.ts). Локальный MinIO
  * не создаёт бакеты сам по себе; в managed S3 бакет обычно создаётся инфраструктурой заранее. */
 export async function ensureBucketExists(): Promise<void> {
@@ -60,7 +74,7 @@ export async function getPresignedDownloadUrl(
   expiresInSeconds = 300,
 ): Promise<string> {
   const command = new GetObjectCommand({ Bucket: config.storage.bucket, Key: storageKey });
-  return getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
+  return getSignedUrl(s3PublicSigner, command, { expiresIn: expiresInSeconds });
 }
 
 export async function deleteObject(storageKey: string): Promise<void> {

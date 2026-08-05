@@ -41,7 +41,16 @@ export const config = {
   },
 
   storage: {
+    // Внутренний адрес (docker-сеть, "http://minio:9000" в проде) — для реальных
+    // операций с бакетом (upload/delete/ensureBucketExists), сервер обращается
+    // к MinIO напрямую внутри сети контейнеров.
     endpoint: optional("S3_ENDPOINT", "http://localhost:9000"),
+    // Публичный адрес — ТОЛЬКО для подписи presigned-ссылок на скачивание: браузер
+    // не резолвит "minio" (внутреннее docker-имя), а MinIO наружу не выставлен
+    // напрямую — Caddy проксирует /{S3_BUCKET}/* на minio:9000 (см. Caddyfile).
+    // Локально endpoint и так публично доступен (MinIO слушает на localhost:9000),
+    // поэтому фолбэк на endpoint достаточен для dev.
+    publicEndpoint: optional("S3_PUBLIC_ENDPOINT", ""),
     region: optional("S3_REGION", "us-east-1"),
     bucket: optional("S3_BUCKET", "hotline-attachments"),
     accessKeyId: optional("S3_ACCESS_KEY", "hotline"),
