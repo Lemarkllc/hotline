@@ -470,3 +470,78 @@ model NumberSequence {
 
   @@map("number_sequences")
 }
+
+/// «Заявки» — email-лиды с sales@lemarkllc.ru (читаются через robot@ на Zimbra),
+/// полностью отдельная от Appeal/ExternalContact/CUSTOMER-канала подсистема
+/// (см. PLAN.md "«Заявки» — email-лиды..." — намеренное архитектурное решение,
+/// не расширение канала CUSTOMER).
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  CONVERTED
+  STOP_LISTED
+}
+
+model EmailLead {
+  id           String @id @default(uuid())
+  publicNumber String @unique
+
+  fromEmail      String
+  fromName       String?
+  extractedPhone String?
+  subject        String
+  originalBody   String
+
+  status LeadStatus @default(NEW)
+
+  bitrixLeadId      String?
+  convertedByUserId String?
+  convertedAt       DateTime?
+
+  stopListedByUserId String?
+  stopListedAt       DateTime?
+  stopListReason     String?
+
+  /// Автоответ клиенту шлётся только при создании НОВОЙ заявки (не на письма,
+  /// доливаемые в уже открытую) — см. PLAN.md, решение №7.
+  confirmationEmailSentAt DateTime?
+  confirmationEmailError  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages EmailLeadMessage[]
+
+  @@index([fromEmail, status])
+  @@map("email_leads")
+}
+
+/// Полный тред писем по заявке, включая самое первое (originalBody/subject на
+/// EmailLead — денормализованная копия первого сообщения для быстрого списка).
+model EmailLeadMessage {
+  id          String    @id @default(uuid())
+  emailLeadId String
+  emailLead   EmailLead @relation(fields: [emailLeadId], references: [id])
+
+  fromEmail  String
+  subject    String
+  body       String
+  receivedAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@map("email_lead_messages")
+}
+
+/// Адреса из "Заявка → В стоп-лист" — письма с этих адресов больше не создают
+/// EmailLead вообще (тихо игнорируются на этапе разбора почты), см. emailIngestService.
+model EmailBlocklistEntry {
+  id     String  @id @default(uuid())
+  email  String  @unique
+  reason String?
+
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  @@map("email_blocklist_entries")
+}

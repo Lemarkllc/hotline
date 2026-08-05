@@ -136,6 +136,23 @@ export const CUSTOMER_APPEAL_TYPE_LABELS: Record<CustomerAppealType, string> = {
   GRATITUDE: "Благодарность",
 };
 
+/**
+ * «Заявки» — email-лиды с sales@lemarkllc.ru, отдельная от Appeal/channel подсистема
+ * (см. PLAN.md "«Заявки» — email-лиды..."). NEW/IN_PROGRESS — "незакрытые" (повторное
+ * письмо с того же адреса доливается в существующую заявку); CONVERTED/STOP_LISTED —
+ * финальные (следующее письмо создаёт новую заявку, кроме случая стоп-листа — см.
+ * EmailBlocklistEntry, письма оттуда вообще не создают заявок).
+ */
+export const LEAD_STATUSES = ["NEW", "IN_PROGRESS", "CONVERTED", "STOP_LISTED"] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
+export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
+  NEW: "Новая",
+  IN_PROGRESS: "В работе",
+  CONVERTED: "Передана в CRM",
+  STOP_LISTED: "Стоп-лист",
+};
+
 /** Стартовый справочник эпиков канала CUSTOMER — правится потом через тот же UI
  * справочников, что и у EMPLOYEE (не продиктован явно, взят по аналогии, см. план). */
 export const DEFAULT_CUSTOMER_EPICS = [

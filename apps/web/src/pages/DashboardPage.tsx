@@ -1,17 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  Activity,
-  CheckCircle2,
-  CircleDot,
-  FilePlus2,
-  Star,
-  Timer,
-  TrendingDown,
-  UserCheck,
-  UserX,
-  type LucideIcon,
-} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Activity, CheckCircle2, CircleDot, FilePlus2, Star, Timer, TrendingDown, UserCheck, UserX } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -27,7 +16,7 @@ import {
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { APPEAL_TYPE_LABELS, statusColor } from "@/components/appeals/badges";
-import { cn } from "@/lib/utils";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 import { useAppeals, useReportSummary } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -59,61 +48,6 @@ const STATUS_COLORS: Record<AppealStatus, string> = {
   IN_PROGRESS: "#2563EB",
   CLOSED: "#16A34A",
 };
-
-type Accent = "slate" | "primary" | "success" | "warning" | "destructive";
-
-const ACCENT_STYLES: Record<Accent, { icon: string; ring: string }> = {
-  slate: { icon: "bg-slate-100 text-slate-600", ring: "hover:border-slate-400" },
-  primary: { icon: "bg-primary/10 text-primary", ring: "hover:border-primary" },
-  success: { icon: "bg-success/10 text-success", ring: "hover:border-success" },
-  warning: { icon: "bg-warning/10 text-warning", ring: "hover:border-warning" },
-  destructive: { icon: "bg-destructive/10 text-destructive", ring: "hover:border-destructive" },
-};
-
-function KpiCard({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  accent,
-  to,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  icon: LucideIcon;
-  accent: Accent;
-  to?: string;
-}) {
-  const style = ACCENT_STYLES[accent];
-  const content = (
-    <CardContent className="flex items-start gap-3 p-5">
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-md", style.icon)}>
-        <Icon className="size-5" />
-      </span>
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      </div>
-    </CardContent>
-  );
-
-  if (!to) return <Card>{content}</Card>;
-
-  return (
-    <Link
-      to={to}
-      className={cn(
-        "block rounded-lg border border-border bg-surface shadow-sm transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        style.ring,
-      )}
-    >
-      {content}
-    </Link>
-  );
-}
 
 export function DashboardPage() {
   const navigate = useNavigate();

@@ -4,6 +4,7 @@ import {
   BookOpen,
   Flame,
   LayoutDashboard,
+  Mail,
   ScrollText,
   Settings,
   UserCheck,
@@ -25,6 +26,9 @@ const NAV_ITEMS = [
     icon: ScrollText,
     permissions: ["appeal.read_assigned", "appeal.read_all", "appeal.read_author"] as const,
   },
+  // «Заявки» — email-лиды с sales@, независимая от «Обращения» подсистема (PLAN.md
+  // "«Заявки» — email-лиды..."), поэтому отдельный permission, не appeal.*.
+  { to: "/leads", label: "Заявки", icon: Mail, permissions: ["lead.manage"] as const },
   { to: "/reports", label: "Отчёты", icon: BarChart3, permissions: ["report.read"] as const },
   { to: "/users", label: "Пользователи", icon: Users, permissions: ["user.manage"] as const },
   { to: "/directories", label: "Справочники", icon: BookOpen, permissions: ["user.manage"] as const },

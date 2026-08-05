@@ -100,6 +100,18 @@ export const createCommentSchema = z.object({
 });
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 
+/** «Заявки» — email-лиды (PLAN.md). Причина стоп-листа необязательна (быстрое
+ * действие РОП не должно требовать заполнения текста), но если указана — не пустая. */
+export const stopListLeadSchema = z.object({
+  reason: z.string().trim().min(1).max(500).optional(),
+});
+export type StopListLeadInput = z.infer<typeof stopListLeadSchema>;
+
+export const convertLeadToCrmSchema = z.object({
+  bitrixUserId: z.string().trim().min(1, "Не выбран ответственный в Bitrix24"),
+});
+export type ConvertLeadToCrmInput = z.infer<typeof convertLeadToCrmSchema>;
+
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),

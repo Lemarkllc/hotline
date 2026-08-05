@@ -477,6 +477,101 @@ export function useAuditLog(filters: { action?: string; appealId?: string } = {}
   });
 }
 
+// --- Leads («Заявки», email-лиды с sales@ — не связаны с Appeal/CUSTOMER-каналом,
+// см. PLAN.md "«Заявки» — email-лиды...") ---
+
+export interface LeadDTO {
+  id: string;
+  publicNumber: string;
+  fromEmail: string;
+  fromName: string | null;
+  extractedPhone: string | null;
+  subject: string;
+  status: "NEW" | "IN_PROGRESS" | "CONVERTED" | "STOP_LISTED";
+  bitrixLeadId: string | null;
+  stopListReason: string | null;
+  messages: { id: string; fromEmail: string; subject: string; body: string; receivedAt: string }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BitrixUserDTO {
+  id: string;
+  fullName: string;
+  email: string | null;
+}
+
+export interface LeadConversionStats {
+  total: number;
+  converted: number;
+  conversionRate: number | null;
+}
+
+export function useLeads(stopListed = false) {
+  return useQuery({
+    queryKey: ["leads", stopListed],
+    queryFn: () => apiRequest<LeadDTO[]>("/leads", { query: { stopListed } }),
+    refetchInterval: 15000,
+  });
+}
+
+export function useLead(id: string | undefined) {
+  return useQuery({
+    queryKey: ["lead", id],
+    queryFn: () => apiRequest<LeadDTO>(`/leads/${id}`),
+    enabled: Boolean(id),
+    refetchInterval: 15000,
+  });
+}
+
+function useInvalidateLead(id?: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ["leads"] });
+    if (id) void qc.invalidateQueries({ queryKey: ["lead", id] });
+  };
+}
+
+export function useTakeLeadInProgress(id: string) {
+  const invalidate = useInvalidateLead(id);
+  return useMutation({
+    mutationFn: () => apiRequest<LeadDTO>(`/leads/${id}/take`, { method: "POST" }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useStopListLead(id: string) {
+  const invalidate = useInvalidateLead(id);
+  return useMutation({
+    mutationFn: (reason?: string) => apiRequest<LeadDTO>(`/leads/${id}/stop-list`, { method: "POST", body: { reason } }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSearchBitrixUsers(query: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["bitrix-users", query],
+    queryFn: () => apiRequest<BitrixUserDTO[]>("/leads/bitrix-users", { query: { query } }),
+    enabled,
+  });
+}
+
+export function useConvertLeadToCrm(id: string) {
+  const invalidate = useInvalidateLead(id);
+  return useMutation({
+    mutationFn: (bitrixUserId: string) =>
+      apiRequest<LeadDTO>(`/leads/${id}/convert-to-crm`, { method: "POST", body: { bitrixUserId } }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useLeadConversionStats(from: string, to: string) {
+  return useQuery({
+    queryKey: ["lead-conversion-stats", from, to],
+    queryFn: () => apiRequest<LeadConversionStats>("/leads/conversion-stats", { query: { from, to } }),
+  });
+}
+
 // --- Notifications ---
 
 export function useNotifications() {

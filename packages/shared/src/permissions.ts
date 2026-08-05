@@ -11,6 +11,11 @@ export const PERMISSIONS = [
   "report.export",
   "user.manage",
   "audit.read",
+  // «Заявки» (email-лиды с sales@) — намеренно НЕ канало-скоуплен: EmailLead не
+  // имеет поля channel вообще, это отдельная от Appeal подсистема (PLAN.md
+  // "«Заявки» — email-лиды..."). Проверяется как user.permissions.includes(...)
+  // напрямую, а не через hasChannelPermission().
+  "lead.manage",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -53,6 +58,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     "appeal.close",
     "report.read",
     "report.export",
+    // «Заявки» (email-лиды) — стоп-лист и передача в CRM доступны всей роли SALES,
+    // без отдельного тира прав для РОП (стартовое решение, PLAN.md).
+    "lead.manage",
   ],
 };
 

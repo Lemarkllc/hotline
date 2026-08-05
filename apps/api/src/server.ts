@@ -6,6 +6,7 @@ const { app } = await import("@/app.js");
 const { config } = await import("@/config/unifiedConfig.js");
 const { logger } = await import("@/lib/logger.js");
 const { attachmentService } = await import("@/services/attachmentService.js");
+const { emailIngestService } = await import("@/services/emailIngestService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 
 await ensureBucketExists();
@@ -19,8 +20,15 @@ const cleanupInterval = setInterval(() => {
   attachmentService.cleanupExpiredDrafts().catch((error) => logger.error({ err: error }, "cleanup failed"));
 }, 60 * 60 * 1000);
 
+// «Заявки» — поллинг robot@lemarkllc.ru (PLAN.md); no-op, пока не выданы IMAP-креды
+// (см. emailIngestService.pollInbox).
+const emailPollInterval = setInterval(() => {
+  emailIngestService.pollInbox().catch((error) => logger.error({ err: error }, "email poll failed"));
+}, config.email.pollIntervalMs);
+
 function shutdown(): void {
   clearInterval(cleanupInterval);
+  clearInterval(emailPollInterval);
   server.close(() => process.exit(0));
 }
 

@@ -9,6 +9,8 @@ import { NotificationsPage } from "@/pages/NotificationsPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { ReportsPage } from "@/pages/ReportsPage";
 import { UsersPage } from "@/pages/UsersPage";
+import { LeadsPage } from "@/pages/LeadsPage";
+import { LeadDetailPage } from "@/pages/LeadDetailPage";
 import { AccessRequestsPage } from "@/pages/AccessRequestsPage";
 import { DirectoriesPage } from "@/pages/DirectoriesPage";
 import { AuditPage } from "@/pages/AuditPage";
@@ -47,6 +49,13 @@ export const router = createBrowserRouter([
           {
             element: <RequirePermission permission="audit.read" />,
             children: [{ path: "/audit", element: <AuditPage /> }],
+          },
+          {
+            element: <RequirePermission permission="lead.manage" />,
+            children: [
+              { path: "/leads", element: <LeadsPage /> },
+              { path: "/leads/:id", element: <LeadDetailPage /> },
+            ],
           },
         ],
       },

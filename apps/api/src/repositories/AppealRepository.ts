@@ -9,6 +9,7 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma.js";
 import { formatPublicNumber, sequenceKey } from "@/utils/appealNumber.js";
+import { nextSequence } from "@/utils/sequence.js";
 
 export const APPEAL_DETAIL_INCLUDE = {
   author: true,
@@ -51,18 +52,6 @@ export interface AppealListFilters {
 }
 
 export class AppealRepository {
-  /** Атомарный инкремент счётчика — Prisma-upsert компилируется в нативный
-   * `INSERT ... ON CONFLICT` для PostgreSQL, что делает его race-safe. */
-  private async nextSequence(channel: Channel, year: number): Promise<number> {
-    const key = sequenceKey(channel, year);
-    const seq = await prisma.numberSequence.upsert({
-      where: { key },
-      update: { value: { increment: 1 } },
-      create: { key, value: 1 },
-    });
-    return seq.value;
-  }
-
   async create(data: {
     channel: Channel;
     type: string;
@@ -74,7 +63,7 @@ export class AppealRepository {
   }): Promise<Appeal> {
     const year = new Date().getUTCFullYear();
     return prisma.$transaction(async (tx) => {
-      const sequence = await this.nextSequence(data.channel, year);
+      const sequence = await nextSequence(sequenceKey(data.channel, year));
       const publicNumber = formatPublicNumber(data.channel, year, sequence);
 
       const appeal = await tx.appeal.create({

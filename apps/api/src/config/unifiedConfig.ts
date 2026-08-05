@@ -62,4 +62,27 @@ export const config = {
     vapidPrivateKey: optional("VAPID_PRIVATE_KEY", ""),
     vapidSubject: optional("VAPID_SUBJECT", "mailto:admin@example.com"),
   },
+
+  /**
+   * «Заявки» — email-лиды с sales@lemarkllc.ru через robot@ (Zimbra, PLAN.md).
+   * Все поля опциональны с пустым fallback — креды появятся позже; emailIngestService
+   * должен сам проверять imapUser/imapPassword и тихо пропускать поллинг, если пусто,
+   * а не падать при старте API без них (см. server.ts).
+   */
+  email: {
+    imapHost: optional("EMAIL_IMAP_HOST", "mail.lemarkllc.ru"),
+    imapPort: Number(optional("EMAIL_IMAP_PORT", "993")),
+    imapUser: optional("EMAIL_IMAP_USER", ""),
+    imapPassword: optional("EMAIL_IMAP_PASSWORD", ""),
+    smtpHost: optional("EMAIL_SMTP_HOST", "mail.lemarkllc.ru"),
+    smtpPort: Number(optional("EMAIL_SMTP_PORT", "465")),
+    smtpUser: optional("EMAIL_SMTP_USER", ""),
+    smtpPassword: optional("EMAIL_SMTP_PASSWORD", ""),
+    fromAddress: optional("EMAIL_FROM_ADDRESS", "robot@lemarkllc.ru"),
+    pollIntervalMs: Number(optional("EMAIL_POLL_INTERVAL_MS", "60000")),
+  },
+
+  bitrix: {
+    webhookUrl: optional("BITRIX_WEBHOOK_URL", ""),
+  },
 } as const;
