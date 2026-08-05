@@ -13,11 +13,19 @@ export function ChangePasswordPage() {
   const changePassword = useChangePassword();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // Ловим опечатку в новом пароле ДО запроса — реальный случай: пользователь
+    // дважды вводил новый пароль вместо "текущий + новый", не заметив путаницы
+    // до самого экрана логина.
+    if (newPassword !== confirmPassword) {
+      setError("Новый пароль и подтверждение не совпадают");
+      return;
+    }
     try {
       await changePassword.mutateAsync({ currentPassword, newPassword });
       navigate("/dashboard");
@@ -48,13 +56,14 @@ export function ChangePasswordPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="currentPassword">Текущий пароль</Label>
+              <Label htmlFor="currentPassword">Текущий пароль (тот, что вводили при входе)</Label>
               {/* text-[16px] переопределяет базовый text-sm (14px) — iOS Safari сам зумит
                * страницу при фокусе на поле мельче 16px и не всегда возвращает зум обратно
                * после закрытия клавиатуры. */}
               <Input
                 id="currentPassword"
                 type="password"
+                autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
@@ -66,9 +75,23 @@ export function ChangePasswordPage() {
               <Input
                 id="newPassword"
                 type="password"
+                autoComplete="new-password"
                 minLength={12}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                required
+                className="text-[16px]"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="confirmPassword">Подтвердите новый пароль</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 className="text-[16px]"
               />
