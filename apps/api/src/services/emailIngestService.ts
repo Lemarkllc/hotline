@@ -61,11 +61,20 @@ export class EmailIngestService {
 
     const cursor = await systemSettingRepository.get<IngestCursor>(CURSOR_KEY);
     const uidValidity = mailbox.uidValidity.toString();
-    // UIDVALIDITY сменилась (пересоздание ящика и т.п.) — старый курсор недействителен,
-    // начинаем с начала (стандартная IMAP-практика).
-    const lastUid = cursor && cursor.uidValidity === uidValidity ? cursor.lastUid : 0;
 
-    const uids = await client.search({ uid: `${lastUid + 1}:*` }, { uid: true });
+    if (!cursor || cursor.uidValidity !== uidValidity) {
+      // Первый запуск (или UIDVALIDITY сменилась, например пересоздание ящика) —
+      // НЕ разбираем всё, что уже накопилось в ящике: там могут годами лежать
+      // реальные письма клиентов, уже обработанные людьми вручную до включения
+      // этой фичи. Заводить по ним заявки и слать "ваша заявка зарегистрирована"
+      // задним числом — плохой UX для клиента и мусор в статистике. Вместо этого
+      // просто запоминаем текущий "конец ящика" и со следующего цикла разбираем
+      // только то, что придёт ПОСЛЕ этого момента.
+      await systemSettingRepository.set(CURSOR_KEY, { uidValidity, lastUid: mailbox.uidNext - 1 });
+      return;
+    }
+
+    const uids = await client.search({ uid: `${cursor.lastUid + 1}:*` }, { uid: true });
     if (!uids || uids.length === 0) return;
 
     for (const uid of uids.sort((a, b) => a - b)) {

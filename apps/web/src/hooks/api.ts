@@ -384,19 +384,20 @@ export function useUpdateUser() {
 export function useResetPassword() {
   return useMutation({
     mutationFn: (id: string) =>
-      apiRequest<{ temporaryPassword: string }>(`/users/${id}/reset-password`, { method: "POST" }),
+      apiRequest<{ emailSent: boolean; temporaryPassword?: string }>(`/users/${id}/reset-password`, {
+        method: "POST",
+      }),
   });
 }
 
 export function useCreateWebAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: {
-      email: string;
-      fullName: string;
-      temporaryPassword: string;
-      roleNames: string[];
-    }) => apiRequest<UserDTO>("/users", { method: "POST", body: input }),
+    mutationFn: (input: { email: string; fullName: string; roleNames: string[] }) =>
+      apiRequest<UserDTO & { emailSent: boolean; temporaryPassword?: string }>("/users", {
+        method: "POST",
+        body: input,
+      }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }

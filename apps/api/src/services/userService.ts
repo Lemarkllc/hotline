@@ -1,12 +1,13 @@
-import { randomBytes } from "node:crypto";
 import type { Channel } from "@hotline/shared";
 import { accessRequestRepository } from "@/repositories/AccessRequestRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { authService } from "@/services/authService.js";
 import { auditService } from "@/services/auditService.js";
+import { emailSendService } from "@/services/emailSendService.js";
 import { notificationService } from "@/services/notificationService.js";
 import type { AuthenticatedUser } from "@/types/index.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/types/index.js";
+import { generateTemporaryPassword } from "@/utils/generatePassword.js";
 import { sanitizeUser } from "@/utils/serializers.js";
 
 export class UserService {
@@ -204,15 +205,18 @@ export class UserService {
     return { ...sanitizeUser(rest), roleNames: userRoles.map((ur) => ur.role.name) };
   }
 
-  /** Сброс пароля Администратором — только для web-аккаунтов (с email). Новый временный
-   * пароль возвращается один раз в ответе, чтобы Администратор передал его пользователю;
+  /** Сброс пароля Администратором — только для web-аккаунтов (с email). Пароль
+   * генерируется сервером и уходит письмом (см. emailSendService, "Lemark HotLine"),
+   * а не придумывается/передаётся Администратором вручную. Возвращаем его в ответе
+   * ТОЛЬКО если письмо не удалось отправить — резервный канал, а не основной, чтобы
+   * не светить пароль в ответе API/логах браузера без необходимости.
    * mustChangePassword=true заставит сменить его при следующем входе. */
-  async resetPassword(admin: AuthenticatedUser, userId: string): Promise<{ temporaryPassword: string }> {
+  async resetPassword(admin: AuthenticatedUser, userId: string): Promise<{ emailSent: boolean; temporaryPassword?: string }> {
     const user = await userRepository.findById(userId);
     if (!user) throw new NotFoundError("Пользователь не найден");
     if (!user.email) throw new ValidationError("Сброс пароля доступен только для web-аккаунтов (с email)");
 
-    const temporaryPassword = randomBytes(9).toString("base64url");
+    const temporaryPassword = generateTemporaryPassword();
     const passwordHash = await authService.hashPassword(temporaryPassword);
     await userRepository.resetPassword(userId, passwordHash);
     await auditService.record({
@@ -222,18 +226,26 @@ export class UserService {
       objectId: userId,
       result: "success",
     });
-    return { temporaryPassword };
+    const emailSent = await emailSendService.sendTemporaryPassword(user.email, user.fullName, temporaryPassword);
+    return emailSent ? { emailSent } : { emailSent, temporaryPassword };
   }
 
-  /** Web-аккаунты создаёт Администратор вручную (PLAN.md §9, допущение №1). */
+  /**
+   * Web-аккаунты создаёт Администратор (PLAN.md §9, допущение №1), но временный
+   * пароль теперь генерирует сервер сам, не Администратор руками — всё равно
+   * пользователь ставит свой при первом входе (mustChangePassword). Уходит письмом
+   * на email аккаунта; возвращается в ответе только если письмо не отправилось
+   * (тот же резервный принцип, что и в resetPassword).
+   */
   async createWebAccount(
     admin: AuthenticatedUser,
-    data: { email: string; fullName: string; temporaryPassword: string; roleNames: string[] },
+    data: { email: string; fullName: string; roleNames: string[] },
   ) {
     const existing = await userRepository.findByEmail(data.email);
     if (existing) throw new ValidationError("Пользователь с таким email уже существует");
 
-    const passwordHash = await authService.hashPassword(data.temporaryPassword);
+    const temporaryPassword = generateTemporaryPassword();
+    const passwordHash = await authService.hashPassword(temporaryPassword);
     const user = await userRepository.createWebAccount({
       email: data.email,
       fullName: data.fullName,
@@ -241,6 +253,7 @@ export class UserService {
       roleNames: data.roleNames,
     });
     await userRepository.grantChannelAccess(user.id, "EMPLOYEE", admin.id);
+    const emailSent = await emailSendService.sendTemporaryPassword(data.email, data.fullName, temporaryPassword);
     await auditService.record({
       actorId: admin.id,
       action: "user.web_account_created",
@@ -249,7 +262,7 @@ export class UserService {
       result: "success",
       metadata: { roleNames: data.roleNames },
     });
-    return sanitizeUser(user);
+    return { ...sanitizeUser(user), emailSent, temporaryPassword: emailSent ? undefined : temporaryPassword };
   }
 }
 

@@ -80,6 +80,11 @@ export const config = {
     smtpPassword: optional("EMAIL_SMTP_PASSWORD", ""),
     fromAddress: optional("EMAIL_FROM_ADDRESS", "robot@lemarkllc.ru"),
     pollIntervalMs: Number(optional("EMAIL_POLL_INTERVAL_MS", "60000")),
+    // Внутренние системные письма (временный пароль и т.п.) — отдельная "личность"
+    // отправителя от клиентских писем "Заявок": та шлётся как sales@ (продолжение
+    // переписки клиента), эта — как сам сервис, от своего явного имени.
+    systemFromAddress: optional("EMAIL_SYSTEM_FROM_ADDRESS", "Lemark HotLine <robot@lemarkllc.ru>"),
+    webAppUrl: optional("EMAIL_WEB_APP_URL", "https://hot.lemarkllc.ru"),
   },
 
   bitrix: {

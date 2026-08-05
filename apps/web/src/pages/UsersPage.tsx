@@ -28,17 +28,22 @@ function CreateWebAccountDialog() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("");
   const [role, setRole] = useState("MANAGER");
   const create = useCreateWebAccount();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await create.mutateAsync({ email, fullName, temporaryPassword: password, roleNames: [role] });
+    const result = await create.mutateAsync({ email, fullName, roleNames: [role] });
     setOpen(false);
     setEmail("");
     setFullName("");
-    setPassword("");
+    if (result.emailSent) {
+      window.alert(`Веб-аккаунт создан. Временный пароль отправлен на ${email}.`);
+    } else {
+      window.alert(
+        `Веб-аккаунт создан, но письмо не отправилось (нет связи с почтой). Временный пароль для ${fullName}: ${result.temporaryPassword}`,
+      );
+    }
   }
 
   return (
@@ -48,7 +53,10 @@ function CreateWebAccountDialog() {
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>Новый веб-аккаунт</DialogTitle>
-        <DialogDescription>Регистрация в веб-панели отдельная от бота (SRS §4.1) — заводит Администратор.</DialogDescription>
+        <DialogDescription>
+          Регистрация в веб-панели отдельная от бота (SRS §4.1) — заводит Администратор. Временный пароль
+          сгенерируется автоматически и уйдёт письмом на указанный email.
+        </DialogDescription>
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <Label htmlFor="fullName">ФИО</Label>
@@ -72,10 +80,6 @@ function CreateWebAccountDialog() {
                 </option>
               ))}
             </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="password">Временный пароль (мин. 12 символов)</Label>
-            <Input id="password" minLength={12} value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <DialogFooter>
             <Button type="submit" disabled={create.isPending}>
@@ -201,8 +205,12 @@ export function UsersPage() {
                       variant="outline"
                       disabled={resetPassword.isPending}
                       onClick={async () => {
-                        const { temporaryPassword } = await resetPassword.mutateAsync(u.id);
-                        window.alert(`Новый временный пароль для ${u.fullName}: ${temporaryPassword}`);
+                        const result = await resetPassword.mutateAsync(u.id);
+                        window.alert(
+                          result.emailSent
+                            ? `Временный пароль отправлен на ${u.email}.`
+                            : `Письмо не отправилось (нет связи с почтой). Временный пароль для ${u.fullName}: ${result.temporaryPassword}`,
+                        );
                       }}
                     >
                       Сбросить пароль
