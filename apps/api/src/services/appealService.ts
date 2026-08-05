@@ -240,6 +240,12 @@ export class AppealService {
       // appeal.authorUserId гарантированно есть — RESIGNATION существует только на
       // канале EMPLOYEE, где автор всегда User (никогда ExternalContact).
       await userService.blockUser(user, appeal.authorUserId!, `Уволен(а) по заявлению ${appeal.publicNumber}`);
+      // Удаление из общего/производственного чата — бот делает это сам через
+      // banChatMember/unbanChatMember (нужны его права администратора в этих чатах),
+      // не API напрямую: API никогда не обращается к Telegram напрямую (см. CLAUDE.md
+      // "Bot ↔ API"), поэтому это обычное TELEGRAM-уведомление в очереди, как и всё
+      // остальное, что бот отправляет/делает в Telegram.
+      await notificationService.notifyEmployeeTerminated(appeal.authorUserId!);
     }
 
     const updated = await appealRepository.findById(id);

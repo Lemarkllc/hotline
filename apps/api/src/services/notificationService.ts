@@ -239,6 +239,18 @@ export class NotificationService {
     );
   }
 
+  /** Заявление на увольнение закрыто с исходом "Уволить" — бот удаляет сотрудника
+   * из общего/производственного чата (см. bot-employee notificationHandler.ts).
+   * Без appealId: это не про конкретное обращение для получателя, а разовое
+   * действие над самим уволенным пользователем. */
+  async notifyEmployeeTerminated(userId: string): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: "employee_terminated" },
+    });
+  }
+
   async notifyAccessDecision(userId: string, approved: boolean): Promise<void> {
     await notificationRepository.create({
       userId,

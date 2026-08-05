@@ -2,6 +2,7 @@ import type { Bot } from "grammy";
 import { patchSession } from "@hotline/bot-core";
 import type { PendingNotification } from "@hotline/bot-core";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
+import { config } from "./config.js";
 import { accessRequestKeyboard, ratingKeyboard } from "./keyboards.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
 import type { BotContext, SessionData } from "./types.js";
@@ -65,6 +66,23 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
           `Новая заявка на доступ к HotLineBot: ${fullName}.`,
           { reply_markup: accessRequestKeyboard(requestId) },
         );
+        break;
+      }
+      case "employee_terminated": {
+        // Best-effort: ошибка в одном чате (бот не добавлен/не админ) не должна
+        // блокировать ack всего уведомления и уводить его в бесконечный ретрай раз
+        // в 5с (см. packages/bot-core/notificationPoller.ts) — доступ к самому боту
+        // уже перекрыт синхронно в userService.blockUser() ДО этого уведомления,
+        // это лишь дополнительная, не критическая для безопасности зачистка чатов.
+        const userId = Number(telegramId);
+        for (const chatId of config.terminationRemovalChatIds) {
+          try {
+            await bot.api.banChatMember(chatId, userId);
+            await bot.api.unbanChatMember(chatId, userId, { only_if_banned: true });
+          } catch (error) {
+            console.error(`Не удалось удалить ${telegramId} из чата ${chatId}:`, error);
+          }
+        }
         break;
       }
       default:

@@ -37,6 +37,17 @@ export function createBot(): Bot<BotContext> {
   // единой ошибки в логах (ровно баг "бот завис после фото"/"после Перейти дальше").
   const bot = new Bot<BotContext>(config.telegramBotToken, { client: { timeoutSeconds: 30 } });
 
+  // Бот состоит в общем/производственном чатах (config.terminationRemovalChatIds)
+  // только ради banChatMember/unbanChatMember при увольнении (см. notificationHandler.ts
+  // "employee_terminated") — обычные команды там не нужны и не должны быть доступны:
+  // иначе любой участник группы мог бы дёрнуть /start, затегать бота и т.п. Тихо
+  // игнорируем любой апдейт не из приватного чата, до всех остальных хендлеров
+  // (sequentialize/session включительно — группам они не нужны).
+  bot.use((ctx, next) => {
+    if (ctx.chat && ctx.chat.type !== "private") return;
+    return next();
+  });
+
   // grammy обрабатывает апдейты из одного getUpdates-батча конкурентно — если
   // пользователь шлёт две фотографии почти одновременно (Telegram-альбом),
   // оба апдейта одновременно читают и перезаписывают одну и ту же Redis-сессию,
