@@ -21,13 +21,25 @@ interface IngestCursor {
  * заводит/дополняет EmailLead. Полностью независим от Appeal/CUSTOMER-канала.
  */
 export class EmailIngestService {
+  // Баг "одно письмо обрабатывается по несколько раз": setInterval в server.ts
+  // вызывает pollInbox() каждые EMAIL_POLL_INTERVAL_MS НЕЗАВИСИМО от того, успел ли
+  // завершиться предыдущий вызов. Если один цикл (IMAP connect + fetch + разбор +
+  // запись в БД + SMTP-автоответ) занимает заметное время, следующий тик стартует
+  // ПАРАЛЛЕЛЬНО — оба читают один и тот же курсор ДО того, как первый успеет его
+  // продвинуть, и оба обрабатывают одни и те же UID: письмо либо дублирует историю
+  // существующей заявки, либо (если та уже CONVERTED) заводит новую задним числом.
+  // Этот флаг гарантирует, что в моменте выполняется не больше одного цикла.
+  private isPolling = false;
+
   async pollInbox(): Promise<void> {
+    if (this.isPolling) return;
     if (!config.email.imapUser || !config.email.imapPassword) {
       // Креды ещё не выданы (см. PLAN.md "Что нужно от пользователя до деплоя") —
       // тихо ничего не делаем, а не роняем весь API на старте без них.
       return;
     }
 
+    this.isPolling = true;
     const client = new ImapFlow({
       host: config.email.imapHost,
       port: config.email.imapPort,
@@ -52,6 +64,8 @@ export class EmailIngestService {
       } catch {
         // соединение уже могло упасть — logout() на мёртвом сокете не критичен
       }
+    } finally {
+      this.isPolling = false;
     }
   }
 
@@ -90,8 +104,11 @@ export class EmailIngestService {
   }
 
   private async processMessage(client: ImapFlow, uid: number): Promise<void> {
-    const message = await client.fetchOne(String(uid), { source: true }, { uid: true });
+    const message = await client.fetchOne(String(uid), { source: true, flags: true }, { uid: true });
     if (!message || !message.source) return;
+    // Второй независимый уровень защиты от повторной обработки (помимо isPolling
+    // и курсора) — если письмо уже помечено \Seen, оно точно уже обработано раньше.
+    if (message.flags?.has("\\Seen")) return;
 
     const parsed = await simpleParser(message.source);
     const fromEmail = parsed.from?.value[0]?.address?.toLowerCase().trim();
