@@ -141,20 +141,27 @@ export function DashboardPage() {
           icon={Timer}
           accent="slate"
         />
-        <KpiCard
-          label="Уволено"
-          value={data.resignationsTerminated}
-          icon={UserX}
-          accent="destructive"
-          to="/appeals?type=RESIGNATION"
-        />
-        <KpiCard
-          label="Удержано"
-          value={data.resignationsWithdrawn}
-          icon={UserCheck}
-          accent="success"
-          to="/appeals?type=RESIGNATION"
-        />
+        {/* Увольнения существуют только на канале EMPLOYEE (RESIGNATION — тип обращения
+         * только там) — на CUSTOMER (роль SALES) эти плитки всегда были бы "0" и не
+         * несут смысла, только путают. */}
+        {activeChannel === "EMPLOYEE" && (
+          <>
+            <KpiCard
+              label="Уволено"
+              value={data.resignationsTerminated}
+              icon={UserX}
+              accent="destructive"
+              to="/appeals?type=RESIGNATION"
+            />
+            <KpiCard
+              label="Удержано"
+              value={data.resignationsWithdrawn}
+              icon={UserCheck}
+              accent="success"
+              to="/appeals?type=RESIGNATION"
+            />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -210,31 +217,33 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Увольнения: уволено vs удержано</CardTitle>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={resignationData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar
-                  dataKey="value"
-                  radius={[4, 4, 0, 0]}
-                  cursor="pointer"
-                  onClick={() => navigate("/appeals?type=RESIGNATION")}
-                >
-                  {resignationData.map((d) => (
-                    <Cell key={d.key} fill={RESIGNATION_OUTCOME_COLORS[d.key]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        {activeChannel === "EMPLOYEE" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Увольнения: уволено vs удержано</CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={resignationData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar
+                    dataKey="value"
+                    radius={[4, 4, 0, 0]}
+                    cursor="pointer"
+                    onClick={() => navigate("/appeals?type=RESIGNATION")}
+                  >
+                    {resignationData.map((d) => (
+                      <Cell key={d.key} fill={RESIGNATION_OUTCOME_COLORS[d.key]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
