@@ -530,7 +530,26 @@ model EmailLeadMessage {
 
   createdAt DateTime @default(now())
 
+  attachments EmailLeadAttachment[]
+
   @@map("email_lead_messages")
+}
+
+/// Вложения из писем клиентов (не из бота — отдельное хранилище от AppealAttachment,
+/// "Заявки" не связаны с Appeal, см. PLAN.md "«Заявки» — email-лиды...").
+model EmailLeadAttachment {
+  id                 String           @id @default(uuid())
+  emailLeadMessageId String
+  emailLeadMessage   EmailLeadMessage @relation(fields: [emailLeadMessageId], references: [id])
+
+  filename   String
+  mimeType   String
+  fileSize   Int
+  storageKey String
+
+  createdAt DateTime @default(now())
+
+  @@map("email_lead_attachments")
 }
 
 /// Адреса из "Заявка → В стоп-лист" — письма с этих адресов больше не создают

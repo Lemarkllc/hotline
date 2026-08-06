@@ -48,3 +48,8 @@ leadRoutes.post(
   validate(convertLeadToCrmSchema),
   asyncErrorWrapper((req, res) => leadController.convertToCrm(req, res)),
 );
+
+leadRoutes.get(
+  "/:id/attachments/:attachmentId/url",
+  asyncErrorWrapper((req, res) => leadController.getAttachmentUrl(req, res)),
+);

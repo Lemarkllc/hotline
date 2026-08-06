@@ -54,6 +54,15 @@ export function buildStorageKey(appealId: string, originalName: string): string 
   return `appeals/${appealId}/${randomUUID()}${ext ? `.${ext}` : ""}`;
 }
 
+/** Вложения из писем клиентов ("Заявки") — отдельное пространство ключей от
+ * appeals/*. Без ID заявки в пути (в отличие от buildStorageKey): на момент
+ * загрузки письма в S3 заявка в БД ещё может не существовать (первое письмо
+ * создаёт её), а сам randomUUID() уже даёт уникальность и без группировки по ID. */
+export function buildLeadAttachmentStorageKey(originalName: string): string {
+  const ext = originalName.includes(".") ? originalName.split(".").pop() : undefined;
+  return `leads/${randomUUID()}${ext ? `.${ext}` : ""}`;
+}
+
 export async function uploadObject(
   storageKey: string,
   body: Buffer,
@@ -67,6 +76,16 @@ export async function uploadObject(
       ContentType: mimeType,
     }),
   );
+}
+
+/** Нужен для пересылки вложений в Bitrix24 (crm.timeline.comment.add ждёт файл
+ * как base64 в теле запроса, не ссылкой) — единственный вызывающий на сейчас,
+ * см. bitrixService/leadService. */
+export async function downloadObject(storageKey: string): Promise<Buffer> {
+  const command = new GetObjectCommand({ Bucket: config.storage.bucket, Key: storageKey });
+  const response = await s3.send(command);
+  const bytes = await response.Body?.transformToByteArray();
+  return Buffer.from(bytes ?? []);
 }
 
 export async function getPresignedDownloadUrl(

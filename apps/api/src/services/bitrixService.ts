@@ -84,6 +84,66 @@ export class BitrixService {
     const leadId = await this.call<number>("crm.lead.add", { fields });
     return String(leadId);
   }
+
+  /**
+   * "Дело" на созвон с клиентом, дедлайн — час от создания. Проверено вживую
+   * (2026-08-07): нужен именно crm.activity.add (scope "crm", уже есть) —
+   * tasks.task.add отдаёт insufficient_scope (нужен отдельный scope "task", его
+   * пока нет). TYPE_ID=2 (звонок) + DIRECTION=2 (исходящий) требуют непустой
+   * COMMUNICATIONS с телефоном — без него Bitrix отвечает "COMMUNICATIONS is not
+   * defined or invalid", поэтому вызывающая сторона (leadService) не зовёт этот
+   * метод, если у лида нет extractedPhone. DEADLINE полем Bitrix не поддерживается
+   * так, как ожидалось (тихо игнорируется, подтверждено вживую) — реальный "срок"
+   * активности задаётся END_TIME.
+   */
+  async createCallActivity(input: {
+    leadId: string;
+    phone: string;
+    responsibleUserId: string;
+    subject: string;
+  }): Promise<void> {
+    const now = new Date();
+    const deadline = new Date(now.getTime() + 60 * 60 * 1000);
+    await this.call("crm.activity.add", {
+      fields: {
+        OWNER_TYPE_ID: 1, // CRM_OWNER_TYPE_LEAD
+        OWNER_ID: input.leadId,
+        TYPE_ID: 2, // звонок
+        DIRECTION: 2, // исходящий
+        SUBJECT: input.subject,
+        RESPONSIBLE_ID: input.responsibleUserId,
+        COMPLETED: "N",
+        START_TIME: now.toISOString(),
+        END_TIME: deadline.toISOString(),
+        COMMUNICATIONS: [
+          { VALUE: input.phone, TYPE: "PHONE", ENTITY_ID: input.leadId, ENTITY_TYPE_ID: 1 },
+        ],
+      },
+    });
+  }
+
+  /**
+   * Файлы из письма клиента — в таймлайн лида (комментарий с вложениями), не в
+   * само CRM-поле лида: у лида нет универсального "файлового" поля из коробки,
+   * а crm.timeline.comment.add — штатный, документированный способ прикрепить
+   * произвольные файлы к CRM-сущности. Проверено вживую (2026-08-07, реальный
+   * лид в проде, файл появился в таймлайне с превью — оставлен пользователю на
+   * ручную проверку, не удалён скриптом).
+   */
+  async attachFilesToLead(
+    leadId: string,
+    files: { filename: string; base64Content: string }[],
+    comment: string,
+  ): Promise<void> {
+    await this.call("crm.timeline.comment.add", {
+      fields: {
+        ENTITY_ID: leadId,
+        ENTITY_TYPE: "lead",
+        COMMENT: comment,
+        FILES: files.map((f) => [f.filename, f.base64Content]),
+      },
+    });
+  }
 }
 
 export const bitrixService = new BitrixService();

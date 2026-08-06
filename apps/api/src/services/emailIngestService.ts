@@ -1,12 +1,16 @@
 import { ImapFlow } from "imapflow";
-import { simpleParser } from "mailparser";
+import { simpleParser, type Attachment as MailAttachment } from "mailparser";
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
+import { buildLeadAttachmentStorageKey, uploadObject } from "@/lib/storage.js";
 import { emailBlocklistRepository } from "@/repositories/EmailBlocklistRepository.js";
-import { emailLeadRepository } from "@/repositories/EmailLeadRepository.js";
+import { emailLeadRepository, type EmailAttachmentInput } from "@/repositories/EmailLeadRepository.js";
 import { systemSettingRepository } from "@/repositories/SystemSettingRepository.js";
 import { emailSendService } from "@/services/emailSendService.js";
 import { extractNameFromSignature, extractPhone } from "@/utils/contactExtraction.js";
+
+const MAX_ATTACHMENTS_PER_MESSAGE = 10;
+const MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024;
 
 const CURSOR_KEY = "email_ingest_cursor";
 
@@ -130,10 +134,11 @@ export class EmailIngestService {
     const receivedAt = parsed.date ?? new Date();
     const extractedPhone = extractPhone(body);
     const extractedName = fromName ?? extractNameFromSignature(body);
+    const attachments = await this.uploadAttachments(parsed.attachments);
 
     const existingOpenLead = await emailLeadRepository.findOpenByEmail(fromEmail);
     if (existingOpenLead) {
-      await emailLeadRepository.addMessage(existingOpenLead.id, { fromEmail, subject, body, receivedAt });
+      await emailLeadRepository.addMessage(existingOpenLead.id, { fromEmail, subject, body, receivedAt, attachments });
     } else {
       const lead = await emailLeadRepository.create({
         fromEmail,
@@ -142,11 +147,33 @@ export class EmailIngestService {
         subject,
         originalBody: body,
         receivedAt,
+        attachments,
       });
       await emailSendService.sendConfirmation(lead);
     }
 
     await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });
+  }
+
+  /** Best-effort — ошибка загрузки одного файла (например, слишком большой) не
+   * должна ронять обработку всего письма, просто это вложение пропускается. */
+  private async uploadAttachments(mailAttachments: MailAttachment[]): Promise<EmailAttachmentInput[]> {
+    const result: EmailAttachmentInput[] = [];
+    for (const att of mailAttachments.slice(0, MAX_ATTACHMENTS_PER_MESSAGE)) {
+      if (att.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        logger.warn({ filename: att.filename, size: att.size }, "emailIngestService: attachment too large, skipped");
+        continue;
+      }
+      try {
+        const filename = att.filename ?? "attachment";
+        const storageKey = buildLeadAttachmentStorageKey(filename);
+        await uploadObject(storageKey, att.content, att.contentType);
+        result.push({ filename, mimeType: att.contentType, fileSize: att.size, storageKey });
+      } catch (error) {
+        logger.error({ err: error, filename: att.filename }, "emailIngestService: failed to upload attachment");
+      }
+    }
+    return result;
   }
 }
 

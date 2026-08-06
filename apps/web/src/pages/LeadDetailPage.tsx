@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
 import {
+  fetchLeadAttachmentUrl,
   useConvertLeadToCrm,
   useLead,
   useSearchBitrixUsers,
@@ -179,6 +181,20 @@ export function LeadDetailPage() {
               </div>
               <div className="text-sm font-medium">{m.subject}</div>
               <div className="whitespace-pre-wrap text-sm">{m.body}</div>
+              {Boolean(m.attachments.length) && (
+                <div className="mt-2">
+                  <AttachmentGallery
+                    attachments={m.attachments.map((a) => ({
+                      id: a.id,
+                      mimeType: a.mimeType,
+                      fileSize: a.fileSize,
+                      label: a.filename,
+                    }))}
+                    getQueryKey={(attachmentId) => ["attachment-url", "lead", id, attachmentId]}
+                    fetchUrl={(attachmentId) => fetchLeadAttachmentUrl(id, attachmentId)}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

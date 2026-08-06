@@ -491,7 +491,14 @@ export interface LeadDTO {
   status: "NEW" | "IN_PROGRESS" | "CONVERTED" | "STOP_LISTED";
   bitrixLeadId: string | null;
   stopListReason: string | null;
-  messages: { id: string; fromEmail: string; subject: string; body: string; receivedAt: string }[];
+  messages: {
+    id: string;
+    fromEmail: string;
+    subject: string;
+    body: string;
+    receivedAt: string;
+    attachments: { id: string; filename: string; mimeType: string; fileSize: number }[];
+  }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -571,6 +578,10 @@ export function useLeadConversionStats(from: string, to: string) {
     queryKey: ["lead-conversion-stats", from, to],
     queryFn: () => apiRequest<LeadConversionStats>("/leads/conversion-stats", { query: { from, to } }),
   });
+}
+
+export function fetchLeadAttachmentUrl(leadId: string, attachmentId: string): Promise<string> {
+  return apiRequest<{ url: string }>(`/leads/${leadId}/attachments/${attachmentId}/url`).then((r) => r.url);
 }
 
 // --- Notifications ---

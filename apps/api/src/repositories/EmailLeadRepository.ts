@@ -7,10 +7,19 @@ import { nextSequence } from "@/utils/sequence.js";
 const OPEN_STATUSES: LeadStatus[] = ["NEW", "IN_PROGRESS"];
 
 export const LEAD_DETAIL_INCLUDE = {
-  messages: { orderBy: { receivedAt: "asc" as const } },
+  messages: { orderBy: { receivedAt: "asc" as const }, include: { attachments: true } },
 } satisfies Prisma.EmailLeadInclude;
 
 export type EmailLeadWithMessages = Prisma.EmailLeadGetPayload<{ include: typeof LEAD_DETAIL_INCLUDE }>;
+
+export interface EmailAttachmentInput {
+  filename: string;
+  mimeType: string;
+  fileSize: number;
+  /** Уже загружен в S3 к моменту вызова (см. emailIngestService) — репозиторий
+   * только пишет метаданные в БД, не трогает storage. */
+  storageKey: string;
+}
 
 export class EmailLeadRepository {
   /** Год фиксируется на момент создания — то же пространство нумерации, что и у
@@ -23,6 +32,7 @@ export class EmailLeadRepository {
     subject: string;
     originalBody: string;
     receivedAt: Date;
+    attachments?: EmailAttachmentInput[];
   }): Promise<EmailLead> {
     const year = new Date().getUTCFullYear();
     return prisma.$transaction(async (tx) => {
@@ -48,6 +58,7 @@ export class EmailLeadRepository {
           subject: data.subject,
           body: data.originalBody,
           receivedAt: data.receivedAt,
+          attachments: data.attachments?.length ? { create: data.attachments } : undefined,
         },
       });
 
@@ -70,9 +81,12 @@ export class EmailLeadRepository {
 
   addMessage(
     emailLeadId: string,
-    data: { fromEmail: string; subject: string; body: string; receivedAt: Date },
+    data: { fromEmail: string; subject: string; body: string; receivedAt: Date; attachments?: EmailAttachmentInput[] },
   ): Promise<unknown> {
-    return prisma.emailLeadMessage.create({ data: { emailLeadId, ...data } });
+    const { attachments, ...rest } = data;
+    return prisma.emailLeadMessage.create({
+      data: { emailLeadId, ...rest, attachments: attachments?.length ? { create: attachments } : undefined },
+    });
   }
 
   list(includeStopListed: boolean): Promise<EmailLeadWithMessages[]> {

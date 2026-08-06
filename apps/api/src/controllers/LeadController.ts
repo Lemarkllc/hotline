@@ -70,6 +70,15 @@ export class LeadController extends BaseController {
     }
   }
 
+  async getAttachmentUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const url = await leadService.getAttachmentUrl(pathParam(req, "id"), pathParam(req, "attachmentId"));
+      this.handleSuccess(res, { url });
+    } catch (error) {
+      this.handleError(error, res, "getAttachmentUrl");
+    }
+  }
+
   async conversionStats(req: Request, res: Response): Promise<void> {
     try {
       const { from, to } = req.query as unknown as z.infer<typeof conversionStatsQuerySchema>;

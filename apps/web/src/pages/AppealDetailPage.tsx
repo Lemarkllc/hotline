@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Download, EyeOff, Paperclip, ShieldAlert } from "lucide-react";
+import { EyeOff, ShieldAlert } from "lucide-react";
 import {
   APPEAL_STATUS_LABELS,
   APPEAL_STATUS_TRANSITIONS,
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModeBadge, StatusBadge, TypeLabel } from "@/components/appeals/badges";
 import { MentionTextarea } from "@/components/appeals/MentionTextarea";
+import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
 import { AppealDetailMobile } from "@/components/mobile/AppealDetailMobile";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
@@ -599,19 +600,16 @@ export function AppealDetailPage() {
         </TabsContent>
 
         <TabsContent value="attachments" className="flex flex-col gap-2">
-          {!appeal.attachments.length && <p className="text-sm text-muted-foreground">Вложений нет.</p>}
-          {appeal.attachments.map((a) => (
-            <div key={a.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
-              <div className="flex items-center gap-2">
-                <Paperclip className="size-4 text-muted-foreground" />
-                <span>{a.kind === "PHOTO" ? "Фото" : "Видео"}</span>
-                <span className="text-muted-foreground">{(a.fileSize / 1024 / 1024).toFixed(1)} МБ</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => handleDownload(a.id)}>
-                <Download className="size-4" /> Открыть
-              </Button>
-            </div>
-          ))}
+          <AttachmentGallery
+            attachments={appeal.attachments.map((a) => ({
+              id: a.id,
+              mimeType: a.mimeType,
+              fileSize: a.fileSize,
+              label: a.kind === "PHOTO" ? "Фото" : "Видео",
+            }))}
+            getQueryKey={(attachmentId) => ["attachment-url", "appeal", id, attachmentId]}
+            fetchUrl={(attachmentId) => getAttachmentUrl.mutateAsync({ appealId: id, attachmentId }).then((r) => r.url)}
+          />
         </TabsContent>
 
         <TabsContent value="history" className="flex flex-col gap-2">
