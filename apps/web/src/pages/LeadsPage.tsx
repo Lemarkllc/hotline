@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { useLeadConversionStats, useLeads } from "@/hooks/api";
+import { useLeadsRealtime } from "@/lib/realtimeLeads";
 
 const STATUS_VARIANT: Record<LeadStatus, BadgeProps["variant"]> = {
   NEW: "default",
@@ -22,6 +23,7 @@ function LeadStatusBadge({ status }: { status: LeadStatus }) {
 /** «Заявки» — email-лиды с sales@lemarkllc.ru, независимый от «Обращения»/CUSTOMER-
  * канала раздел (см. PLAN.md "«Заявки» — email-лиды..."). */
 export function LeadsPage() {
+  useLeadsRealtime();
   const [showStopListed, setShowStopListed] = useState(false);
   const { data: leads, isLoading } = useLeads(showStopListed);
 

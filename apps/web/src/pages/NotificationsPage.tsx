@@ -38,6 +38,7 @@ export function NotificationsPage() {
               onClick={() => {
                 if (unread) markRead.mutate(n.id);
                 if (n.appealId) navigate(`/appeals/${n.appealId}`);
+                else if (n.emailLeadId) navigate(`/leads/${n.emailLeadId}`);
               }}
               className="flex items-start gap-3 rounded-[14px] border border-border bg-surface p-4 text-left"
             >

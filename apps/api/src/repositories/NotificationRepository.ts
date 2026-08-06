@@ -16,6 +16,7 @@ export class NotificationRepository {
     userId?: string | null;
     externalContactId?: string | null;
     appealId?: string | null;
+    emailLeadId?: string | null;
     channel: NotificationChannel;
     payload: Prisma.InputJsonValue;
   }) {

@@ -8,12 +8,14 @@ const { logger } = await import("@/lib/logger.js");
 const { attachmentService } = await import("@/services/attachmentService.js");
 const { emailIngestService } = await import("@/services/emailIngestService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
+const { initRealtime } = await import("@/lib/realtime.js");
 
 await ensureBucketExists();
 
 const server = app.listen(config.server.port, () => {
   logger.info(`HotLineBot API запущен на порту ${config.server.port}`);
 });
+initRealtime(server);
 
 // FR-DRF-006: черновики вложений старше 24ч удаляются из object storage.
 const cleanupInterval = setInterval(() => {

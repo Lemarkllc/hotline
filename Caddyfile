@@ -6,6 +6,13 @@
 		reverse_proxy api:4000
 	}
 
+	# Live-обновления «Заявок» (Socket.IO, apps/api/src/lib/realtime.ts) — тот же
+	# api-контейнер, отдельный path вместо /api/*, т.к. это не REST. Caddy сам
+	# проксирует заголовки Connection/Upgrade для WebSocket, отдельно включать не нужно.
+	handle /socket.io/* {
+		reverse_proxy api:4000
+	}
+
 	# Presigned-ссылки на вложения (см. apps/api/src/lib/storage.ts) подписываются
 	# публичным адресом — MinIO сам наружу не выставлен (только внутри docker-сети),
 	# поэтому запросы на путь бакета проксируются сюда как есть, БЕЗ обрезки

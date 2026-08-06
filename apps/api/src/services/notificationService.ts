@@ -44,6 +44,18 @@ export class NotificationService {
     await pushService.sendToUser(userId, { ...push, url: `/appeals/${appealId}` });
   }
 
+  /** Аналог createWebNotification для «Заявок» (EmailLead) — отдельная колонка
+   * emailLeadId (не appealId, см. схему), отдельный URL /leads/:id. */
+  private async createLeadWebNotification(
+    userId: string,
+    emailLeadId: string,
+    payload: Prisma.InputJsonValue,
+    push: { title: string; body: string },
+  ): Promise<void> {
+    await notificationRepository.create({ userId, emailLeadId, channel: "WEB", payload });
+    await pushService.sendToUser(userId, { ...push, url: `/leads/${emailLeadId}` });
+  }
+
   async notifyHrdNewAppeal(appealId: string): Promise<void> {
     const appeal = await appealRepository.findById(appealId);
     if (!appeal) return;
@@ -177,6 +189,24 @@ export class NotificationService {
           appealId,
           { type: "new_appeal", publicNumber: appeal.publicNumber },
           { title: "Новое обращение", body: `Обращение ${appeal.publicNumber} ждёт классификации` },
+        ),
+      ),
+    );
+  }
+
+  /** Новая «Заявка» (EmailLead, письмо на sales@) — вся роль SALES целиком (lead.manage
+   * не канало-скоуплен, см. findByRole). Не переиспользует notifySalesNewAppeal: та —
+   * про Appeal канала CUSTOMER (обращения от бота-клиента), это — про независимую
+   * подсистему EmailLead (см. PLAN.md). */
+  async notifySalesNewLead(lead: { id: string; publicNumber: string }): Promise<void> {
+    const recipients = await userRepository.findByRole("SALES");
+    await Promise.all(
+      recipients.map((r) =>
+        this.createLeadWebNotification(
+          r.id,
+          lead.id,
+          { type: "new_lead", publicNumber: lead.publicNumber },
+          { title: "Новая заявка", body: `Заявка ${lead.publicNumber} ждёт обработки` },
         ),
       ),
     );

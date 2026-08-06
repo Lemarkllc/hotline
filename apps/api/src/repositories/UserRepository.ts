@@ -131,6 +131,16 @@ export class UserRepository {
     });
   }
 
+  /** Без фильтра по каналу — для получателей, чьё право не канало-скоуплено
+   * (lead.manage у "Заявок", см. PLAN.md: "не канало-скоуплен... EmailLead не
+   * имеет поля channel вообще"). findByRoleAndChannel тут не подходит: не у
+   * каждого SALES гарантированно есть grant на канал CUSTOMER. */
+  findByRole(roleName: string): Promise<User[]> {
+    return prisma.user.findMany({
+      where: { deletedAt: null, status: "ACTIVE", userRoles: { some: { role: { name: roleName } } } },
+    });
+  }
+
   list(status?: string) {
     return prisma.user.findMany({
       where: { deletedAt: null, ...(status ? { status: status as never } : {}) },

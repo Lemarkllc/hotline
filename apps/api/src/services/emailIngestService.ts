@@ -7,6 +7,8 @@ import { emailBlocklistRepository } from "@/repositories/EmailBlocklistRepositor
 import { emailLeadRepository, type EmailAttachmentInput } from "@/repositories/EmailLeadRepository.js";
 import { systemSettingRepository } from "@/repositories/SystemSettingRepository.js";
 import { emailSendService } from "@/services/emailSendService.js";
+import { notificationService } from "@/services/notificationService.js";
+import { broadcastNewLead } from "@/lib/realtime.js";
 import { extractEmail, extractNameFromSignature, extractPhone } from "@/utils/contactExtraction.js";
 
 const MAX_ATTACHMENTS_PER_MESSAGE = 10;
@@ -152,6 +154,8 @@ export class EmailIngestService {
         attachments,
       });
       await emailSendService.sendConfirmation(lead);
+      await notificationService.notifySalesNewLead(lead);
+      broadcastNewLead({ id: lead.id, publicNumber: lead.publicNumber, subject: lead.subject, fromEmail: lead.fromEmail });
     }
 
     await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });

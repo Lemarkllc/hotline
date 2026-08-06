@@ -413,6 +413,10 @@ model Notification {
   /// PLAN.md §6): бот клиентов резолвит telegramId через эту связь, не через user.
   externalContactId String?
   appealId  String?
+  /// «Заявки» (EmailLead) — независимая от Appeal подсистема (см. PLAN.md), поэтому
+  /// отдельная колонка, а не переиспользование appealId. Ровно одно из appealId/
+  /// emailLeadId заполнено на строку, либо оба пусты (см. notifyEmployeeTerminated).
+  emailLeadId String?
   channel   NotificationChannel
   status    NotificationStatus  @default(PENDING)
   payload   Json
@@ -424,6 +428,7 @@ model Notification {
   user            User?            @relation(fields: [userId], references: [id])
   externalContact ExternalContact? @relation(fields: [externalContactId], references: [id])
   appeal          Appeal?          @relation(fields: [appealId], references: [id])
+  emailLead       EmailLead?       @relation(fields: [emailLeadId], references: [id])
 
   @@index([status])
   @@map("notifications")
@@ -513,7 +518,8 @@ model EmailLead {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  messages EmailLeadMessage[]
+  messages      EmailLeadMessage[]
+  notifications Notification[]
 
   @@index([fromEmail, status])
   @@map("email_leads")

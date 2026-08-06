@@ -16,6 +16,8 @@ export function describeNotification(payload: Record<string, unknown>): string {
       return `Вам назначено обращение ${payload.publicNumber}`;
     case "internal_mention":
       return `${payload.fromFullName ?? "Коллега"} упомянул(а) вас в обращении ${payload.publicNumber}`;
+    case "new_lead":
+      return `Новая заявка ${payload.publicNumber}`;
     default:
       return "Новое уведомление";
   }

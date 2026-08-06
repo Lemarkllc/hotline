@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, LogOut } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
 import { useMarkNotificationRead, useNotifications } from "@/hooks/api";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 export function Topbar() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
   const { data: notifications } = useNotifications();
   const markRead = useMarkNotificationRead();
   const [open, setOpen] = useState(false);
@@ -36,7 +38,12 @@ export function Topbar() {
                 {notifications?.map((n) => (
                   <button
                     key={n.id}
-                    onClick={() => markRead.mutate(n.id)}
+                    onClick={() => {
+                      markRead.mutate(n.id);
+                      setOpen(false);
+                      if (n.appealId) navigate(`/appeals/${n.appealId}`);
+                      else if (n.emailLeadId) navigate(`/leads/${n.emailLeadId}`);
+                    }}
                     className={
                       "flex w-full flex-col items-start gap-0.5 rounded-md p-3 text-left text-sm hover:bg-background " +
                       (n.status === "PENDING" ? "font-medium" : "text-muted-foreground")

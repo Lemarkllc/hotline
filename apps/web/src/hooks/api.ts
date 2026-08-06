@@ -592,7 +592,14 @@ export function useNotifications() {
     queryKey: ["notifications"],
     queryFn: () =>
       apiRequest<
-        { id: string; appealId: string | null; payload: Record<string, unknown>; status: string; createdAt: string }[]
+        {
+          id: string;
+          appealId: string | null;
+          emailLeadId: string | null;
+          payload: Record<string, unknown>;
+          status: string;
+          createdAt: string;
+        }[]
       >("/notifications"),
     refetchInterval: 15000,
   });
