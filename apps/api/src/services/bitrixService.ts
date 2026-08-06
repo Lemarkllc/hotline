@@ -92,9 +92,16 @@ export class BitrixService {
    * пока нет). TYPE_ID=2 (звонок) + DIRECTION=2 (исходящий) требуют непустой
    * COMMUNICATIONS с телефоном — без него Bitrix отвечает "COMMUNICATIONS is not
    * defined or invalid", поэтому вызывающая сторона (leadService) не зовёт этот
-   * метод, если у лида нет extractedPhone. DEADLINE полем Bitrix не поддерживается
-   * так, как ожидалось (тихо игнорируется, подтверждено вживую) — реальный "срок"
-   * активности задаётся END_TIME.
+   * метод, если у лида нет extractedPhone.
+   *
+   * ВАЖНО про DEADLINE (проверено вживую дважды, второй раз — по факту в UI
+   * Bitrix, не только по ответу API): для звонка (TYPE_ID=2) Bitrix САМ
+   * синхронизирует DEADLINE со START_TIME, что бы ни прислать в самом DEADLINE —
+   * то, что показывается в интерфейсе как "Сделать до", это START_TIME, а не
+   * END_TIME (первая версия этого метода ошибочно считала наоборот). Поэтому
+   * "звонок через час" моделируется как "звонок ЗАПЛАНИРОВАН через час", а не
+   * "начинается сейчас, час длится" — START_TIME/END_TIME/DEADLINE все втроём
+   * выставляются на +1 час.
    */
   async createCallActivity(input: {
     leadId: string;
@@ -102,8 +109,7 @@ export class BitrixService {
     responsibleUserId: string;
     subject: string;
   }): Promise<void> {
-    const now = new Date();
-    const deadline = new Date(now.getTime() + 60 * 60 * 1000);
+    const deadline = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     await this.call("crm.activity.add", {
       fields: {
         OWNER_TYPE_ID: 1, // CRM_OWNER_TYPE_LEAD
@@ -113,8 +119,9 @@ export class BitrixService {
         SUBJECT: input.subject,
         RESPONSIBLE_ID: input.responsibleUserId,
         COMPLETED: "N",
-        START_TIME: now.toISOString(),
-        END_TIME: deadline.toISOString(),
+        START_TIME: deadline,
+        END_TIME: deadline,
+        DEADLINE: deadline,
         COMMUNICATIONS: [
           { VALUE: input.phone, TYPE: "PHONE", ENTITY_ID: input.leadId, ENTITY_TYPE_ID: 1 },
         ],
