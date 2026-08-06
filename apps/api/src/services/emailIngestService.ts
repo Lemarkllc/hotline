@@ -7,7 +7,7 @@ import { emailBlocklistRepository } from "@/repositories/EmailBlocklistRepositor
 import { emailLeadRepository, type EmailAttachmentInput } from "@/repositories/EmailLeadRepository.js";
 import { systemSettingRepository } from "@/repositories/SystemSettingRepository.js";
 import { emailSendService } from "@/services/emailSendService.js";
-import { extractNameFromSignature, extractPhone } from "@/utils/contactExtraction.js";
+import { extractEmail, extractNameFromSignature, extractPhone } from "@/utils/contactExtraction.js";
 
 const MAX_ATTACHMENTS_PER_MESSAGE = 10;
 const MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024;
@@ -133,6 +133,7 @@ export class EmailIngestService {
     const body = (parsed.text ?? "").trim();
     const receivedAt = parsed.date ?? new Date();
     const extractedPhone = extractPhone(body);
+    const extractedEmail = extractEmail(body, fromEmail);
     const extractedName = fromName ?? extractNameFromSignature(body);
     const attachments = await this.uploadAttachments(parsed.attachments);
 
@@ -144,6 +145,7 @@ export class EmailIngestService {
         fromEmail,
         fromName: extractedName,
         extractedPhone,
+        extractedEmail,
         subject,
         originalBody: body,
         receivedAt,

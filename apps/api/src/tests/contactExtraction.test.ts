@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { simpleParser } from "mailparser";
-import { extractNameFromSignature, extractPhone } from "@/utils/contactExtraction.js";
+import { extractEmail, extractNameFromSignature, extractPhone } from "@/utils/contactExtraction.js";
 
 describe("extractPhone", () => {
   it("находит российский номер в формате +7", () => {
@@ -13,6 +13,29 @@ describe("extractPhone", () => {
 
   it("возвращает null, если телефона в тексте нет", () => {
     expect(extractPhone("Просто текст письма без контактов.")).toBeNull();
+  });
+
+  it("находит офисный номер без 8/+7 в скобках через типографское тире (реальный кейс Л-2026-00041)", () => {
+    expect(
+      extractPhone("По всем вопросам участия обращаться по телефонам (499) 678–20-12, e-mail sviridova@rssp.com.ru."),
+    ).toBe("(499) 678–20-12");
+  });
+});
+
+describe("extractEmail", () => {
+  it("находит второй email в теле, отличный от email отправителя (реальный кейс Л-2026-00041)", () => {
+    const body =
+      "По всем вопросам участия обращаться в РССП по телефонам (499) 678–20-12, e-mail sviridova@rssp.com.ru.";
+    expect(extractEmail(body, "info@rssp.com.ru")).toBe("sviridova@rssp.com.ru");
+  });
+
+  it("не возвращает email отправителя, если он же встречается в теле (например, в подписи)", () => {
+    const body = "Пишите мне на ivan@example.com в любое время.";
+    expect(extractEmail(body, "ivan@example.com")).toBeNull();
+  });
+
+  it("возвращает null, если email в тексте нет", () => {
+    expect(extractEmail("Просто текст без контактов.")).toBeNull();
   });
 });
 

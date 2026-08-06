@@ -4,11 +4,33 @@
  * возвращают null, если ничего похожего не нашли, а не бросают ошибку.
  */
 
-const PHONE_RE = /(?:\+7|8|\+\d{1,3})[\s\-.]?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{2}[\s\-.]?\d{2}\b/;
+// Разделитель — не только обычный дефис: письма (особенно скопированные из Word/PDF)
+// часто используют типографские тире (en/em dash и т.п.) вместо "-".
+const SEP = "[\\s.\\-\\u2010\\u2011\\u2012\\u2013\\u2014\\u2015\\u2212]";
+// Две альтернативы для начала номера: с кодом страны/восьмёркой (+7/8/+XX), ИЛИ без
+// него, но тогда код города обязательно в скобках — так офисные номера вида
+// "(499) 678-20-12" (без ведущего 8) распознаются, не порождая ложных срабатываний
+// на произвольные 10-значные последовательности.
+const PHONE_RE = new RegExp(
+  `(?:(?:\\+7|8|\\+\\d{1,3})${SEP}?\\(?\\d{3}\\)?|\\(\\d{3}\\))${SEP}?\\d{3}${SEP}?\\d{2}${SEP}?\\d{2}\\b`,
+);
 
 export function extractPhone(text: string): string | null {
   const match = text.match(PHONE_RE);
   return match ? match[0].trim() : null;
+}
+
+const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+
+/** Второй email в теле письма — например, у другого контактного лица (замдиректора,
+ * секретаря и т.п.), не у самого отправителя. Для продаж это отдельный канал связи,
+ * возвращаем первый адрес, отличный от email отправителя (excludeEmail). */
+export function extractEmail(text: string, excludeEmail?: string | null): string | null {
+  const matches = text.match(EMAIL_RE);
+  if (!matches) return null;
+  const exclude = excludeEmail?.toLowerCase();
+  const found = matches.find((m) => m.toLowerCase() !== exclude);
+  return found ?? null;
 }
 
 /** Ищет строку-подпись вида "С уважением, Иван Иванов" / "Best regards, John" —

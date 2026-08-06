@@ -157,6 +157,12 @@ export function LeadDetailPage() {
               {lead.extractedPhone}
             </div>
           )}
+          {lead.extractedEmail && (
+            <div>
+              <span className="text-muted-foreground">Доп. email: </span>
+              {lead.extractedEmail}
+            </div>
+          )}
           {lead.status === "CONVERTED" && lead.bitrixLeadId && (
             <div>
               <span className="text-muted-foreground">Лид Bitrix24: </span>#{lead.bitrixLeadId}

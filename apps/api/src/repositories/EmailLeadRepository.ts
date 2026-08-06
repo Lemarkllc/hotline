@@ -29,6 +29,7 @@ export class EmailLeadRepository {
     fromEmail: string;
     fromName?: string | null;
     extractedPhone?: string | null;
+    extractedEmail?: string | null;
     subject: string;
     originalBody: string;
     receivedAt: Date;
@@ -45,6 +46,7 @@ export class EmailLeadRepository {
           fromEmail: data.fromEmail,
           fromName: data.fromName,
           extractedPhone: data.extractedPhone,
+          extractedEmail: data.extractedEmail,
           subject: data.subject,
           originalBody: data.originalBody,
           status: "NEW",

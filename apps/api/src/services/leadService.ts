@@ -18,6 +18,7 @@ export interface LeadDTO {
   fromEmail: string;
   fromName: string | null;
   extractedPhone: string | null;
+  extractedEmail: string | null;
   subject: string;
   status: string;
   bitrixLeadId: string | null;
@@ -41,6 +42,7 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
     fromEmail: lead.fromEmail,
     fromName: lead.fromName,
     extractedPhone: lead.extractedPhone,
+    extractedEmail: lead.extractedEmail,
     subject: lead.subject,
     status: lead.status,
     bitrixLeadId: lead.bitrixLeadId,
@@ -125,6 +127,7 @@ export class LeadService {
     const bitrixLeadId = await bitrixService.createLead({
       title: `Заявка ${lead.publicNumber}: ${lead.subject}`,
       email: lead.fromEmail,
+      secondaryEmail: lead.extractedEmail,
       phone: lead.extractedPhone,
       comments: lead.originalBody,
       assignedByUserId: bitrixUserId,

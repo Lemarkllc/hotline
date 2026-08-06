@@ -489,6 +489,9 @@ model EmailLead {
   fromEmail      String
   fromName       String?
   extractedPhone String?
+  /// Второй email из тела письма (другое контактное лицо) — доп. канал связи,
+  /// отличный от fromEmail (адреса отправителя).
+  extractedEmail String?
   subject        String
   originalBody   String
 

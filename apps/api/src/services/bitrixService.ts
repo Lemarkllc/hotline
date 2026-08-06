@@ -67,16 +67,24 @@ export class BitrixService {
   async createLead(input: {
     title: string;
     email: string;
+    /** Второй email из тела письма (другое контактное лицо) — доп. канал связи,
+     * важно для продаж (см. contactExtraction.ts extractEmail). Bitrix EMAIL —
+     * массив, добавляем вторым элементом с VALUE_TYPE "OTHER", не заменяя основной. */
+    secondaryEmail?: string | null;
     phone?: string | null;
     comments: string;
     assignedByUserId: string;
   }): Promise<string> {
+    const emails: { VALUE: string; VALUE_TYPE: string }[] = [{ VALUE: input.email, VALUE_TYPE: "WORK" }];
+    if (input.secondaryEmail) {
+      emails.push({ VALUE: input.secondaryEmail, VALUE_TYPE: "OTHER" });
+    }
     const fields: Record<string, unknown> = {
       TITLE: input.title,
       SOURCE_ID: "EMAIL",
       COMMENTS: input.comments,
       ASSIGNED_BY_ID: input.assignedByUserId,
-      EMAIL: [{ VALUE: input.email, VALUE_TYPE: "WORK" }],
+      EMAIL: emails,
     };
     if (input.phone) {
       fields.PHONE = [{ VALUE: input.phone, VALUE_TYPE: "WORK" }];

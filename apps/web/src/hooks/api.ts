@@ -487,6 +487,7 @@ export interface LeadDTO {
   fromEmail: string;
   fromName: string | null;
   extractedPhone: string | null;
+  extractedEmail: string | null;
   subject: string;
   status: "NEW" | "IN_PROGRESS" | "CONVERTED" | "STOP_LISTED";
   bitrixLeadId: string | null;
