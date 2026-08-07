@@ -516,10 +516,12 @@ export interface LeadConversionStats {
   conversionRate: number | null;
 }
 
-export function useLeads(stopListed = false) {
+export type LeadsView = "active" | "converted" | "stop_listed";
+
+export function useLeads(view: LeadsView = "active") {
   return useQuery({
-    queryKey: ["leads", stopListed],
-    queryFn: () => apiRequest<LeadDTO[]>("/leads", { query: { stopListed } }),
+    queryKey: ["leads", view],
+    queryFn: () => apiRequest<LeadDTO[]>("/leads", { query: { view } }),
     refetchInterval: 15000,
   });
 }

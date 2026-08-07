@@ -6,8 +6,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { useLeadConversionStats, useLeads } from "@/hooks/api";
+import { useLeadConversionStats, useLeads, type LeadsView } from "@/hooks/api";
 import { useLeadsRealtime } from "@/lib/realtimeLeads";
+
+const VIEW_LABELS: Record<LeadsView, string> = {
+  active: "Активные",
+  converted: "Переданные в CRM",
+  stop_listed: "Стоп-лист",
+};
+
+const VIEW_EMPTY_MESSAGES: Record<LeadsView, string> = {
+  active: "Активных заявок нет.",
+  converted: "Ни одна заявка ещё не передана в CRM.",
+  stop_listed: "Стоп-лист пуст.",
+};
 
 const STATUS_VARIANT: Record<LeadStatus, BadgeProps["variant"]> = {
   NEW: "default",
@@ -24,8 +36,8 @@ function LeadStatusBadge({ status }: { status: LeadStatus }) {
  * канала раздел (см. PLAN.md "«Заявки» — email-лиды..."). */
 export function LeadsPage() {
   useLeadsRealtime();
-  const [showStopListed, setShowStopListed] = useState(false);
-  const { data: leads, isLoading } = useLeads(showStopListed);
+  const [view, setView] = useState<LeadsView>("active");
+  const { data: leads, isLoading } = useLeads(view);
 
   const { from, to } = useMemo(() => {
     const now = new Date();
@@ -55,11 +67,14 @@ export function LeadsPage() {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button variant={!showStopListed ? "default" : "outline"} size="sm" onClick={() => setShowStopListed(false)}>
-          Активные
+        <Button variant={view === "active" ? "default" : "outline"} size="sm" onClick={() => setView("active")}>
+          {VIEW_LABELS.active}
         </Button>
-        <Button variant={showStopListed ? "default" : "outline"} size="sm" onClick={() => setShowStopListed(true)}>
-          <ShieldOff className="size-4" /> Стоп-лист
+        <Button variant={view === "converted" ? "default" : "outline"} size="sm" onClick={() => setView("converted")}>
+          <Target className="size-4" /> {VIEW_LABELS.converted}
+        </Button>
+        <Button variant={view === "stop_listed" ? "default" : "outline"} size="sm" onClick={() => setView("stop_listed")}>
+          <ShieldOff className="size-4" /> {VIEW_LABELS.stop_listed}
         </Button>
       </div>
 
@@ -84,7 +99,7 @@ export function LeadsPage() {
           {!isLoading && !leads?.length && (
             <TableRow>
               <TableCell colSpan={5} className="text-center text-muted-foreground">
-                {showStopListed ? "Стоп-лист пуст." : "Заявок не найдено."}
+                {VIEW_EMPTY_MESSAGES[view]}
               </TableCell>
             </TableRow>
           )}

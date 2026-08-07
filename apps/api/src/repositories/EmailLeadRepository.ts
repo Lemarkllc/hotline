@@ -91,9 +91,16 @@ export class EmailLeadRepository {
     });
   }
 
-  list(includeStopListed: boolean): Promise<EmailLeadWithMessages[]> {
+  /** "active" — реально в работе (NEW/IN_PROGRESS), не "всё, кроме стоп-листа": CONVERTED
+   * тоже финальный статус, с ним уже никто не работает, поэтому не должен засорять
+   * дефолтный список — та же логика, что и "Активные" у Appeal (excludeStatus CLOSED). */
+  list(view: "active" | "converted" | "stop_listed"): Promise<EmailLeadWithMessages[]> {
+    const where: Prisma.EmailLeadWhereInput =
+      view === "active"
+        ? { status: { in: ["NEW", "IN_PROGRESS"] } }
+        : { status: view === "converted" ? "CONVERTED" : "STOP_LISTED" };
     return prisma.emailLead.findMany({
-      where: includeStopListed ? { status: "STOP_LISTED" } : { status: { not: "STOP_LISTED" } },
+      where,
       include: LEAD_DETAIL_INCLUDE,
       orderBy: { createdAt: "desc" },
     });

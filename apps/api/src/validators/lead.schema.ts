@@ -4,13 +4,10 @@ import { convertLeadToCrmSchema, stopListLeadSchema } from "@hotline/shared";
 export { convertLeadToCrmSchema, stopListLeadSchema };
 
 export const listLeadsQuerySchema = z.object({
-  // z.coerce.boolean() трактует ЛЮБУЮ непустую строку как true, включая буквальное
-  // "false" из query-параметра (?stopListed=false) — из-за этого вкладка "Активные"
-  // на фронте (useLeads(false) → ?stopListed=false) фактически запрашивала стоп-лист.
-  stopListed: z
-    .enum(["true", "false"])
-    .optional()
-    .transform((v) => v === "true"),
+  // "active" — реально в работе (NEW/IN_PROGRESS). CONVERTED — финальный статус,
+  // как и STOP_LISTED, поэтому у него свой вид, а не "всё, кроме стоп-листа"
+  // (см. EmailLeadRepository.list).
+  view: z.enum(["active", "converted", "stop_listed"]).optional().default("active"),
 });
 
 export const searchBitrixUsersQuerySchema = z.object({
