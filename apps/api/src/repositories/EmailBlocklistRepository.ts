@@ -17,6 +17,13 @@ export class EmailBlocklistRepository {
       create: { email, reason, createdByUserId },
     });
   }
+
+  /** Обратное действие к add() — заявку вернули из стоп-листа в работу, будущие
+   * письма с этого адреса снова должны создавать/дополнять заявки. deleteMany,
+   * не delete — идемпотентно, не падает, если записи уже нет. */
+  remove(email: string): Promise<unknown> {
+    return prisma.emailBlocklistEntry.deleteMany({ where: { email } });
+  }
 }
 
 export const emailBlocklistRepository = new EmailBlocklistRepository();

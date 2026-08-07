@@ -112,6 +112,18 @@ export class LeadService {
     return this.getById(id);
   }
 
+  /** Вернуть заявку из стоп-листа в работу — попали туда по ошибке или обстоятельства
+   * изменились (пользовательский сценарий). Снимает и статус, и блокировку адреса —
+   * иначе следующее письмо с него всё равно тихо игнорировалось бы (emailIngestService). */
+  async restore(id: string): Promise<LeadDTO> {
+    const lead = await emailLeadRepository.findById(id);
+    if (!lead) throw new NotFoundError("Заявка не найдена");
+    if (lead.status !== "STOP_LISTED") throw new ConflictError("Заявка не в стоп-листе");
+    await emailLeadRepository.restore(id);
+    await emailBlocklistRepository.remove(lead.fromEmail);
+    return this.getById(id);
+  }
+
   async searchBitrixUsers(query: string): Promise<BitrixUserDTO[]> {
     return bitrixService.searchUsers(query);
   }

@@ -43,6 +43,8 @@ leadRoutes.post(
   asyncErrorWrapper((req, res) => leadController.stopList(req, res)),
 );
 
+leadRoutes.post("/:id/restore", asyncErrorWrapper((req, res) => leadController.restore(req, res)));
+
 leadRoutes.post(
   "/:id/convert-to-crm",
   validate(convertLeadToCrmSchema),

@@ -12,6 +12,7 @@ import {
   fetchLeadAttachmentUrl,
   useConvertLeadToCrm,
   useLead,
+  useRestoreLead,
   useSearchBitrixUsers,
   useStopListLead,
   useTakeLeadInProgress,
@@ -90,6 +91,7 @@ export function LeadDetailPage() {
   const { data: lead, isLoading } = useLead(id);
   const takeInProgress = useTakeLeadInProgress(id);
   const stopList = useStopListLead(id);
+  const restore = useRestoreLead(id);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
 
   if (isLoading || !lead) {
@@ -135,6 +137,16 @@ export function LeadDetailPage() {
                 Передать в CRM
               </Button>
             </>
+          )}
+          {lead.status === "STOP_LISTED" && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={restore.isPending}
+              onClick={() => restore.mutate()}
+            >
+              Вернуть в работу
+            </Button>
           )}
         </div>
       </div>

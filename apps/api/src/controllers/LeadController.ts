@@ -50,6 +50,15 @@ export class LeadController extends BaseController {
     }
   }
 
+  async restore(req: Request, res: Response): Promise<void> {
+    try {
+      const lead = await leadService.restore(pathParam(req, "id"));
+      this.handleSuccess(res, lead);
+    } catch (error) {
+      this.handleError(error, res, "restore");
+    }
+  }
+
   async searchBitrixUsers(req: Request, res: Response): Promise<void> {
     try {
       const { query } = req.query as unknown as z.infer<typeof searchBitrixUsersQuerySchema>;

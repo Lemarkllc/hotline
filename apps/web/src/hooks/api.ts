@@ -559,6 +559,14 @@ export function useStopListLead(id: string) {
   });
 }
 
+export function useRestoreLead(id: string) {
+  const invalidate = useInvalidateLead(id);
+  return useMutation({
+    mutationFn: () => apiRequest<LeadDTO>(`/leads/${id}/restore`, { method: "POST" }),
+    onSuccess: invalidate,
+  });
+}
+
 export function useSearchBitrixUsers(query: string, enabled: boolean) {
   return useQuery({
     queryKey: ["bitrix-users", query],

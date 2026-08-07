@@ -117,6 +117,18 @@ export class EmailLeadRepository {
     });
   }
 
+  /** Обратное действие к stopList — попали туда по ошибке или обстоятельства
+   * изменились (см. leadService.restore). Возвращаем в NEW (не в тот статус, что
+   * был до стоп-листа — он не хранится): дальше пусть снова явно "Взять в работу",
+   * тот же принцип, что и у CLOSED->IN_PROGRESS reopen у Appeal. Поля стоп-листа
+   * очищаем — иначе на карточке останется неактуальная причина/дата блокировки. */
+  restore(id: string): Promise<EmailLead> {
+    return prisma.emailLead.update({
+      where: { id },
+      data: { status: "NEW", stopListedByUserId: null, stopListedAt: null, stopListReason: null },
+    });
+  }
+
   markConverted(id: string, userId: string, bitrixLeadId: string): Promise<EmailLead> {
     return prisma.emailLead.update({
       where: { id },
