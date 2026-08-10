@@ -75,7 +75,9 @@ export function MobileLeadsRegistry({
             <span className="block pr-6 text-[14px] font-semibold leading-snug text-foreground">
               {lead.fromName ?? lead.fromEmail}
             </span>
-            <span className="mt-0.5 line-clamp-2 block break-words text-[13px] leading-snug text-muted-foreground">
+            {/* line-clamp-1 — та же логика, что и у MobileRegistry.tsx (обращения):
+                одна высота карточки независимо от длины темы письма. */}
+            <span className="mt-0.5 line-clamp-1 block break-words text-[13px] leading-snug text-muted-foreground">
               {lead.subject}
             </span>
             <span className="mt-1.5 block text-[12px] text-muted-foreground">
