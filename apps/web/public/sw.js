@@ -4,7 +4,7 @@
 // перечислить заранее, поэтому статика кэшируется по мере обращения (runtime cache),
 // а не единым списком на "install". Версия кэша — единственный способ инвалидировать
 // его для вернувшихся пользователей после деплоя новой сборки.
-const CACHE_VERSION = "hotline-shell-v1";
+const CACHE_VERSION = "hotline-shell-v2";
 const SHELL_URLS = ["/", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
