@@ -62,6 +62,16 @@ export class UserController extends BaseController {
     }
   }
 
+  async updateChannels(req: Request, res: Response): Promise<void> {
+    try {
+      const { channels } = req.body as { channels: Channel[] };
+      const user = await userService.updateChannelAccess(req.user!, pathParam(req, "id"), channels);
+      this.handleSuccess(res, user);
+    } catch (error) {
+      this.handleError(error, res, "updateChannels");
+    }
+  }
+
   async resetPassword(req: Request, res: Response): Promise<void> {
     try {
       const result = await userService.resetPassword(req.user!, pathParam(req, "id"));

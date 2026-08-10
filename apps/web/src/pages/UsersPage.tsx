@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ROLE_NAMES, USER_STATUS_LABELS, type UserStatus } from "@hotline/shared";
+import { CHANNELS, ROLE_NAMES, USER_STATUS_LABELS, type Channel, type UserStatus } from "@hotline/shared";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +20,15 @@ import {
   useResetPassword,
   useUnblockUser,
   useUpdateUser,
+  useUpdateUserChannels,
   useUsers,
   type UserDTO,
 } from "@/hooks/api";
+
+const CHANNEL_LABELS: Record<Channel, string> = {
+  EMPLOYEE: "Сотрудники (обращения от персонала)",
+  CUSTOMER: "Клиенты (Продажи)",
+};
 
 function CreateWebAccountDialog() {
   const [open, setOpen] = useState(false);
@@ -99,7 +105,13 @@ function EditUserDialog({ user }: { user: UserDTO }) {
   const [fullName, setFullName] = useState(user.fullName);
   const [telegramId, setTelegramId] = useState(user.telegramId ?? "");
   const [role, setRole] = useState(user.roleNames?.[0] ?? "MANAGER");
+  const [channels, setChannels] = useState<Channel[]>(user.channels ?? []);
   const update = useUpdateUser();
+  const updateChannels = useUpdateUserChannels();
+
+  function toggleChannel(channel: Channel) {
+    setChannels((prev) => (prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel]));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,6 +121,10 @@ function EditUserDialog({ user }: { user: UserDTO }) {
       telegramId: telegramId.trim() ? telegramId.trim() : null,
       roleNames: [role],
     });
+    // Отдельный запрос от роли/ФИО намеренно — свой эндпоинт (PATCH /users/:id/channels,
+    // см. PLAN.md "Найден и закрыт пробел 10.08.2026"), своя семантика "полная замена
+    // набора", роль сама по себе канал больше не определяет молча.
+    await updateChannels.mutateAsync({ id: user.id, channels });
     setOpen(false);
   }
 
@@ -151,8 +167,20 @@ function EditUserDialog({ user }: { user: UserDTO }) {
               ))}
             </select>
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Доступ к каналам</Label>
+            <p className="text-xs text-muted-foreground">
+              Определяет, чьи обращения видит пользователь — не то же самое, что роль.
+            </p>
+            {CHANNELS.map((c) => (
+              <label key={c} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={channels.includes(c)} onChange={() => toggleChannel(c)} />
+                {CHANNEL_LABELS[c]}
+              </label>
+            ))}
+          </div>
           <DialogFooter>
-            <Button type="submit" disabled={update.isPending}>
+            <Button type="submit" disabled={update.isPending || updateChannels.isPending}>
               Сохранить
             </Button>
           </DialogFooter>

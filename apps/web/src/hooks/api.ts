@@ -292,6 +292,7 @@ export interface UserDTO {
   fullName: string;
   status: string;
   roleNames?: string[];
+  channels?: Channel[];
   email: string | null;
   createdAt: string;
 }
@@ -377,6 +378,15 @@ export function useUpdateUser() {
       telegramId?: string | null;
       roleNames?: string[];
     }) => apiRequest<UserDTO>(`/users/${id}`, { method: "PATCH", body: input }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useUpdateUserChannels() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, channels }: { id: string; channels: Channel[] }) =>
+      apiRequest<UserDTO>(`/users/${id}/channels`, { method: "PATCH", body: { channels } }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }

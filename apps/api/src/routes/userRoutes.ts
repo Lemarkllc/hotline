@@ -9,6 +9,7 @@ import {
   botDecideAccessRequestSchema,
   createWebAccountSchema,
   decideAccessRequestSchema,
+  updateChannelAccessSchema,
   updateUserSchema,
 } from "@/validators/user.schema.js";
 
@@ -61,6 +62,13 @@ userRoutes.patch(
   requirePermission("user.manage"),
   validate(updateUserSchema),
   asyncErrorWrapper((req, res) => userController.update(req, res)),
+);
+userRoutes.patch(
+  "/:id/channels",
+  requireWebAuth,
+  requirePermission("user.manage"),
+  validate(updateChannelAccessSchema),
+  asyncErrorWrapper((req, res) => userController.updateChannels(req, res)),
 );
 userRoutes.post(
   "/:id/reset-password",

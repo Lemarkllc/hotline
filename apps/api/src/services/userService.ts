@@ -10,6 +10,20 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/types/index.js
 import { generateTemporaryPassword } from "@/utils/generatePassword.js";
 import { sanitizeUser } from "@/utils/serializers.js";
 
+/**
+ * Канал по умолчанию для новой web-роли (SRS/PLAN.md: SALES единолично ведёт
+ * CUSTOMER, остальные штатные роли — EMPLOYEE). НЕ полноценный источник истины —
+ * только дефолт при создании, дальше канал можно скорректировать через
+ * updateChannelAccess (см. PLAN.md "Найден и закрыт пробел 10.08.2026": раньше
+ * createWebAccount жёстко выдавал EMPLOYEE любой роли, включая SALES).
+ */
+const ROLE_DEFAULT_CHANNEL: Record<string, Channel> = {
+  HRD: "EMPLOYEE",
+  ADMINISTRATOR: "EMPLOYEE",
+  MANAGER: "EMPLOYEE",
+  SALES: "CUSTOMER",
+};
+
 export class UserService {
   /**
    * Заявки на доступ доступны и Administrator (user.manage), и HRD напрямую по роли —
@@ -50,8 +64,12 @@ export class UserService {
   async list(status?: string) {
     const users = await userRepository.list(status);
     return users.map((u) => {
-      const { userRoles, ...user } = u;
-      return { ...sanitizeUser(user), roleNames: userRoles.map((ur) => ur.role.name) };
+      const { userRoles, channelAccess, ...user } = u;
+      return {
+        ...sanitizeUser(user),
+        roleNames: userRoles.map((ur) => ur.role.name),
+        channels: channelAccess.map((c) => c.channel),
+      };
     });
   }
 
@@ -201,8 +219,40 @@ export class UserService {
     });
 
     const updated = await userRepository.findByIdWithRoles(userId);
-    const { userRoles, ...rest } = updated!;
-    return { ...sanitizeUser(rest), roleNames: userRoles.map((ur) => ur.role.name) };
+    const { userRoles, channelAccess, ...rest } = updated!;
+    return {
+      ...sanitizeUser(rest),
+      roleNames: userRoles.map((ur) => ur.role.name),
+      channels: channelAccess.map((c) => c.channel),
+    };
+  }
+
+  /**
+   * Ручная корректировка канала после создания — см. PLAN.md "Найден и закрыт
+   * пробел 10.08.2026". Полная замена набора (как setRoles), не точечный grant/
+   * revoke — UI отдаёт текущее состояние чекбоксов целиком.
+   */
+  async updateChannelAccess(admin: AuthenticatedUser, userId: string, channels: Channel[]) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new NotFoundError("Пользователь не найден");
+
+    await userRepository.setChannelAccess(userId, channels, admin.id);
+    await auditService.record({
+      actorId: admin.id,
+      action: "user.channels_updated",
+      objectType: "User",
+      objectId: userId,
+      result: "success",
+      metadata: { channels },
+    });
+
+    const updated = await userRepository.findByIdWithRoles(userId);
+    const { userRoles, channelAccess, ...rest } = updated!;
+    return {
+      ...sanitizeUser(rest),
+      roleNames: userRoles.map((ur) => ur.role.name),
+      channels: channelAccess.map((c) => c.channel),
+    };
   }
 
   /** Сброс пароля Администратором — только для web-аккаунтов (с email). Пароль
@@ -252,7 +302,8 @@ export class UserService {
       passwordHash,
       roleNames: data.roleNames,
     });
-    await userRepository.grantChannelAccess(user.id, "EMPLOYEE", admin.id);
+    const channels = new Set(data.roleNames.map((r) => ROLE_DEFAULT_CHANNEL[r] ?? "EMPLOYEE"));
+    await Promise.all([...channels].map((channel) => userRepository.grantChannelAccess(user.id, channel, admin.id)));
     const emailSent = await emailSendService.sendTemporaryPassword(data.email, data.fullName, temporaryPassword);
     await auditService.record({
       actorId: admin.id,

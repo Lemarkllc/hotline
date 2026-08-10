@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ROLE_NAMES } from "@hotline/shared";
+import { CHANNELS, ROLE_NAMES } from "@hotline/shared";
 
 export const decideAccessRequestSchema = z.object({
   reason: z.string().trim().max(500).optional(),
@@ -27,6 +27,10 @@ export const updateUserSchema = z.object({
     .nullable()
     .optional(),
   roleNames: z.array(z.enum(ROLE_NAMES)).min(1).optional(),
+});
+
+export const updateChannelAccessSchema = z.object({
+  channels: z.array(z.enum(CHANNELS)),
 });
 
 export const botDecideAccessRequestSchema = z.object({

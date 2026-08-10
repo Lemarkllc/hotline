@@ -10,7 +10,7 @@ export class UserRepository {
   findByIdWithRoles(id: string) {
     return prisma.user.findFirst({
       where: { id, deletedAt: null },
-      include: { userRoles: { include: { role: true } } },
+      include: { userRoles: { include: { role: true } }, channelAccess: true },
     });
   }
 
@@ -111,6 +111,19 @@ export class UserRepository {
     ]);
   }
 
+  /** До этого метода не существовало вообще — единственный способ выдать/забрать
+   * канал был прямой SQL (см. PLAN.md, "Найден и закрыт пробел 10.08.2026"). Полная
+   * замена набора, как и setRoles, а не точечный grant/revoke — проще для UI
+   * (чекбоксы "текущее состояние"), не нужно диффать на клиенте. */
+  async setChannelAccess(id: string, channels: string[], grantedBy: string): Promise<void> {
+    await prisma.$transaction([
+      prisma.userChannelAccess.deleteMany({ where: { userId: id } }),
+      prisma.userChannelAccess.createMany({
+        data: channels.map((channel) => ({ userId: id, channel: channel as never, grantedBy })),
+      }),
+    ]);
+  }
+
   setTotpSecret(id: string, totpSecret: string): Promise<User> {
     return prisma.user.update({ where: { id }, data: { totpSecret, totpEnabled: false } });
   }
@@ -144,7 +157,7 @@ export class UserRepository {
   list(status?: string) {
     return prisma.user.findMany({
       where: { deletedAt: null, ...(status ? { status: status as never } : {}) },
-      include: { userRoles: { include: { role: true } } },
+      include: { userRoles: { include: { role: true } }, channelAccess: true },
       orderBy: { createdAt: "desc" },
     });
   }
