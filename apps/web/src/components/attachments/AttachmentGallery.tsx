@@ -42,7 +42,11 @@ function Thumbnail({
   function handleClick() {
     if (!url) return;
     if (image) onOpenImage(url);
-    else window.open(url, "_blank");
+    // Не window.open(..., "_blank") — presigned-ссылка отдаёт
+    // Content-Disposition: attachment (см. getPresignedDownloadUrl), поэтому переход
+    // в текущей вкладке скачивает файл и остаётся на странице, а не открывает новую
+    // вкладку без пути назад (критично в PWA standalone-режиме без адресной строки).
+    else window.location.href = url;
   }
 
   return (
@@ -110,13 +114,13 @@ export function AttachmentGallery({
           {lightboxUrl && (
             <div className="flex flex-col gap-3">
               <img src={lightboxUrl} alt="Вложение" className="max-h-[75vh] w-full rounded-md object-contain" />
+              {/* Без target="_blank" — та же логика, что и у Thumbnail.handleClick:
+                  скачивание в текущей вкладке, а не переход в новую без пути назад. */}
               <a
                 href={lightboxUrl}
-                target="_blank"
-                rel="noreferrer"
                 className="inline-flex w-fit items-center gap-1.5 text-sm text-primary hover:underline"
               >
-                <Download className="size-4" /> Открыть в полном размере
+                <Download className="size-4" /> Скачать
               </a>
             </div>
           )}

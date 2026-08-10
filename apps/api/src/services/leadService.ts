@@ -93,7 +93,7 @@ export class LeadService {
     if (!lead) throw new NotFoundError("Заявка не найдена");
     const attachment = lead.messages.flatMap((m) => m.attachments).find((a) => a.id === attachmentId);
     if (!attachment) throw new NotFoundError("Вложение не найдено");
-    return getPresignedDownloadUrl(attachment.storageKey);
+    return getPresignedDownloadUrl(attachment.storageKey, { filename: attachment.filename });
   }
 
   async takeInProgress(id: string): Promise<LeadDTO> {

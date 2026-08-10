@@ -112,7 +112,11 @@ export function AppealDetailPage() {
 
   async function handleDownload(attachmentId: string) {
     const result = await getAttachmentUrl.mutateAsync({ appealId: id, attachmentId });
-    window.open(result.url, "_blank");
+    // Не window.open(..., "_blank") — presigned-ссылка скачивает файл (Content-
+    // Disposition: attachment, см. getPresignedDownloadUrl), переход в текущей
+    // вкладке остаётся на странице вместо открытия вкладки без пути назад (особенно
+    // важно в мобильном PWA standalone-режиме без адресной строки/кнопки "назад").
+    window.location.href = result.url;
   }
 
   async function handleSendMessage() {
