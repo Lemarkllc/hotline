@@ -94,6 +94,10 @@ export const config = {
     // переписки клиента), эта — как сам сервис, от своего явного имени.
     systemFromAddress: optional("EMAIL_SYSTEM_FROM_ADDRESS", "Lemark HotLine <robot@lemarkllc.ru>"),
     webAppUrl: optional("EMAIL_WEB_APP_URL", "https://hot.lemarkllc.ru"),
+    // Уведомления формы обратной связи lemarkllc.ru приходят на sales@ ОТ ИМЕНИ sales@
+    // (сайт, не клиент) — используется emailIngestService, чтобы отличить такие письма
+    // от обычных клиентских (см. реальный кейс Л-2026-00086, extractWebsiteFormContact).
+    salesAddress: optional("EMAIL_SALES_ADDRESS", "sales@lemarkllc.ru"),
   },
 
   bitrix: {

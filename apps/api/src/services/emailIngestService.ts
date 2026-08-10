@@ -9,7 +9,12 @@ import { systemSettingRepository } from "@/repositories/SystemSettingRepository.
 import { emailSendService } from "@/services/emailSendService.js";
 import { notificationService } from "@/services/notificationService.js";
 import { broadcastNewLead } from "@/lib/realtime.js";
-import { extractEmail, extractNameFromSignature, extractPhone } from "@/utils/contactExtraction.js";
+import {
+  extractEmail,
+  extractNameFromSignature,
+  extractPhone,
+  extractWebsiteFormContact,
+} from "@/utils/contactExtraction.js";
 
 const MAX_ATTACHMENTS_PER_MESSAGE = 10;
 const MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024;
@@ -117,8 +122,33 @@ export class EmailIngestService {
     if (message.flags?.has("\\Seen")) return;
 
     const parsed = await simpleParser(message.source);
-    const fromEmail = parsed.from?.value[0]?.address?.toLowerCase().trim();
-    if (!fromEmail) {
+    const headerFromEmail = parsed.from?.value[0]?.address?.toLowerCase().trim();
+    if (!headerFromEmail) {
+      await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });
+      return;
+    }
+
+    const subject = parsed.subject?.trim() || "(без темы)";
+    const body = (parsed.text ?? "").trim();
+    const receivedAt = parsed.date ?? new Date();
+
+    // Уведомления формы сайта приходят на sales@ ОТ ИМЕНИ sales@ (сайт, не клиент) —
+    // заголовок From в этом случае бесполезен как идентификатор клиента: если
+    // оставить его как есть, ВСЕ заявки с формы сайта склеятся в один тред (fromEmail —
+    // ключ группировки в findOpenByEmail), см. реальный кейс Л-2026-00086. Реальный
+    // контакт в этом случае вытаскиваем из тела письма (extractWebsiteFormContact).
+    const ownAddresses = new Set(
+      [config.email.fromAddress, config.email.salesAddress].filter(Boolean).map((a) => a.toLowerCase()),
+    );
+    const isSelfAddressed = ownAddresses.has(headerFromEmail);
+    const websiteForm = isSelfAddressed ? extractWebsiteFormContact(body) : null;
+    const fromEmail = websiteForm?.email?.toLowerCase().trim() || headerFromEmail;
+
+    if (isSelfAddressed && !websiteForm?.email) {
+      // Самоадресованное письмо (форма сайта или другая автоматика), но реальный
+      // контакт клиента извлечь не удалось — не заводим заявку "от sales@ на sales@",
+      // логируем на случай, если формат письма поменяется и метки перестанут находиться.
+      logger.warn({ subject }, "emailIngestService: самоадресованное письмо без извлекаемого контакта, пропущено");
       await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });
       return;
     }
@@ -130,13 +160,10 @@ export class EmailIngestService {
       return;
     }
 
-    const fromName = parsed.from?.value[0]?.name?.trim() || null;
-    const subject = parsed.subject?.trim() || "(без темы)";
-    const body = (parsed.text ?? "").trim();
-    const receivedAt = parsed.date ?? new Date();
-    const extractedPhone = extractPhone(body);
+    const headerFromName = parsed.from?.value[0]?.name?.trim() || null;
+    const extractedPhone = websiteForm?.phone || extractPhone(body);
     const extractedEmail = extractEmail(body, fromEmail);
-    const extractedName = fromName ?? extractNameFromSignature(body);
+    const extractedName = (isSelfAddressed ? websiteForm?.name : headerFromName) ?? extractNameFromSignature(body);
     const attachments = await this.uploadAttachments(parsed.attachments);
 
     const existingOpenLead = await emailLeadRepository.findOpenByEmail(fromEmail);

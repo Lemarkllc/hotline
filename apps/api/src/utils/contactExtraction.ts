@@ -63,3 +63,27 @@ export function extractNameFromSignature(text: string): string | null {
 function isPlausibleName(candidate: string): boolean {
   return candidate.length > 0 && candidate.length <= 60 && !LOOKS_LIKE_CONTACT_LINE_RE.test(candidate);
 }
+
+export interface WebsiteFormContact {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+const FORM_NAME_RE = /^\s*Имя\s*:\s*(.+)$/im;
+const FORM_PHONE_RE = /^\s*Телефон\s*:\s*(.+)$/im;
+const FORM_EMAIL_RE = /^\s*Email\s*:\s*(.+)$/im;
+
+/**
+ * Уведомления формы обратной связи lemarkllc.ru приходят на sales@ ОТ ИМЕНИ sales@
+ * (заголовок From — сам сайт, не клиент, см. реальный кейс Л-2026-00086) — реальный
+ * контакт клиента лежит в теле письма в виде подписанных строк "Имя:/Телефон:/Email:".
+ * Возвращает null, если ни одной метки не нашлось (значит это не письмо с формы сайта).
+ */
+export function extractWebsiteFormContact(text: string): WebsiteFormContact | null {
+  const name = text.match(FORM_NAME_RE)?.[1]?.trim() ?? null;
+  const phone = text.match(FORM_PHONE_RE)?.[1]?.trim() ?? null;
+  const email = text.match(FORM_EMAIL_RE)?.[1]?.trim() ?? null;
+  if (!name && !phone && !email) return null;
+  return { name, phone, email };
+}

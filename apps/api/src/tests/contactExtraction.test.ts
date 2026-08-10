@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { simpleParser } from "mailparser";
-import { extractEmail, extractNameFromSignature, extractPhone } from "@/utils/contactExtraction.js";
+import {
+  extractEmail,
+  extractNameFromSignature,
+  extractPhone,
+  extractWebsiteFormContact,
+} from "@/utils/contactExtraction.js";
 
 describe("extractPhone", () => {
   it("находит российский номер в формате +7", () => {
@@ -19,6 +24,29 @@ describe("extractPhone", () => {
     expect(
       extractPhone("По всем вопросам участия обращаться по телефонам (499) 678–20-12, e-mail sviridova@rssp.com.ru."),
     ).toBe("(499) 678–20-12");
+  });
+});
+
+describe("extractWebsiteFormContact", () => {
+  it("извлекает имя/телефон/email из уведомления формы сайта (реальный кейс Л-2026-00086)", () => {
+    const body = [
+      "Отправлено со страницы: Главная",
+      "",
+      "Имя: Марина Паранина . СпецСтройРесурс",
+      "",
+      "Телефон: +79110874028",
+      "",
+      "Email: mk200@mail.ru",
+    ].join("\n");
+    expect(extractWebsiteFormContact(body)).toEqual({
+      name: "Марина Паранина . СпецСтройРесурс",
+      phone: "+79110874028",
+      email: "mk200@mail.ru",
+    });
+  });
+
+  it("возвращает null для обычного письма без меток формы", () => {
+    expect(extractWebsiteFormContact("Здравствуйте! Интересует ваша продукция.")).toBeNull();
   });
 });
 
