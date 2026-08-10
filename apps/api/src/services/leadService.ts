@@ -23,6 +23,8 @@ export interface LeadDTO {
   status: string;
   bitrixLeadId: string | null;
   stopListReason: string | null;
+  aiIsRelevant: boolean | null;
+  aiReasoning: string | null;
   messages: {
     id: string;
     fromEmail: string;
@@ -47,6 +49,8 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
     status: lead.status,
     bitrixLeadId: lead.bitrixLeadId,
     stopListReason: lead.stopListReason,
+    aiIsRelevant: lead.aiIsRelevant,
+    aiReasoning: lead.aiReasoning,
     messages: lead.messages.map((m) => ({
       id: m.id,
       fromEmail: m.fromEmail,
@@ -134,6 +138,14 @@ export class LeadService {
     if (lead.status === "STOP_LISTED") throw new ConflictError("Заявка в стоп-листе");
     if (lead.status === "CONVERTED") throw new ConflictError("Заявка уже передана в CRM");
 
+    // Вывод ИИ (режим наблюдения, leadAiService) — тем же текстом, что видит РОП на
+    // карточке заявки, чтобы продажник в Bitrix, которому назначили лида, тоже видел,
+    // почему его сочли релевантным, не открывая нашу систему отдельно.
+    const comments =
+      lead.aiReasoning != null
+        ? `${lead.originalBody}\n\n---\nОценка ИИ: ${lead.aiIsRelevant ? "релевантно" : "нерелевантно"} — ${lead.aiReasoning}`
+        : lead.originalBody;
+
     // Ошибка Bitrix не должна оставлять заявку в "наполовину сконвертированном"
     // состоянии — статус меняем только после успешного ответа CRM (PLAN.md).
     const bitrixLeadId = await bitrixService.createLead({
@@ -141,7 +153,7 @@ export class LeadService {
       email: lead.fromEmail,
       secondaryEmail: lead.extractedEmail,
       phone: lead.extractedPhone,
-      comments: lead.originalBody,
+      comments,
       assignedByUserId: bitrixUserId,
     });
 

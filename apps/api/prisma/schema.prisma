@@ -515,6 +515,14 @@ model EmailLead {
   confirmationEmailSentAt DateTime?
   confirmationEmailError  String?
 
+  /// Режим наблюдения (leadAiService) — ИИ пишет вердикт релевантности сюда, но
+  /// поведение системы (кому уходит отбивка, статус) пока НЕ меняется. Только на
+  /// НОВЫХ заявках (первое сообщение), не на доливаемых письмах в открытый тред.
+  aiProcessedAt DateTime?
+  aiIsRelevant  Boolean?
+  aiReasoning   String?
+  aiError       String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

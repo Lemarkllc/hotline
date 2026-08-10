@@ -103,4 +103,13 @@ export const config = {
   bitrix: {
     webhookUrl: optional("BITRIX_WEBHOOK_URL", ""),
   },
+
+  /** Классификация «Заявок» (режим наблюдения — leadAiService, не меняет поведение
+   * системы, только пишет вердикт на заявку). Пусто = отключено (best-effort, см.
+   * leadAiService.classify). */
+  yandexAi: {
+    apiKey: optional("YANDEX_CLOUD_API_KEY", ""),
+    folderId: optional("YANDEX_CLOUD_FOLDER", ""),
+    model: optional("YANDEX_CLOUD_MODEL", "deepseek-v4-flash/latest"),
+  },
 } as const;

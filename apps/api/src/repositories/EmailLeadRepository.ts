@@ -53,6 +53,10 @@ export class EmailLeadRepository {
         },
       });
 
+      // aiIsRelevant и т.п. НЕ пишутся здесь намеренно — на момент create() классификация
+      // ещё не готова (LLM зовётся уже после создания лида, см. emailIngestService),
+      // пишутся отдельным update через markAiClassification().
+
       await tx.emailLeadMessage.create({
         data: {
           emailLeadId: lead.id,
@@ -142,6 +146,19 @@ export class EmailLeadRepository {
 
   markConfirmationError(id: string, error: string): Promise<EmailLead> {
     return prisma.emailLead.update({ where: { id }, data: { confirmationEmailError: error } });
+  }
+
+  /** Режим наблюдения (leadAiService) — пишет вердикт уже ПОСЛЕ создания заявки
+   * (не в create(), см. комментарий там), не блокируя отбивку/уведомление SALES. */
+  markAiClassified(id: string, result: { isRelevant: boolean; reasoning: string }): Promise<EmailLead> {
+    return prisma.emailLead.update({
+      where: { id },
+      data: { aiProcessedAt: new Date(), aiIsRelevant: result.isRelevant, aiReasoning: result.reasoning },
+    });
+  }
+
+  markAiError(id: string, error: string): Promise<EmailLead> {
+    return prisma.emailLead.update({ where: { id }, data: { aiProcessedAt: new Date(), aiError: error } });
   }
 
   /** Для плиток конверсии на LeadsPage — созданные в периоде, без STOP_LISTED

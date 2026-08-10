@@ -8,6 +8,7 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
+import { useLeadsRealtime } from "@/lib/realtimeLeads";
 import {
   fetchLeadAttachmentUrl,
   useConvertLeadToCrm,
@@ -86,6 +87,7 @@ function ConvertToCrmDialog({ leadId, open, onClose }: { leadId: string; open: b
 }
 
 export function LeadDetailPage() {
+  useLeadsRealtime();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const { data: lead, isLoading } = useLead(id);
@@ -173,6 +175,15 @@ export function LeadDetailPage() {
             <div>
               <span className="text-muted-foreground">Доп. email: </span>
               {lead.extractedEmail}
+            </div>
+          )}
+          {lead.aiIsRelevant !== null && (
+            <div>
+              <span className="text-muted-foreground">ИИ: </span>
+              <Badge variant={lead.aiIsRelevant ? "success" : "warning"}>
+                {lead.aiIsRelevant ? "релевантно" : "похоже, нерелевантно"}
+              </Badge>
+              {lead.aiReasoning && <span className="ml-2 text-muted-foreground">{lead.aiReasoning}</span>}
             </div>
           )}
           {lead.status === "CONVERTED" && lead.bitrixLeadId && (

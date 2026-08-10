@@ -46,3 +46,10 @@ export function initRealtime(httpServer: HttpServer): void {
 export function broadcastNewLead(lead: { id: string; publicNumber: string; subject: string; fromEmail: string }): void {
   leadsNamespace?.emit("lead:new", lead);
 }
+
+/** Уже существующая заявка изменилась асинхронно (например, ИИ дописал вердикт
+ * релевантности уже после того, как список у РОП отрисовался) — сигнал "обнови",
+ * не переносит сами данные, как и lead:new. */
+export function broadcastLeadUpdated(lead: { id: string; publicNumber: string }): void {
+  leadsNamespace?.emit("lead:updated", lead);
+}

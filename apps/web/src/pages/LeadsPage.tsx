@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FilePlus2, Percent, ShieldOff, Target } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FilePlus2, Percent, ShieldOff, Target } from "lucide-react";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@hotline/shared";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -119,7 +119,19 @@ export function LeadsPage() {
               </TableCell>
               <TableCell className="max-w-xs truncate">{lead.subject}</TableCell>
               <TableCell>
-                <LeadStatusBadge status={lead.status} />
+                <div className="flex items-center gap-1.5">
+                  <LeadStatusBadge status={lead.status} />
+                  {lead.aiIsRelevant === true && (
+                    <span title={lead.aiReasoning ?? "ИИ считает релевантным"}>
+                      <CheckCircle2 className="size-4 text-emerald-500" aria-label="ИИ считает релевантным" />
+                    </span>
+                  )}
+                  {lead.aiIsRelevant === false && (
+                    <span title={lead.aiReasoning ?? "ИИ считает нерелевантным"}>
+                      <AlertTriangle className="size-4 text-amber-500" aria-label="ИИ считает нерелевантным" />
+                    </span>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}

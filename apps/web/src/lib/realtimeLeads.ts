@@ -35,6 +35,13 @@ export function useLeadsRealtime(): void {
       void queryClient.invalidateQueries({ queryKey: ["lead-conversion-stats"] });
     });
 
+    // Существующая заявка изменилась асинхронно (например, ИИ дописал вердикт уже
+    // после того, как список отрисовался) — обновляем и список, и открытую карточку.
+    socket.on("lead:updated", (payload: { id: string }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads"] });
+      void queryClient.invalidateQueries({ queryKey: ["lead", payload.id] });
+    });
+
     return () => {
       socket.disconnect();
     };

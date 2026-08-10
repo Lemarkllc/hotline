@@ -492,6 +492,8 @@ export interface LeadDTO {
   status: "NEW" | "IN_PROGRESS" | "CONVERTED" | "STOP_LISTED";
   bitrixLeadId: string | null;
   stopListReason: string | null;
+  aiIsRelevant: boolean | null;
+  aiReasoning: string | null;
   messages: {
     id: string;
     fromEmail: string;
