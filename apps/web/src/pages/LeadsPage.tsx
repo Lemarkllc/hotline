@@ -8,6 +8,8 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { useLeadConversionStats, useLeads, type LeadsView } from "@/hooks/api";
 import { useLeadsRealtime } from "@/lib/realtimeLeads";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { MobileLeadsRegistry } from "@/components/mobile/MobileLeadsRegistry";
 
 const VIEW_LABELS: Record<LeadsView, string> = {
   active: "Активные",
@@ -36,6 +38,7 @@ function LeadStatusBadge({ status }: { status: LeadStatus }) {
  * канала раздел (см. PLAN.md "«Заявки» — email-лиды..."). */
 export function LeadsPage() {
   useLeadsRealtime();
+  const isMobile = useIsMobile();
   const [view, setView] = useState<LeadsView>("active");
   const { data: leads, isLoading } = useLeads(view);
 
@@ -45,6 +48,10 @@ export function LeadsPage() {
     return { from: past.toISOString(), to: now.toISOString() };
   }, []);
   const { data: stats } = useLeadConversionStats(from, to);
+
+  if (isMobile) {
+    return <MobileLeadsRegistry view={view} onViewChange={setView} leads={leads ?? []} isLoading={isLoading} />;
+  }
 
   return (
     <div className="flex flex-col gap-6">
