@@ -17,13 +17,23 @@ import "./styles/globals.css";
 // продолжает работать со старым JS в памяти, пока её не перезагрузить явно.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
-    const registration = await navigator.serviceWorker.register("/sw.js");
+    // updateViaCache: "none" — сам файл /sw.js тоже не должен обслуживаться
+    // из HTTP-кэша браузера при проверке на изменения, иначе "проверка"
+    // могла бы молча сверяться со старой закэшированной копией самого себя.
+    const registration = await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
 
     // Возврат из фона/на передний план — ближайший аналог "открытия" для уже
     // запущенного PWA-процесса, здесь и форсируем проверку обновлений.
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") void registration.update();
     });
+
+    // Доп. подстраховка для сессий, которые открыты очень долго и ни разу не
+    // сворачивались/не возвращались на передний план (visibilitychange тогда
+    // не срабатывает вообще) — как у "самообновляющихся" PWA вроде банковских
+    // приложений, где обновление приходит незаметно вне зависимости от того,
+    // сворачивал ли пользователь приложение.
+    setInterval(() => void registration.update(), 30 * 60 * 1000);
 
     // reloaded — иначе на медленной сети reload мог бы сработать дважды подряд.
     let reloaded = false;
