@@ -87,7 +87,7 @@ export function MobileRegistry({
                   {(APPEAL_TYPE_LABELS[a.type] ?? a.type)[0]}
                 </span>
                 <span className="min-w-0 flex-1 pr-5">
-                  <span className="line-clamp-2 block text-[14px] font-semibold leading-snug text-foreground">
+                  <span className="line-clamp-2 block break-words text-[14px] font-semibold leading-snug text-foreground">
                     {title || "Без текста"}
                   </span>
                   <span className="mt-1 block text-[12px] text-muted-foreground">
