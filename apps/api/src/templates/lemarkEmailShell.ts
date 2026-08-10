@@ -232,7 +232,7 @@ export const LEMARK_EMAIL_SHELL = `<!doctype html>
 
               <span class="menu-link"
                     style="display:inline-block;padding:6px 8px;">
-                <a href="https://lemarkllc.ru/kontakty/"
+                <a href="https://lemarkllc.ru/contacts/"
                    target="_blank"
                    style="
                      font:700 13px/1.2 Arial,Helvetica,sans-serif;
