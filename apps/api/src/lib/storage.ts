@@ -89,32 +89,36 @@ export async function downloadObject(storageKey: string): Promise<Buffer> {
 }
 
 /**
- * Content-Disposition: attachment — открытие вложения скачивает файл, а не
- * переходит на него как на страницу. Без этого клик по вложению (window.open в
- * новой вкладке) в PWA standalone-режиме (без адресной строки/кнопки "назад")
- * оставлял пользователя без возможности вернуться в приложение — теперь браузер
- * просто скачивает файл и не покидает текущую страницу вообще (стандартное
- * поведение при загрузке навигацией с этим заголовком). На <img src> (лайтбокс
- * вложений-картинок) заголовок не влияет — он значим только для навигации/скачивания,
- * не для встраиваемых ресурсов, поэтому превью в самом приложении не ломается.
+ * По умолчанию БЕЗ Content-Disposition: attachment — вложение должно быть можно
+ * посмотреть (картинка/PDF отрисовываются в <img>/<iframe> внутри диалога
+ * приложения, см. AttachmentGallery.tsx), а не только скачать. Более ранняя
+ * версия форсировала attachment всегда — решала проблему "нет пути назад после
+ * открытия вложения", но заодно и ломала просмотр (реальная жалоба пользователя).
+ * Правильное решение обеих проблем сразу — свой диалог с кнопкой закрытия
+ * (никогда не покидает страницу вообще, значит и "пути назад" не требуется),
+ * а Content-Disposition: attachment — опционально, только для отдельной явной
+ * кнопки "Скачать" (forceDownload), не для обычного открытия/просмотра.
  */
 export async function getPresignedDownloadUrl(
   storageKey: string,
-  options?: { filename?: string; expiresInSeconds?: number },
+  options?: { filename?: string; expiresInSeconds?: number; forceDownload?: boolean },
 ): Promise<string> {
-  const filename = (options?.filename ?? storageKey.split("/").pop() ?? "file").replace(/"/g, "");
-  // Живой тест показал: голый filename="..." с кириллицей браузер сохраняет как
-  // кракозябры (UTF-8 байты интерпретируются как Latin-1) — нужен RFC 5987
-  // filename* с percent-encoding, plus ASCII-фолбэк в обычном filename= для
-  // клиентов, которые filename* не понимают вообще.
-  const asciiFallback = filename.replace(/[^\x20-\x7E]/g, "_");
-  const disposition = `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
   const command = new GetObjectCommand({
     Bucket: config.storage.bucket,
     Key: storageKey,
-    ResponseContentDisposition: disposition,
+    ...(options?.forceDownload ? { ResponseContentDisposition: buildAttachmentDisposition(storageKey, options) } : {}),
   });
   return getSignedUrl(s3PublicSigner, command, { expiresIn: options?.expiresInSeconds ?? 300 });
+}
+
+/** Живой тест показал: голый filename="..." с кириллицей браузер сохраняет как
+ * кракозябры (UTF-8 байты интерпретируются как Latin-1) — нужен RFC 5987
+ * filename* с percent-encoding, plus ASCII-фолбэк в обычном filename= для
+ * клиентов, которые filename* не понимают вообще. */
+function buildAttachmentDisposition(storageKey: string, options?: { filename?: string }): string {
+  const filename = (options?.filename ?? storageKey.split("/").pop() ?? "file").replace(/"/g, "");
+  const asciiFallback = filename.replace(/[^\x20-\x7E]/g, "_");
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }
 
 export async function deleteObject(storageKey: string): Promise<void> {

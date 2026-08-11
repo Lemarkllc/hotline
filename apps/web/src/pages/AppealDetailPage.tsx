@@ -110,14 +110,6 @@ export function AppealDetailPage() {
     await changeStatus.mutateAsync({ toStatus, reason });
   }
 
-  async function handleDownload(attachmentId: string) {
-    const result = await getAttachmentUrl.mutateAsync({ appealId: id, attachmentId });
-    // Не window.open(..., "_blank") — presigned-ссылка скачивает файл (Content-
-    // Disposition: attachment, см. getPresignedDownloadUrl), переход в текущей
-    // вкладке остаётся на странице вместо открытия вкладки без пути назад (особенно
-    // важно в мобильном PWA standalone-режиме без адресной строки/кнопки "назад").
-    window.location.href = result.url;
-  }
 
   async function handleSendMessage() {
     if (!newMessage.trim() || addComment.isPending) return;
@@ -292,7 +284,10 @@ export function AppealDetailPage() {
           onMentionedUserIdsChange={setMentionedUserIds}
           onAddInternalNote={handleAddInternalNote}
           addNotePending={addComment.isPending}
-          onDownloadAttachment={handleDownload}
+          getAttachmentQueryKey={(attachmentId) => ["attachment-url", "appeal", id, attachmentId]}
+          fetchAttachmentUrl={(attachmentId, download) =>
+            getAttachmentUrl.mutateAsync({ appealId: id, attachmentId, download }).then((r) => r.url)
+          }
         />
         {revealDialogEl}
         {closeDialogEl}
@@ -612,7 +607,9 @@ export function AppealDetailPage() {
               label: a.kind === "PHOTO" ? "Фото" : "Видео",
             }))}
             getQueryKey={(attachmentId) => ["attachment-url", "appeal", id, attachmentId]}
-            fetchUrl={(attachmentId) => getAttachmentUrl.mutateAsync({ appealId: id, attachmentId }).then((r) => r.url)}
+            fetchUrl={(attachmentId, download) =>
+              getAttachmentUrl.mutateAsync({ appealId: id, attachmentId, download }).then((r) => r.url)
+            }
           />
         </TabsContent>
 

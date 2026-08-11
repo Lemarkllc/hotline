@@ -220,7 +220,7 @@ export function LeadDetailPage() {
                       label: a.filename,
                     }))}
                     getQueryKey={(attachmentId) => ["attachment-url", "lead", id, attachmentId]}
-                    fetchUrl={(attachmentId) => fetchLeadAttachmentUrl(id, attachmentId)}
+                    fetchUrl={(attachmentId, download) => fetchLeadAttachmentUrl(id, attachmentId, download)}
                   />
                 </div>
               )}

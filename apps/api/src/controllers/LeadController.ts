@@ -81,7 +81,11 @@ export class LeadController extends BaseController {
 
   async getAttachmentUrl(req: Request, res: Response): Promise<void> {
     try {
-      const url = await leadService.getAttachmentUrl(pathParam(req, "id"), pathParam(req, "attachmentId"));
+      const url = await leadService.getAttachmentUrl(
+        pathParam(req, "id"),
+        pathParam(req, "attachmentId"),
+        req.query.download === "true",
+      );
       this.handleSuccess(res, { url });
     } catch (error) {
       this.handleError(error, res, "getAttachmentUrl");

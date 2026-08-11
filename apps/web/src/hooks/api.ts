@@ -239,8 +239,10 @@ export function useMentionableUsers(appealId: string, enabled: boolean) {
 
 export function useAttachmentUrl() {
   return useMutation({
-    mutationFn: ({ appealId, attachmentId }: { appealId: string; attachmentId: string }) =>
-      apiRequest<{ url: string }>(`/appeals/${appealId}/attachments/${attachmentId}/url`),
+    mutationFn: ({ appealId, attachmentId, download }: { appealId: string; attachmentId: string; download?: boolean }) =>
+      apiRequest<{ url: string }>(`/appeals/${appealId}/attachments/${attachmentId}/url`, {
+        query: { download: download ? "true" : undefined },
+      }),
   });
 }
 
@@ -603,8 +605,10 @@ export function useLeadConversionStats(from: string, to: string) {
   });
 }
 
-export function fetchLeadAttachmentUrl(leadId: string, attachmentId: string): Promise<string> {
-  return apiRequest<{ url: string }>(`/leads/${leadId}/attachments/${attachmentId}/url`).then((r) => r.url);
+export function fetchLeadAttachmentUrl(leadId: string, attachmentId: string, download?: boolean): Promise<string> {
+  return apiRequest<{ url: string }>(`/leads/${leadId}/attachments/${attachmentId}/url`, {
+    query: { download: download ? "true" : undefined },
+  }).then((r) => r.url);
 }
 
 // --- Notifications ---

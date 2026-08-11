@@ -88,12 +88,12 @@ export class LeadService {
     return serialize(lead);
   }
 
-  async getAttachmentUrl(id: string, attachmentId: string): Promise<string> {
+  async getAttachmentUrl(id: string, attachmentId: string, forceDownload = false): Promise<string> {
     const lead = await emailLeadRepository.findById(id);
     if (!lead) throw new NotFoundError("Заявка не найдена");
     const attachment = lead.messages.flatMap((m) => m.attachments).find((a) => a.id === attachmentId);
     if (!attachment) throw new NotFoundError("Вложение не найдено");
-    return getPresignedDownloadUrl(attachment.storageKey, { filename: attachment.filename });
+    return getPresignedDownloadUrl(attachment.storageKey, { filename: attachment.filename, forceDownload });
   }
 
   async takeInProgress(id: string): Promise<LeadDTO> {

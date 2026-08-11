@@ -477,7 +477,7 @@ export class AppealService {
     }
   }
 
-  async getAttachmentUrl(user: AuthenticatedUser, appealId: string, attachmentId: string) {
+  async getAttachmentUrl(user: AuthenticatedUser, appealId: string, attachmentId: string, forceDownload = false) {
     const appeal = await appealRepository.findById(appealId);
     if (!appeal) throw new NotFoundError("Обращение не найдено");
     const isAssigned = appeal.assignments.some((a) => a.userId === user.id);
@@ -489,7 +489,7 @@ export class AppealService {
     }
     const attachment = appeal.attachments.find((a) => a.id === attachmentId);
     if (!attachment) throw new NotFoundError("Вложение не найдено");
-    return getPresignedDownloadUrl(attachment.storageKey);
+    return getPresignedDownloadUrl(attachment.storageKey, { forceDownload });
   }
 
   private serializeForStaff(appeal: AppealWithDetails, user: AuthenticatedUser): AppealDTO {

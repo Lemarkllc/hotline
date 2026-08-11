@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import { ChevronLeft, Download, Lock, Paperclip, Send, ShieldAlert } from "lucide-react";
+import { ChevronLeft, Lock, Send, ShieldAlert } from "lucide-react";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { cn } from "@/lib/utils";
 import { statusColor, APPEAL_TYPE_LABELS } from "@/components/appeals/badges";
 import { MentionTextarea } from "@/components/appeals/MentionTextarea";
+import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
 import { BottomSheet, BottomSheetContent, BottomSheetTitle, BottomSheetTrigger } from "@/components/ui/bottom-sheet";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
@@ -55,7 +56,8 @@ export function AppealDetailMobile({
   onMentionedUserIdsChange,
   onAddInternalNote,
   addNotePending,
-  onDownloadAttachment,
+  getAttachmentQueryKey,
+  fetchAttachmentUrl,
 }: {
   appeal: AppealDTO;
   onBack: () => void;
@@ -88,7 +90,8 @@ export function AppealDetailMobile({
   onMentionedUserIdsChange: (ids: string[]) => void;
   onAddInternalNote: () => void;
   addNotePending: boolean;
-  onDownloadAttachment: (attachmentId: string) => void;
+  getAttachmentQueryKey: (attachmentId: string) => unknown[];
+  fetchAttachmentUrl: (attachmentId: string, download?: boolean) => Promise<string>;
 }) {
   const [assignSheetOpen, setAssignSheetOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -340,28 +343,20 @@ export function AppealDetailMobile({
           </div>
         )}
 
-        {/* Вложения */}
+        {/* Вложения — та же галерея с превью в диалоге, что и на desktop (не список
+            "нажал → сразу скачивание", там фото вообще было нельзя посмотреть). */}
         {activeTab === "attachments" && (
-          <div className="mt-4 flex flex-col gap-2">
-            {!appeal.attachments.length && (
-              <p className="py-6 text-center text-[13px] text-muted-foreground">Вложений нет.</p>
-            )}
-            {appeal.attachments.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => onDownloadAttachment(a.id)}
-                className="flex items-center gap-2.5 rounded-[14px] border border-border bg-surface px-4 py-3.5 text-left"
-              >
-                <Paperclip className="size-4 shrink-0 text-muted-foreground" />
-                <span className="flex-1 truncate text-[14px] text-foreground">
-                  {a.kind === "PHOTO" ? "Фото" : "Видео"}
-                </span>
-                <span className="shrink-0 text-[12px] text-muted-foreground">
-                  {(a.fileSize / 1024 / 1024).toFixed(1)} МБ
-                </span>
-                <Download className="size-4 shrink-0 text-muted-foreground" />
-              </button>
-            ))}
+          <div className="mt-4">
+            <AttachmentGallery
+              attachments={appeal.attachments.map((a) => ({
+                id: a.id,
+                mimeType: a.mimeType,
+                fileSize: a.fileSize,
+                label: a.kind === "PHOTO" ? "Фото" : "Видео",
+              }))}
+              getQueryKey={getAttachmentQueryKey}
+              fetchUrl={fetchAttachmentUrl}
+            />
           </div>
         )}
       </div>
