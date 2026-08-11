@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileText } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export interface GalleryAttachment {
   id: string;
@@ -134,12 +135,20 @@ export function AttachmentGallery({
                   Предпросмотр недоступен для этого типа файла — скачайте, чтобы открыть.
                 </p>
               )}
-              <a
-                href={downloadUrl ?? viewing.url}
-                className="inline-flex w-fit items-center gap-1.5 text-sm text-primary hover:underline"
-              >
-                <Download className="size-4" /> Скачать
-              </a>
+              <DialogFooter className="sm:justify-between">
+                <a
+                  href={downloadUrl ?? viewing.url}
+                  className="inline-flex w-fit items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <Download className="size-4" /> Скачать
+                </a>
+                {/* Явная кнопка "Закрыть", не только крестик в углу — на телефоне
+                    поверх крупной картинки/PDF маленький крестик легко не заметить,
+                    а закрытие диалога и есть возврат в карточку обращения/заявки. */}
+                <Button variant="outline" onClick={() => setViewing(null)}>
+                  Закрыть
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
