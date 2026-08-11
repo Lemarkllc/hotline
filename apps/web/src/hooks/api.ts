@@ -527,7 +527,14 @@ export interface BitrixUserDTO {
 export interface LeadConversionStats {
   total: number;
   converted: number;
+  aiRelevant: number;
   conversionRate: number | null;
+}
+
+export interface LeadDailyStat {
+  date: string;
+  total: number;
+  aiRelevant: number;
 }
 
 export type LeadsView = "active" | "converted" | "stop_listed";
@@ -602,6 +609,14 @@ export function useLeadConversionStats(from: string, to: string) {
   return useQuery({
     queryKey: ["lead-conversion-stats", from, to],
     queryFn: () => apiRequest<LeadConversionStats>("/leads/conversion-stats", { query: { from, to } }),
+  });
+}
+
+export function useLeadDailyStats(from: string, to: string, enabled = true) {
+  return useQuery({
+    queryKey: ["lead-daily-stats", from, to],
+    queryFn: () => apiRequest<LeadDailyStat[]>("/leads/daily-stats", { query: { from, to } }),
+    enabled,
   });
 }
 

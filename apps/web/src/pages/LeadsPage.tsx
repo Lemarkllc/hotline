@@ -1,15 +1,22 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, FilePlus2, Percent, ShieldOff, Target } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FilePlus2, Percent, ShieldOff, Sparkles, Target } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@hotline/shared";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DesktopDateRangePicker } from "@/components/ui/date-range-picker/DesktopDateRangePicker";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { useLeadConversionStats, useLeads, type LeadsView } from "@/hooks/api";
+import { useLeadConversionStats, useLeadDailyStats, useLeads, type LeadsView } from "@/hooks/api";
 import { useLeadsRealtime } from "@/lib/realtimeLeads";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileLeadsRegistry } from "@/components/mobile/MobileLeadsRegistry";
+
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 const VIEW_LABELS: Record<LeadsView, string> = {
   active: "Активные",
@@ -42,15 +49,35 @@ export function LeadsPage() {
   const [view, setView] = useState<LeadsView>("active");
   const { data: leads, isLoading } = useLeads(view);
 
-  const { from, to } = useMemo(() => {
-    const now = new Date();
-    const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    return { from: past.toISOString(), to: now.toISOString() };
-  }, []);
+  // Дефолт "последние 30 дней" — единственный источник для обеих версий (десктоп/PWA)
+  // и для "Сбросить" у DateRangePicker (см. resetRange ниже) — компонент сам этого
+  // значения не знает, чтобы оставаться переиспользуемым для других дефолтов.
+  const resetRange = useMemo(
+    () => ({ from: isoDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)), to: isoDate(new Date()) }),
+    [],
+  );
+  const [from, setFrom] = useState(resetRange.from);
+  const [to, setTo] = useState(resetRange.to);
   const { data: stats } = useLeadConversionStats(from, to);
+  // График "по дням" только на десктопе (см. MobileLeadsRegistry) — на телефоне
+  // запрос не нужен, не гоняем его зря.
+  const { data: dailyStats } = useLeadDailyStats(from, to, !isMobile);
 
   if (isMobile) {
-    return <MobileLeadsRegistry view={view} onViewChange={setView} leads={leads ?? []} isLoading={isLoading} />;
+    return (
+      <MobileLeadsRegistry
+        view={view}
+        onViewChange={setView}
+        leads={leads ?? []}
+        isLoading={isLoading}
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        stats={stats}
+        resetRange={resetRange}
+      />
+    );
   }
 
   return (
@@ -58,11 +85,22 @@ export function LeadsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Заявки</h1>
-          <p className="text-sm text-muted-foreground">Email-лиды с sales@lemarkllc.ru за последние 30 дней</p>
+          <p className="text-sm text-muted-foreground">Email-лиды с sales@lemarkllc.ru</p>
         </div>
+        {/* В одной строке с заголовком, а не отдельным широким блоком — тот же фильтр
+            "выше того, что фильтрует" (плитки/график), просто визуально легче. */}
+        <DesktopDateRangePicker
+          from={from}
+          to={to}
+          onChange={(f, t) => {
+            setFrom(f);
+            setTo(t);
+          }}
+          resetRange={resetRange}
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <KpiCard label="Всего заявок" value={stats?.total ?? "—"} icon={FilePlus2} accent="slate" />
         <KpiCard label="Передано в CRM" value={stats?.converted ?? "—"} icon={Target} accent="success" />
         <KpiCard
@@ -71,7 +109,32 @@ export function LeadsPage() {
           icon={Percent}
           accent="primary"
         />
+        <KpiCard label="Качественных (ИИ)" value={stats?.aiRelevant ?? "—"} icon={Sparkles} accent="warning" />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Качественные лиды по дням</CardTitle>
+        </CardHeader>
+        <CardContent className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={dailyStats ?? []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(d: string) => new Date(d).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })}
+              />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+              <Tooltip
+                labelFormatter={(d: string) => new Date(d).toLocaleDateString("ru-RU")}
+                formatter={(value: number) => [value, "Качественных"]}
+              />
+              <Bar dataKey="aiRelevant" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       <div className="flex items-center gap-3">
         <Button variant={view === "active" ? "default" : "outline"} size="sm" onClick={() => setView("active")}>

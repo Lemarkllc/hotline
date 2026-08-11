@@ -213,9 +213,16 @@ export class LeadService {
     }
   }
 
-  async conversionStats(from: Date, to: Date): Promise<{ total: number; converted: number; conversionRate: number | null }> {
-    const { total, converted } = await emailLeadRepository.conversionStats(from, to);
-    return { total, converted, conversionRate: total > 0 ? (converted / total) * 100 : null };
+  async conversionStats(
+    from: Date,
+    to: Date,
+  ): Promise<{ total: number; converted: number; aiRelevant: number; conversionRate: number | null }> {
+    const { total, converted, aiRelevant } = await emailLeadRepository.conversionStats(from, to);
+    return { total, converted, aiRelevant, conversionRate: total > 0 ? (converted / total) * 100 : null };
+  }
+
+  async dailyStats(from: Date, to: Date): Promise<{ date: string; total: number; aiRelevant: number }[]> {
+    return emailLeadRepository.dailyStats(from, to);
   }
 }
 

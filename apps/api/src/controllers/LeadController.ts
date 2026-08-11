@@ -4,8 +4,8 @@ import { BaseController } from "@/controllers/BaseController.js";
 import { leadService } from "@/services/leadService.js";
 import { pathParam } from "@/utils/params.js";
 import type {
-  conversionStatsQuerySchema,
   convertLeadToCrmSchema,
+  leadDateRangeQuerySchema,
   listLeadsQuerySchema,
   searchBitrixUsersQuerySchema,
   stopListLeadSchema,
@@ -94,11 +94,21 @@ export class LeadController extends BaseController {
 
   async conversionStats(req: Request, res: Response): Promise<void> {
     try {
-      const { from, to } = req.query as unknown as z.infer<typeof conversionStatsQuerySchema>;
+      const { from, to } = req.query as unknown as z.infer<typeof leadDateRangeQuerySchema>;
       const stats = await leadService.conversionStats(from, to);
       this.handleSuccess(res, stats);
     } catch (error) {
       this.handleError(error, res, "conversionStats");
+    }
+  }
+
+  async dailyStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { from, to } = req.query as unknown as z.infer<typeof leadDateRangeQuerySchema>;
+      const stats = await leadService.dailyStats(from, to);
+      this.handleSuccess(res, stats);
+    } catch (error) {
+      this.handleError(error, res, "dailyStats");
     }
   }
 }

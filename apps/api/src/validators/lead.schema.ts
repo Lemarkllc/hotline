@@ -14,7 +14,17 @@ export const searchBitrixUsersQuerySchema = z.object({
   query: z.string().trim().max(200).default(""),
 });
 
-export const conversionStatsQuerySchema = z.object({
-  from: z.coerce.date(),
-  to: z.coerce.date(),
-});
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+// Общая схема для /leads/conversion-stats и /leads/daily-stats — обе принимают тот же
+// диапазон дат. Верхний предел диапазона нужен daily-stats: без него zero-filled массив
+// по дням растёт без ограничений (см. EmailLeadRepository.dailyStats).
+export const leadDateRangeQuerySchema = z
+  .object({
+    from: z.coerce.date(),
+    to: z.coerce.date(),
+  })
+  .refine((v) => v.from <= v.to, { message: "from должно быть раньше to" })
+  .refine((v) => v.to.getTime() - v.from.getTime() <= 366 * ONE_DAY_MS, {
+    message: "Диапазон не должен превышать 366 дней",
+  });

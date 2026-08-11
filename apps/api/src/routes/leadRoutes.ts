@@ -5,8 +5,8 @@ import { requirePlainPermission } from "@/middleware/rbac.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
 import { validate } from "@/middleware/validate.js";
 import {
-  conversionStatsQuerySchema,
   convertLeadToCrmSchema,
+  leadDateRangeQuerySchema,
   listLeadsQuerySchema,
   searchBitrixUsersQuerySchema,
   stopListLeadSchema,
@@ -29,8 +29,14 @@ leadRoutes.get(
 
 leadRoutes.get(
   "/conversion-stats",
-  validate(conversionStatsQuerySchema, "query"),
+  validate(leadDateRangeQuerySchema, "query"),
   asyncErrorWrapper((req, res) => leadController.conversionStats(req, res)),
+);
+
+leadRoutes.get(
+  "/daily-stats",
+  validate(leadDateRangeQuerySchema, "query"),
+  asyncErrorWrapper((req, res) => leadController.dailyStats(req, res)),
 );
 
 leadRoutes.get("/:id", asyncErrorWrapper((req, res) => leadController.getById(req, res)));

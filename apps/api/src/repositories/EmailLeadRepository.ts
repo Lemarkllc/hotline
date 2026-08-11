@@ -162,13 +162,53 @@ export class EmailLeadRepository {
   }
 
   /** Для плиток конверсии на LeadsPage — созданные в периоде, без STOP_LISTED
-   * (см. PLAN.md leadService.conversionStats). */
-  async conversionStats(from: Date, to: Date): Promise<{ total: number; converted: number }> {
-    const [total, converted] = await Promise.all([
+   * (см. PLAN.md leadService.conversionStats). aiRelevant — вердикт ИИ-классификации
+   * (leadAiService) на момент получения письма, а не дата перевода в CRM: по
+   * явному решению пользователя это более точный сигнал качества входящего потока,
+   * т.к. "передано в CRM" скоро станет автоматическим и запаздывающим индикатором. */
+  async conversionStats(from: Date, to: Date): Promise<{ total: number; converted: number; aiRelevant: number }> {
+    const [total, converted, aiRelevant] = await Promise.all([
       prisma.emailLead.count({ where: { createdAt: { gte: from, lte: to }, status: { not: "STOP_LISTED" } } }),
       prisma.emailLead.count({ where: { createdAt: { gte: from, lte: to }, status: "CONVERTED" } }),
+      prisma.emailLead.count({
+        where: { createdAt: { gte: from, lte: to }, aiIsRelevant: true, status: { not: "STOP_LISTED" } },
+      }),
     ]);
-    return { total, converted };
+    return { total, converted, aiRelevant };
+  }
+
+  /** Разбивка по дням для графика "качественные лиды по дням" на LeadsPage — считаем
+   * в JS, а не через SQL DATE_TRUNC: объём (email-лиды одной компании) не оправдывает
+   * возню с часовым поясом в raw SQL, а бакетинг по UTC-дню тут ровно то же самое,
+   * что и без усилий в JS (toISOString().slice(0,10)) — то же неявное UTC-допущение,
+   * что и везде в проекте (isoDate() на ReportsPage, z.coerce.date() в валидаторах).
+   * Дни без лидов зафилены нулями — иначе на графике день молча пропадает с оси,
+   * а не читается как "лидов не было". */
+  async dailyStats(from: Date, to: Date): Promise<{ date: string; total: number; aiRelevant: number }[]> {
+    const rows = await prisma.emailLead.findMany({
+      where: { createdAt: { gte: from, lte: to }, status: { not: "STOP_LISTED" } },
+      select: { createdAt: true, aiIsRelevant: true },
+    });
+
+    const buckets = new Map<string, { total: number; aiRelevant: number }>();
+    for (const row of rows) {
+      const day = row.createdAt.toISOString().slice(0, 10);
+      const bucket = buckets.get(day) ?? { total: 0, aiRelevant: 0 };
+      bucket.total += 1;
+      if (row.aiIsRelevant) bucket.aiRelevant += 1;
+      buckets.set(day, bucket);
+    }
+
+    const result: { date: string; total: number; aiRelevant: number }[] = [];
+    const cursor = new Date(from);
+    cursor.setUTCHours(0, 0, 0, 0);
+    const end = new Date(to);
+    while (cursor <= end) {
+      const day = cursor.toISOString().slice(0, 10);
+      result.push({ date: day, ...(buckets.get(day) ?? { total: 0, aiRelevant: 0 }) });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return result;
   }
 }
 

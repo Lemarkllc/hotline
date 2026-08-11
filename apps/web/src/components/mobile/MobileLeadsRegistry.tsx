@@ -2,7 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@hotline/shared";
 import { cn } from "@/lib/utils";
-import type { LeadDTO, LeadsView } from "@/hooks/api";
+import { MobileDateRangePicker } from "@/components/ui/date-range-picker/MobileDateRangePicker";
+import type { LeadConversionStats, LeadDTO, LeadsView } from "@/hooks/api";
 
 const CHIPS: { label: string; value: LeadsView }[] = [
   { label: "Активные", value: "active" },
@@ -17,25 +18,75 @@ const STATUS_COLOR: Record<LeadStatus, string> = {
   STOP_LISTED: "#dc2626",
 };
 
+/** Плитки статистики за выбранный период — тот же 2×2 паттерн, что и у
+ * MobileDashboard.tsx (крупная цифра + подпись), без графика по дням: recharts на
+ * телефоне не нужен, тот же принцип, что и у MobileDashboard (см. его комментарий). */
+const STAT_CARDS: { key: keyof LeadConversionStats; label: string; color: string; suffix?: string }[] = [
+  { key: "total", label: "Всего заявок", color: "#475569" },
+  { key: "converted", label: "Передано в CRM", color: "#16a34a" },
+  { key: "aiRelevant", label: "Качественных (ИИ)", color: "#d97706" },
+];
+
 /** Мобильный список "Заявки" (по образцу MobileRegistry.tsx у "Обращений") — карточки
  * вместо десктопной Table, фильтр упрощён до чипов (те же три view, что и на десктопе,
- * см. LeadsPage.tsx). */
+ * см. LeadsPage.tsx). Дейт-пикер и плитки статистики — то же, что на десктопе
+ * (LeadsPage.tsx), но без bar-графика по дням (см. STAT_CARDS выше). */
 export function MobileLeadsRegistry({
   view,
   onViewChange,
   leads,
   isLoading,
+  from,
+  to,
+  onFromChange,
+  onToChange,
+  stats,
+  resetRange,
 }: {
   view: LeadsView;
   onViewChange: (v: LeadsView) => void;
   leads: LeadDTO[];
   isLoading: boolean;
+  from: string;
+  to: string;
+  onFromChange: (v: string) => void;
+  onToChange: (v: string) => void;
+  stats: LeadConversionStats | undefined;
+  resetRange: { from: string; to: string };
 }) {
   const navigate = useNavigate();
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-[20px] font-extrabold text-foreground">Заявки</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[20px] font-extrabold text-foreground">Заявки</h1>
+        <MobileDateRangePicker
+          from={from}
+          to={to}
+          onChange={(f, t) => {
+            onFromChange(f);
+            onToChange(t);
+          }}
+          resetRange={resetRange}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        {STAT_CARDS.map((stat) => (
+          <div key={stat.key} className="rounded-[15px] border border-border bg-surface p-3.5">
+            <div className="text-[22px] font-extrabold" style={{ color: stat.color }}>
+              {stats ? (stats[stat.key] ?? "—") : "—"}
+            </div>
+            <div className="mt-0.5 text-[12px] leading-tight text-muted-foreground">{stat.label}</div>
+          </div>
+        ))}
+        <div className="rounded-[15px] border border-border bg-surface p-3.5">
+          <div className="text-[22px] font-extrabold text-[#2563eb]">
+            {stats?.conversionRate !== null && stats?.conversionRate !== undefined ? `${stats.conversionRate.toFixed(0)}%` : "—"}
+          </div>
+          <div className="mt-0.5 text-[12px] leading-tight text-muted-foreground">Конверсия</div>
+        </div>
+      </div>
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {CHIPS.map((c) => (
