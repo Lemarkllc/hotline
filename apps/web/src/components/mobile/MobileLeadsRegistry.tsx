@@ -76,8 +76,10 @@ export function MobileLeadsRegistry({
               {lead.fromName ?? lead.fromEmail}
             </span>
             {/* line-clamp-1 — та же логика, что и у MobileRegistry.tsx (обращения):
-                одна высота карточки независимо от длины темы письма. */}
-            <span className="mt-0.5 line-clamp-1 block break-words text-[13px] leading-snug text-muted-foreground">
+                одна высота карточки независимо от длины темы письма. БЕЗ block рядом
+                — конфликтует с display, который сам объявляет line-clamp (реальный
+                баг, из-за которого текст вообще не обрезался — см. MobileRegistry.tsx). */}
+            <span className="mt-0.5 line-clamp-1 break-words text-[13px] leading-snug text-muted-foreground">
               {lead.subject}
             </span>
             <span className="mt-1.5 block text-[12px] text-muted-foreground">

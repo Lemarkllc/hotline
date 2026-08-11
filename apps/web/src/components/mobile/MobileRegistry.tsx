@@ -88,10 +88,13 @@ export function MobileRegistry({
                 </span>
                 <span className="min-w-0 flex-1 pr-5">
                   {/* line-clamp-1, не 2 — карточки должны быть одной высоты независимо
-                      от длины текста обращения (иначе короткие/длинные визуально
-                      "растягивают" список неравномерно), полный текст — уже на
-                      карточке обращения после открытия. */}
-                  <span className="line-clamp-1 block break-words text-[14px] font-semibold leading-snug text-foreground">
+                      от длины текста обращения, полный текст — уже на карточке
+                      обращения после открытия. БЕЗ класса block рядом — оба задают
+                      display, и в скомпилированном CSS .block шёл ПОСЛЕ .line-clamp-1,
+                      поэтому побеждал и полностью отключал обрезание (реальный баг,
+                      пойманный вживую — line-clamp сам объявляет свой display, ставить
+                      его нельзя). */}
+                  <span className="line-clamp-1 break-words text-[14px] font-semibold leading-snug text-foreground">
                     {title || "Без текста"}
                   </span>
                   <span className="mt-1 block text-[12px] text-muted-foreground">
