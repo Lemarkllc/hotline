@@ -103,14 +103,15 @@ export interface DateRangePickerProps {
   resetRange: { from: string; to: string };
 }
 
-/** Reducer выбора диапазона — 1:1 порт selectDay/applyPreset/clearRange из прототипа.
- * onChange зовётся сразу при завершении диапазона (второй клик) или пресете/сбросе —
- * без отдельного "черновика", "Применить" в компонентах — чистое закрытие поповера/
- * шторки, не коммит (см. прототип: applyPreset/selectDay уже мутируют то же состояние,
- * что рендерит триггер). draftStart/draftEnd — промежуточное состояние на время выбора
- * (второй клик ещё не сделан) — держим локально, а не в контролируемых from/to, потому
- * что API этого компонента требует непустой диапазон всегда (в отличие от прототипа,
- * где диапазон может быть не выбран вовсе). */
+/** Reducer выбора диапазона — 1:1 порт selectDay/applyPreset/clearRange из прототипа,
+ * НО в отличие от прототипа onChange НЕ зовётся на каждом клике — только по явному
+ * commit() (кнопка "Применить"). В прототипе одно состояние сразу и рендерит триггер,
+ * и хранится — там "Применить" не нужен для коммита, только для закрытия. У нас же
+ * кнопки Применить/Сбросить визуально обещают модель "черновик → коммит" — критика
+ * impeccable поймала живьём, что это было не так (диапазон коммитился раньше клика
+ * "Применить", Escape ничего не откатывал). Раз кнопки уже нарисованы — делаем их
+ * настоящими, а не косметикой. draftStart/draftEnd — промежуточное состояние на время
+ * выбора, коммитится в контролируемые from/to только через commit(). */
 export function useDateRangeSelection({ from, to, onChange }: Pick<DateRangePickerProps, "from" | "to" | "onChange">) {
   const [draftStart, setDraftStart] = useState<string>(from);
   const [draftEnd, setDraftEnd] = useState<string | null>(to);
@@ -138,7 +139,6 @@ export function useDateRangeSelection({ from, to, onChange }: Pick<DateRangePick
       return;
     }
     setDraftEnd(key);
-    onChange(draftStart, key);
   }
 
   function applyPreset(id: string, start: string | null, end: string | null) {
@@ -146,10 +146,28 @@ export function useDateRangeSelection({ from, to, onChange }: Pick<DateRangePick
     if (start && end) {
       setDraftStart(start);
       setDraftEnd(end);
-      onChange(start, end);
     }
   }
 
+  /** Кнопка "Сбросить" внутри поповера/шторки — тоже только черновик, не коммит.
+   * Симметрично selectDay/applyPreset: ничего не коммитит, кроме commit(). */
+  function clearDraft(resetFrom: string, resetTo: string) {
+    setDraftStart(resetFrom);
+    setDraftEnd(resetTo);
+    setActivePreset(null);
+  }
+
+  /** Единственный путь коммита черновика в родительское состояние — кнопка
+   * "Применить". Незавершённый диапазон (только start) не коммитится молча —
+   * компоненты дополнительно должны дизейблить кнопку через !draftEnd. */
+  function commit() {
+    if (draftEnd) {
+      onChange(draftStart, draftEnd);
+    }
+  }
+
+  /** Отдельный путь для "×" на самом закрытом триггере (десктоп) — единственное
+   * место, где мгновенный коммит без открытия поповера ожидаем и уместен. */
   function reset(resetFrom: string, resetTo: string) {
     setDraftStart(resetFrom);
     setDraftEnd(resetTo);
@@ -157,5 +175,5 @@ export function useDateRangeSelection({ from, to, onChange }: Pick<DateRangePick
     onChange(resetFrom, resetTo);
   }
 
-  return { draftStart, draftEnd, activePreset, selectDay, applyPreset, reset, resetDraft };
+  return { draftStart, draftEnd, activePreset, selectDay, applyPreset, clearDraft, commit, reset, resetDraft };
 }

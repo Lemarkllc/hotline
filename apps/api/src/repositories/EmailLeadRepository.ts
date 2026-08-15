@@ -98,11 +98,14 @@ export class EmailLeadRepository {
   /** "active" — реально в работе (NEW/IN_PROGRESS), не "всё, кроме стоп-листа": CONVERTED
    * тоже финальный статус, с ним уже никто не работает, поэтому не должен засорять
    * дефолтный список — та же логика, что и "Активные" у Appeal (excludeStatus CLOSED). */
-  list(view: "active" | "converted" | "stop_listed"): Promise<EmailLeadWithMessages[]> {
+  list(view: "active" | "converted" | "stop_listed", from?: Date, to?: Date): Promise<EmailLeadWithMessages[]> {
     const where: Prisma.EmailLeadWhereInput =
       view === "active"
         ? { status: { in: ["NEW", "IN_PROGRESS"] } }
         : { status: view === "converted" ? "CONVERTED" : "STOP_LISTED" };
+    if (from || to) {
+      where.createdAt = { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
+    }
     return prisma.emailLead.findMany({
       where,
       include: LEAD_DETAIL_INCLUDE,

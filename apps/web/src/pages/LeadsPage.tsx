@@ -9,7 +9,7 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DesktopDateRangePicker } from "@/components/ui/date-range-picker/DesktopDateRangePicker";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { useLeadConversionStats, useLeadDailyStats, useLeads, type LeadsView } from "@/hooks/api";
+import { useBulkStopListLeads, useLeadConversionStats, useLeadDailyStats, useLeads, type LeadsView } from "@/hooks/api";
 import { useLeadsRealtime } from "@/lib/realtimeLeads";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileLeadsRegistry } from "@/components/mobile/MobileLeadsRegistry";
@@ -47,7 +47,7 @@ export function LeadsPage() {
   useLeadsRealtime();
   const isMobile = useIsMobile();
   const [view, setView] = useState<LeadsView>("active");
-  const { data: leads, isLoading } = useLeads(view);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Дефолт "последние 30 дней" — единственный источник для обеих версий (десктоп/PWA)
   // и для "Сбросить" у DateRangePicker (см. resetRange ниже) — компонент сам этого
@@ -58,10 +58,30 @@ export function LeadsPage() {
   );
   const [from, setFrom] = useState(resetRange.from);
   const [to, setTo] = useState(resetRange.to);
-  const { data: stats } = useLeadConversionStats(from, to);
+  const { data: leads, isLoading, isError: leadsError, refetch: refetchLeads } = useLeads(view, from, to);
+  const { data: stats, isError: statsError } = useLeadConversionStats(from, to);
   // График "по дням" только на десктопе (см. MobileLeadsRegistry) — на телефоне
   // запрос не нужен, не гоняем его зря.
   const { data: dailyStats } = useLeadDailyStats(from, to, !isMobile);
+  const bulkStopList = useBulkStopListLeads();
+
+  const maxDaily = Math.max(1, ...(dailyStats ?? []).map((d) => d.aiRelevant));
+  const yTicks = useMemo(() => Array.from({ length: maxDaily + 1 }, (_, i) => i), [maxDaily]);
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkStopList() {
+    const reason = window.prompt("Причина (спам / нецелевое обращение):") ?? undefined;
+    await bulkStopList.mutateAsync({ ids: [...selectedIds], reason });
+    setSelectedIds(new Set());
+  }
 
   if (isMobile) {
     return (
@@ -70,6 +90,7 @@ export function LeadsPage() {
         onViewChange={setView}
         leads={leads ?? []}
         isLoading={isLoading}
+        isError={leadsError}
         from={from}
         to={to}
         onFromChange={setFrom}
@@ -100,6 +121,12 @@ export function LeadsPage() {
         />
       </div>
 
+      {statsError && (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Не удалось загрузить статистику за период.
+        </p>
+      )}
+
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <KpiCard label="Всего заявок" value={stats?.total ?? "—"} icon={FilePlus2} accent="slate" />
         <KpiCard label="Передано в CRM" value={stats?.converted ?? "—"} icon={Target} accent="success" />
@@ -125,32 +152,59 @@ export function LeadsPage() {
                 tick={{ fontSize: 12 }}
                 tickFormatter={(d: string) => new Date(d).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })}
               />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+              {/* Явные целые тики от максимума данных — иначе Recharts сам подбирает
+                  "красивые" числа и на маленьких значениях промахивается неровно
+                  (было 0,1,2,4 — подтверждено живой проверкой через playwright-cli). */}
+              <YAxis allowDecimals={false} ticks={yTicks} domain={[0, maxDaily]} tick={{ fontSize: 12 }} />
               <Tooltip
                 labelFormatter={(d: string) => new Date(d).toLocaleDateString("ru-RU")}
                 formatter={(value: number) => [value, "Качественных"]}
               />
-              <Bar dataKey="aiRelevant" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+              {/* Буквальное значение токена warning (#D97706, tailwind.config.ts) —
+                  Recharts принимает только строку цвета, не Tailwind-класс; синхронизировать
+                  вручную при смене токена. */}
+              <Bar dataKey="aiRelevant" fill="#D97706" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-3">
-        <Button variant={view === "active" ? "default" : "outline"} size="sm" onClick={() => setView("active")}>
-          {VIEW_LABELS.active}
-        </Button>
-        <Button variant={view === "converted" ? "default" : "outline"} size="sm" onClick={() => setView("converted")}>
-          <Target className="size-4" /> {VIEW_LABELS.converted}
-        </Button>
-        <Button variant={view === "stop_listed" ? "default" : "outline"} size="sm" onClick={() => setView("stop_listed")}>
-          <ShieldOff className="size-4" /> {VIEW_LABELS.stop_listed}
-        </Button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant={view === "active" ? "default" : "outline"} size="sm" onClick={() => setView("active")}>
+            {VIEW_LABELS.active}
+          </Button>
+          <Button variant={view === "converted" ? "default" : "outline"} size="sm" onClick={() => setView("converted")}>
+            <Target className="size-4" /> {VIEW_LABELS.converted}
+          </Button>
+          <Button variant={view === "stop_listed" ? "default" : "outline"} size="sm" onClick={() => setView("stop_listed")}>
+            <ShieldOff className="size-4" /> {VIEW_LABELS.stop_listed}
+          </Button>
+        </div>
+        {view === "active" && selectedIds.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Выбрано: {selectedIds.size}</span>
+            <Button variant="outline" size="sm" disabled={bulkStopList.isPending} onClick={handleBulkStopList}>
+              <ShieldOff className="size-4" /> В стоп-лист
+            </Button>
+          </div>
+        )}
       </div>
 
       <Table>
         <TableHeader>
           <TableRow>
+            {view === "active" && (
+              <TableHead className="w-8">
+                <input
+                  type="checkbox"
+                  className="accent-primary"
+                  aria-label="Выбрать все"
+                  checked={Boolean(leads?.length) && selectedIds.size === leads?.length}
+                  onChange={(e) => setSelectedIds(e.target.checked ? new Set(leads?.map((l) => l.id)) : new Set())}
+                />
+              </TableHead>
+            )}
             <TableHead>Номер</TableHead>
             <TableHead>Дата</TableHead>
             <TableHead>Отправитель</TableHead>
@@ -159,22 +213,44 @@ export function LeadsPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isLoading && (
+          {leadsError && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell colSpan={view === "active" ? 6 : 5} className="text-center text-destructive">
+                Не удалось загрузить заявки.{" "}
+                <button type="button" className="underline" onClick={() => refetchLeads()}>
+                  Повторить
+                </button>
+              </TableCell>
+            </TableRow>
+          )}
+          {!leadsError && isLoading && (
+            <TableRow>
+              <TableCell colSpan={view === "active" ? 6 : 5} className="text-center text-muted-foreground">
                 Загрузка...
               </TableCell>
             </TableRow>
           )}
-          {!isLoading && !leads?.length && (
+          {!leadsError && !isLoading && !leads?.length && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell colSpan={view === "active" ? 6 : 5} className="text-center text-muted-foreground">
                 {VIEW_EMPTY_MESSAGES[view]}
               </TableCell>
             </TableRow>
           )}
-          {leads?.map((lead) => (
+          {!leadsError &&
+            leads?.map((lead) => (
             <TableRow key={lead.id}>
+              {view === "active" && (
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    className="accent-primary"
+                    aria-label={`Выбрать ${lead.publicNumber}`}
+                    checked={selectedIds.has(lead.id)}
+                    onChange={() => toggleSelected(lead.id)}
+                  />
+                </TableCell>
+              )}
               <TableCell>
                 <Link to={`/leads/${lead.id}`} className="font-medium text-primary hover:underline">
                   {lead.publicNumber}
@@ -193,12 +269,12 @@ export function LeadsPage() {
                   <LeadStatusBadge status={lead.status} />
                   {lead.aiIsRelevant === true && (
                     <span title={lead.aiReasoning ?? "ИИ считает релевантным"}>
-                      <CheckCircle2 className="size-4 text-emerald-500" aria-label="ИИ считает релевантным" />
+                      <CheckCircle2 className="size-4 text-success" aria-label="ИИ считает релевантным" />
                     </span>
                   )}
                   {lead.aiIsRelevant === false && (
                     <span title={lead.aiReasoning ?? "ИИ считает нерелевантным"}>
-                      <AlertTriangle className="size-4 text-amber-500" aria-label="ИИ считает нерелевантным" />
+                      <AlertTriangle className="size-4 text-warning" aria-label="ИИ считает нерелевантным" />
                     </span>
                   )}
                 </div>

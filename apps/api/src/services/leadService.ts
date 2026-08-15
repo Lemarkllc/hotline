@@ -77,8 +77,8 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
  * требовали бы второго слоя проверки, как у Appeal (см. CLAUDE.md "RBAC").
  */
 export class LeadService {
-  async list(view: "active" | "converted" | "stop_listed"): Promise<LeadDTO[]> {
-    const leads = await emailLeadRepository.list(view);
+  async list(view: "active" | "converted" | "stop_listed", from?: Date, to?: Date): Promise<LeadDTO[]> {
+    const leads = await emailLeadRepository.list(view, from, to);
     return leads.map(serialize);
   }
 

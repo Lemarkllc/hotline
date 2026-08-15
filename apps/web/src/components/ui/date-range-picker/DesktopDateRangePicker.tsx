@@ -51,7 +51,7 @@ function MonthGrid({ days, onSelect }: { days: CalendarDay[]; onSelect: (key: st
 export function DesktopDateRangePicker({ from, to, onChange, resetRange }: DateRangePickerProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(() => ({ year: Number(from.slice(0, 4)), month: Number(from.slice(5, 7)) - 1 }));
-  const { draftStart, draftEnd, activePreset, selectDay, applyPreset, reset, resetDraft } = useDateRangeSelection({
+  const { draftStart, draftEnd, activePreset, selectDay, applyPreset, clearDraft, commit, reset, resetDraft } = useDateRangeSelection({
     from,
     to,
     onChange,
@@ -90,29 +90,31 @@ export function DesktopDateRangePicker({ from, to, onChange, resetRange }: DateR
         setOpen(next);
       }}
     >
-      <PopoverTrigger asChild>
+      {/* Две настоящие кнопки в общей рамке-пилюле, не вложенный role="button" внутри
+          <button> — прошлая разметка была невалидным HTML и недостижима с клавиатуры
+          (tabIndex={-1} убирал "×" из Tab-порядка целиком, подтверждено живой
+          проверкой через playwright-cli). */}
+      <div className="flex h-10 items-center rounded-md border border-border bg-surface text-sm text-foreground">
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-full min-w-[44px] items-center gap-2 rounded-l-md px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+          >
+            <CalendarIcon className="size-4 text-muted-foreground" />
+            <span>
+              {fmtShort(from)} – {fmtShort(to)}
+            </span>
+          </button>
+        </PopoverTrigger>
         <button
           type="button"
-          className="flex h-10 min-w-[44px] items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          onClick={() => reset(resetRange.from, resetRange.to)}
+          className="flex h-full items-center rounded-r-md border-l border-border px-2 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+          aria-label="Сбросить диапазон"
         >
-          <CalendarIcon className="size-4 text-muted-foreground" />
-          <span>
-            {fmtShort(from)} – {fmtShort(to)}
-          </span>
-          <span
-            role="button"
-            tabIndex={-1}
-            onClick={(e) => {
-              e.stopPropagation();
-              reset(resetRange.from, resetRange.to);
-            }}
-            className="text-muted-foreground hover:text-foreground"
-            aria-label="Сбросить диапазон"
-          >
-            <X className="size-3.5" />
-          </span>
+          <X className="size-3.5" />
         </button>
-      </PopoverTrigger>
+      </div>
       <PopoverContent className="flex p-0">
         <div className="flex w-[150px] flex-col gap-0.5 border-r border-border p-2">
           {presets.map((p) => (
@@ -166,10 +168,18 @@ export function DesktopDateRangePicker({ from, to, onChange, resetRange }: DateR
           <div className="mt-3.5 flex items-center justify-between border-t border-border pt-3">
             <div className="text-[13px] text-muted-foreground">{summary}</div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => reset(resetRange.from, resetRange.to)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => clearDraft(resetRange.from, resetRange.to)}>
                 Сбросить
               </Button>
-              <Button type="button" size="sm" onClick={() => setOpen(false)}>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!draftEnd}
+                onClick={() => {
+                  commit();
+                  setOpen(false);
+                }}
+              >
                 Применить
               </Button>
             </div>

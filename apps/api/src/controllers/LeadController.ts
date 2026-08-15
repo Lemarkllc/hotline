@@ -14,8 +14,8 @@ import type {
 export class LeadController extends BaseController {
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const { view } = req.query as unknown as z.infer<typeof listLeadsQuerySchema>;
-      const leads = await leadService.list(view);
+      const { view, from, to } = req.query as unknown as z.infer<typeof listLeadsQuerySchema>;
+      const leads = await leadService.list(view, from, to);
       this.handleSuccess(res, leads);
     } catch (error) {
       this.handleError(error, res, "list");

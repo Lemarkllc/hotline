@@ -12,7 +12,7 @@ import { buildMonthDays, buildPresets, fmtShort, MONTH_NAMES, useDateRangeSelect
 export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRangePickerProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(() => ({ year: Number(from.slice(0, 4)), month: Number(from.slice(5, 7)) - 1 }));
-  const { draftStart, draftEnd, activePreset, selectDay, applyPreset, reset, resetDraft } = useDateRangeSelection({
+  const { draftStart, draftEnd, activePreset, selectDay, applyPreset, clearDraft, commit, resetDraft } = useDateRangeSelection({
     from,
     to,
     onChange,
@@ -123,15 +123,19 @@ export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRa
           <div className="mt-4 flex gap-2.5">
             <button
               type="button"
-              onClick={() => reset(resetRange.from, resetRange.to)}
+              onClick={() => clearDraft(resetRange.from, resetRange.to)}
               className="h-11 flex-1 rounded-xl bg-background text-[14px] font-semibold text-foreground"
             >
               Сбросить
             </button>
             <button
               type="button"
-              onClick={() => setOpen(false)}
-              className="h-11 flex-1 rounded-xl bg-primary text-[14px] font-semibold text-primary-foreground"
+              disabled={!draftEnd}
+              onClick={() => {
+                commit();
+                setOpen(false);
+              }}
+              className="h-11 flex-1 rounded-xl bg-primary text-[14px] font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               Применить
             </button>

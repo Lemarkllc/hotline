@@ -36,6 +36,7 @@ export function MobileLeadsRegistry({
   onViewChange,
   leads,
   isLoading,
+  isError,
   from,
   to,
   onFromChange,
@@ -47,6 +48,7 @@ export function MobileLeadsRegistry({
   onViewChange: (v: LeadsView) => void;
   leads: LeadDTO[];
   isLoading: boolean;
+  isError: boolean;
   from: string;
   to: string;
   onFromChange: (v: string) => void;
@@ -104,11 +106,12 @@ export function MobileLeadsRegistry({
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Загрузка...</p>}
-        {!isLoading && !leads.length && (
+        {isError && <p className="py-8 text-center text-sm text-destructive">Не удалось загрузить заявки.</p>}
+        {!isError && isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Загрузка...</p>}
+        {!isError && !isLoading && !leads.length && (
           <p className="py-8 text-center text-sm text-muted-foreground">Заявок не найдено.</p>
         )}
-        {leads.map((lead) => (
+        {!isError && leads.map((lead) => (
           <button
             key={lead.id}
             onClick={() => navigate(`/leads/${lead.id}`)}
@@ -117,9 +120,9 @@ export function MobileLeadsRegistry({
             {lead.aiIsRelevant !== null && (
               <span className="absolute right-3.5 top-3.5">
                 {lead.aiIsRelevant ? (
-                  <CheckCircle2 className="size-4 text-emerald-500" aria-label="ИИ считает релевантным" />
+                  <CheckCircle2 className="size-4 text-success" aria-label="ИИ считает релевантным" />
                 ) : (
-                  <AlertTriangle className="size-4 text-amber-500" aria-label="ИИ считает нерелевантным" />
+                  <AlertTriangle className="size-4 text-warning" aria-label="ИИ считает нерелевантным" />
                 )}
               </span>
             )}

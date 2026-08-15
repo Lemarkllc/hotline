@@ -539,10 +539,10 @@ export interface LeadDailyStat {
 
 export type LeadsView = "active" | "converted" | "stop_listed";
 
-export function useLeads(view: LeadsView = "active") {
+export function useLeads(view: LeadsView = "active", from?: string, to?: string) {
   return useQuery({
-    queryKey: ["leads", view],
-    queryFn: () => apiRequest<LeadDTO[]>("/leads", { query: { view } }),
+    queryKey: ["leads", view, from, to],
+    queryFn: () => apiRequest<LeadDTO[]>("/leads", { query: { view, from, to } }),
     refetchInterval: 15000,
   });
 }
@@ -577,6 +577,24 @@ export function useStopListLead(id: string) {
   return useMutation({
     mutationFn: (reason?: string) => apiRequest<LeadDTO>(`/leads/${id}/stop-list`, { method: "POST", body: { reason } }),
     onSuccess: invalidate,
+  });
+}
+
+/** Массовое "в стоп-лист" из таблицы LeadsPage — нет отдельного bulk-эндпоинта на
+ * бэкенде и не заводим его ради одной кнопки (см. PLAN.md-критику): переиспользуем
+ * тот же POST /leads/:id/stop-list в цикле через allSettled, чтобы один сбойный id
+ * не остановил остальные. */
+export function useBulkStopListLeads() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, reason }: { ids: string[]; reason?: string }) => {
+      const results = await Promise.allSettled(
+        ids.map((id) => apiRequest<LeadDTO>(`/leads/${id}/stop-list`, { method: "POST", body: { reason } })),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      return { total: ids.length, failed };
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["leads"] }),
   });
 }
 
