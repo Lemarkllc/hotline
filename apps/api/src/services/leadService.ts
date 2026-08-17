@@ -157,22 +157,31 @@ export class LeadService {
       assignedByUserId: bitrixUserId,
     });
 
-    // "Дело" — созвониться в течение часа. Best-effort: лид уже успешно создан
-    // выше, ошибка тут не должна откатывать/блокировать уже свершившуюся передачу
-    // в CRM (тот же принцип, что и у emailSendService — не роняем основной поток
-    // из-за вторичного действия). Без телефона у звонка в Bitrix нет обязательного
-    // поля COMMUNICATIONS (проверено вживую) — тогда просто не создаём дело.
-    if (lead.extractedPhone) {
-      try {
+    // "Дело" — созвониться в течение часа, если есть телефон; иначе написать на
+    // email (реальный кейс — лид 11799: без телефона дело вообще не заводилось,
+    // менеджер получал лид без единой подсказки связаться с клиентом). Email у
+    // лида есть всегда (fromEmail обязателен), поэтому дело заводится в любом
+    // случае. Best-effort: лид уже успешно создан выше, ошибка тут не должна
+    // откатывать/блокировать уже свершившуюся передачу в CRM (тот же принцип, что
+    // и у emailSendService — не роняем основной поток из-за вторичного действия).
+    try {
+      if (lead.extractedPhone) {
         await bitrixService.createCallActivity({
           leadId: bitrixLeadId,
           phone: lead.extractedPhone,
           responsibleUserId: bitrixUserId,
           subject: `Созвониться с клиентом по заявке ${lead.publicNumber}`,
         });
-      } catch (error) {
-        logger.error({ err: error, leadId: id, bitrixLeadId }, "leadService: не удалось создать дело в Bitrix24");
+      } else {
+        await bitrixService.createEmailActivity({
+          leadId: bitrixLeadId,
+          email: lead.fromEmail,
+          responsibleUserId: bitrixUserId,
+          subject: `Связаться с клиентом по email по заявке ${lead.publicNumber}`,
+        });
       }
+    } catch (error) {
+      logger.error({ err: error, leadId: id, bitrixLeadId }, "leadService: не удалось создать дело в Bitrix24");
     }
 
     // Вложения из писем — в таймлайн лида (best-effort, тот же принцип, что и у

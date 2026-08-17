@@ -138,6 +138,43 @@ export class BitrixService {
   }
 
   /**
+   * "Дело" написать клиенту на email — тот же принцип, что и createCallActivity,
+   * для случая, когда из письма НЕ удалось вытащить телефон (extractedPhone пуст):
+   * без этого лид без телефона конвертировался в CRM вообще без какого-либо дела —
+   * менеджер получал лид без единой подсказки, что делать дальше (реальный кейс,
+   * лид 11799). TYPE_ID=4 — "Письмо" (проверено вживую через crm.enum.activitytype,
+   * тестовый лид/дело 2026-08-17: 12101/24341, оставлены в проде на ручную сверку).
+   * COMMUNICATIONS с TYPE="EMAIL" принимается тем же способом, что и TYPE="PHONE"
+   * у звонка — Bitrix САМ синхронизирует START_TIME/END_TIME/DEADLINE (подтверждено
+   * тем же тестом), поэтому логика дедлайна 1:1 с createCallActivity.
+   */
+  async createEmailActivity(input: {
+    leadId: string;
+    email: string;
+    responsibleUserId: string;
+    subject: string;
+  }): Promise<void> {
+    const deadline = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    await this.call("crm.activity.add", {
+      fields: {
+        OWNER_TYPE_ID: 1, // CRM_OWNER_TYPE_LEAD
+        OWNER_ID: input.leadId,
+        TYPE_ID: 4, // письмо
+        DIRECTION: 2, // исходящий
+        SUBJECT: input.subject,
+        RESPONSIBLE_ID: input.responsibleUserId,
+        COMPLETED: "N",
+        START_TIME: deadline,
+        END_TIME: deadline,
+        DEADLINE: deadline,
+        COMMUNICATIONS: [
+          { VALUE: input.email, TYPE: "EMAIL", ENTITY_ID: input.leadId, ENTITY_TYPE_ID: 1 },
+        ],
+      },
+    });
+  }
+
+  /**
    * Файлы из письма клиента — в таймлайн лида (комментарий с вложениями), не в
    * само CRM-поле лида: у лида нет универсального "файлового" поля из коробки,
    * а crm.timeline.comment.add — штатный, документированный способ прикрепить
