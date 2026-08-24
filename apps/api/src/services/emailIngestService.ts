@@ -1,5 +1,6 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser, type Attachment as MailAttachment } from "mailparser";
+import { htmlToText } from "html-to-text";
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
 import { buildLeadAttachmentStorageKey, uploadObject } from "@/lib/storage.js";
@@ -130,7 +131,13 @@ export class EmailIngestService {
     }
 
     const subject = parsed.subject?.trim() || "(без темы)";
-    const body = (parsed.text ?? "").trim();
+    // mailparser не подставляет text из html сам по себе — если письмо
+    // HTML-only (нет text/plain части, частый случай для писем с оформлением
+    // и вложениями), parsed.text пустой, а весь контент лежит в parsed.html.
+    // Реальный кейс: Л-2026-00151 — originalBody сохранился пустым, хотя в
+    // письме был текст, просто без text/plain-альтернативы.
+    const plainText = parsed.text?.trim();
+    const body = plainText || (parsed.html ? htmlToText(parsed.html, { wordwrap: false }).trim() : "");
     const receivedAt = parsed.date ?? new Date();
 
     // Уведомления формы сайта приходят на sales@ ОТ ИМЕНИ sales@ (сайт, не клиент) —
