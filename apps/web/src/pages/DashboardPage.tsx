@@ -1,6 +1,17 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Activity, CheckCircle2, CircleDot, FilePlus2, Star, Timer, TrendingDown, UserCheck, UserX } from "lucide-react";
+import {
+  Activity,
+  CheckCircle2,
+  CircleDot,
+  FilePlus2,
+  Inbox,
+  Star,
+  Timer,
+  TrendingDown,
+  UserCheck,
+  UserX,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -15,7 +26,7 @@ import {
 } from "recharts";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { APPEAL_TYPE_LABELS, statusColor } from "@/components/appeals/badges";
+import { APPEAL_TYPE_LABELS, statusColor as appealStatusColor } from "@/components/appeals/badges";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { useAppeals, useReportSummary } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
@@ -23,30 +34,30 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileDashboard } from "@/components/mobile/MobileDashboard";
 import { AppSkeleton } from "@/components/mobile/AppSkeleton";
 
-// Привязано к конкретному типу (не позиции в массиве) — иначе следующий добавленный
-// тип молча переиспользует чужой цвет (см. PLAN.md "Заявление на увольнение").
+/** Категориальная палитра для 6 типов обращения — привязана к конкретному типу (не
+ * позиции в массиве, см. PLAN.md "Заявление на увольнение"), порядок и hex прогнаны
+ * через dataviz-валидатор (scripts/validate_palette.js): все проверки CVD/контраста
+ * пройдены в обоих режимах на этом порядке слотов. Recharts принимает только
+ * строковый литерал цвета, не CSS-переменную/Tailwind-класс — тот же принцип, что и
+ * у statusColor() ниже, поэтому дальтоник-безопасность здесь фиксирована на светлой
+ * теме (см. design_rework/dashboard_canvas/README решений).
+ */
 const TYPE_CHART_COLORS: Record<string, string> = {
-  COMPLAINT: "#2563EB",
-  SUGGESTION: "#7C3AED",
-  VIOLATION: "#DC2626",
-  QUESTION: "#0891B2",
-  GRATITUDE: "#16A34A",
-  RESIGNATION: "#D97706",
+  VIOLATION: "#e34948",
+  QUESTION: "#2a78d6",
+  COMPLAINT: "#eb6834",
+  SUGGESTION: "#4a3aa7",
+  GRATITUDE: "#008300",
+  RESIGNATION: "#eda100",
 };
-const TYPE_CHART_FALLBACK_COLOR = "#64748B";
+const TYPE_CHART_FALLBACK_COLOR = "#6E6C68";
 
+/** Уволено/удержано — бинарный плохой/хороший исход, поэтому носит статусные токены
+ * (overdue/closed), а не отдельную категориальную палитру (dataviz-скилл: "when a
+ * series means good/bad... it wears status tokens"). */
 const RESIGNATION_OUTCOME_COLORS: Record<"TERMINATED" | "WITHDRAWN", string> = {
-  TERMINATED: "#DC2626",
-  WITHDRAWN: "#16A34A",
-};
-
-/** Тот же цветовой язык, что и в Kanban-колонках (KanbanBoard.tsx) — воронка
- * читается одинаково что на доске, что на дашборде. */
-const STATUS_COLORS: Record<AppealStatus, string> = {
-  OPEN: "#94A3B8",
-  UNDER_REVIEW: "#D97706",
-  IN_PROGRESS: "#2563EB",
-  CLOSED: "#16A34A",
+  TERMINATED: "#C20F1A",
+  WITHDRAWN: "#2F6B4F",
 };
 
 export function DashboardPage() {
@@ -93,88 +104,71 @@ export function DashboardPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Последние {days} дней</p>
+        <h1 className="text-title font-bold text-text-1">Обзор</h1>
+        <p className="mt-0.5 text-meta text-text-3">Последние {days} дней</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <KpiCard label="Создано" value={data.created} icon={FilePlus2} accent="slate" to="/appeals" />
-        <KpiCard
-          label="Открыто"
-          value={data.byStatus.OPEN ?? 0}
-          icon={CircleDot}
-          accent="slate"
-          to="/appeals?status=OPEN"
-        />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <KpiCard label="Создано" value={data.created} icon={FilePlus2} accent="neutral" to="/appeals" />
+        <KpiCard label="Открыто" value={data.byStatus.OPEN ?? 0} icon={CircleDot} accent="open" to="/appeals?status=OPEN" />
         <KpiCard
           label="В работе"
           value={data.byStatus.IN_PROGRESS ?? 0}
           icon={Activity}
-          accent="primary"
+          accent="progress"
           to="/appeals?status=IN_PROGRESS"
         />
+        <KpiCard label="Закрыто" value={data.byStatus.CLOSED ?? 0} icon={CheckCircle2} accent="closed" to="/appeals?status=CLOSED" />
+        {/* backlogAtPeriodEnd — та же очередь, что и "Только бэклог" на реестре обращений
+         * (OPEN/UNDER_REVIEW без назначенного менеджера), уже посчитана бэкендом. */}
         <KpiCard
-          label="Закрыто"
-          value={data.byStatus.CLOSED ?? 0}
-          icon={CheckCircle2}
-          accent="success"
-          to="/appeals?status=CLOSED"
+          label="Без ответственного"
+          value={data.backlogAtPeriodEnd}
+          icon={Inbox}
+          accent="review"
+          to="/appeals?backlogOnly=true"
         />
-        <KpiCard
-          label="Средняя оценка"
-          value={data.avgRating?.toFixed(1) ?? "—"}
-          icon={Star}
-          accent="primary"
-        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <KpiCard label="Средняя оценка" value={data.avgRating?.toFixed(1) ?? "—"} icon={Star} accent="neutral" />
         <KpiCard
           label="Низкие оценки"
           value={data.lowRatingShare !== null ? `${data.lowRatingShare.toFixed(0)}%` : "—"}
           icon={TrendingDown}
-          accent="destructive"
+          accent="overdue"
           to="/appeals?lowRatingOnly=true"
         />
         <KpiCard
           label="Реакция (ср.)"
           value={data.avgFirstResponseMinutes !== null ? `${Math.round(data.avgFirstResponseMinutes / 60)} ч` : "—"}
           icon={Timer}
-          accent="slate"
+          accent="neutral"
         />
         {/* Увольнения существуют только на канале EMPLOYEE (RESIGNATION — тип обращения
          * только там) — на CUSTOMER (роль SALES) эти плитки всегда были бы "0" и не
          * несут смысла, только путают. */}
         {activeChannel === "EMPLOYEE" && (
           <>
-            <KpiCard
-              label="Уволено"
-              value={data.resignationsTerminated}
-              icon={UserX}
-              accent="destructive"
-              to="/appeals?type=RESIGNATION"
-            />
-            <KpiCard
-              label="Удержано"
-              value={data.resignationsWithdrawn}
-              icon={UserCheck}
-              accent="success"
-              to="/appeals?type=RESIGNATION"
-            />
+            <KpiCard label="Уволено" value={data.resignationsTerminated} icon={UserX} accent="overdue" to="/appeals?type=RESIGNATION" />
+            <KpiCard label="Удержано" value={data.resignationsWithdrawn} icon={UserCheck} accent="closed" to="/appeals?type=RESIGNATION" />
           </>
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle>По статусам</CardTitle>
+          <CardHeader className="p-4 pb-0">
+            <CardTitle className="text-ui">По статусам</CardTitle>
           </CardHeader>
-          <CardContent className="h-72">
+          <CardContent className="h-64 p-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={statusData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--lm-rule)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6E6C68" }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#6E6C68" }} />
                 <Tooltip />
                 <Bar
                   dataKey="value"
@@ -183,7 +177,7 @@ export function DashboardPage() {
                   onClick={(entry) => navigate(`/appeals?status=${entry.key}`)}
                 >
                   {statusData.map((d) => (
-                    <Cell key={d.key} fill={STATUS_COLORS[d.key as AppealStatus]} />
+                    <Cell key={d.key} fill={appealStatusColor(d.key as AppealStatus)} />
                   ))}
                 </Bar>
               </BarChart>
@@ -192,42 +186,58 @@ export function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>По типам</CardTitle>
+          <CardHeader className="p-4 pb-0">
+            <CardTitle className="text-ui">По типам</CardTitle>
           </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <CardContent className="flex h-64 items-center gap-6 p-4">
+            <ResponsiveContainer width="50%" height="100%">
               <PieChart>
                 <Pie
                   data={typeData}
                   dataKey="value"
                   nameKey="name"
-                  outerRadius={90}
-                  label
+                  innerRadius={55}
+                  outerRadius={80}
+                  paddingAngle={2}
                   cursor="pointer"
                   onClick={(entry) => navigate(`/appeals?type=${entry.key}`)}
                 >
                   {typeData.map((d) => (
-                    <Cell key={d.key} fill={TYPE_CHART_COLORS[d.key] ?? TYPE_CHART_FALLBACK_COLOR} />
+                    <Cell key={d.key} fill={TYPE_CHART_COLORS[d.key] ?? TYPE_CHART_FALLBACK_COLOR} stroke="none" />
                   ))}
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
+            {/* Прямые подписи легенды — donut без встроенных label-линий читается яснее
+             * при 6 категориях (dataviz-скилл: "selective direct labels, never a number
+             * on every point"). */}
+            <div className="flex flex-1 flex-col gap-2">
+              {typeData.map((d) => (
+                <div key={d.key} className="flex items-center gap-2 text-meta text-text-2">
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: TYPE_CHART_COLORS[d.key] ?? TYPE_CHART_FALLBACK_COLOR }}
+                  />
+                  <span className="truncate">{d.name}</span>
+                  <span className="ml-auto font-mono tabular-nums text-text-1">{d.value}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
         {activeChannel === "EMPLOYEE" && (
           <Card>
-            <CardHeader>
-              <CardTitle>Увольнения: уволено vs удержано</CardTitle>
+            <CardHeader className="p-4 pb-0">
+              <CardTitle className="text-ui">Увольнения: уволено vs удержано</CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-64 p-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={resignationData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--lm-rule)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6E6C68" }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#6E6C68" }} />
                   <Tooltip />
                   <Bar
                     dataKey="value"
