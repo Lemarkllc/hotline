@@ -4,13 +4,15 @@ import { cn } from "@/lib/utils";
 
 export const Tabs = TabsPrimitive.Root;
 
+/** Подчёркивание вместо закрашенных сегментов (design_handoff_lemark_one/README.md
+ * "Вкладки: активная — border-bottom: 2px solid --t1, margin-bottom: -1px"). */
 export const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
-    className={cn("inline-flex h-10 items-center gap-1 rounded-md bg-background p-1", className)}
+    className={cn("flex items-center gap-5 border-b border-rule", className)}
     {...props}
   />
 ));
@@ -23,10 +25,9 @@ export const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex min-w-[44px] items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium",
-      "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-      "data-[state=active]:bg-surface data-[state=active]:text-foreground data-[state=active]:shadow-sm",
-      "text-muted-foreground hover:text-foreground",
+      "relative -mb-px whitespace-nowrap border-b-2 border-transparent px-0.5 pb-3 text-ui font-medium text-text-3",
+      "transition-colors duration-1 hover:text-text-1",
+      "data-[state=active]:border-text-1 data-[state=active]:text-text-1",
       className,
     )}
     {...props}
@@ -38,10 +39,6 @@ export const TabsContent = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
 >(({ className, ...props }, ref) => (
-  <TabsPrimitive.Content
-    ref={ref}
-    className={cn("mt-4 focus-visible:outline-none", className)}
-    {...props}
-  />
+  <TabsPrimitive.Content ref={ref} className={cn("mt-4 focus-visible:outline-none", className)} {...props} />
 ));
 TabsContent.displayName = TabsPrimitive.Content.displayName;

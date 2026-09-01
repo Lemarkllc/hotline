@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { router } from "@/routes/router";
@@ -5,6 +6,7 @@ import { useMe } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { AppSkeleton } from "@/components/mobile/AppSkeleton";
+import { applyThemeClass, useThemeStore } from "@/lib/themeStore";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 15000 } },
@@ -26,6 +28,20 @@ function Bootstrap() {
 }
 
 export function App() {
+  const theme = useThemeStore((s) => s.theme);
+
+  // index.html уже применил класс синхронно до отрисовки (см. инлайн-скрипт) — этот
+  // эффект держит его в актуальном состоянии при смене выбора пользователем и при
+  // смене системной темы на лету, пока theme === "system".
+  useEffect(() => {
+    applyThemeClass(theme);
+    if (theme !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => applyThemeClass(theme);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [theme]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Bootstrap />

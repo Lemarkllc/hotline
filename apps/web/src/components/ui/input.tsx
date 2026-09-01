@@ -7,9 +7,11 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
       type={type}
       ref={ref}
       className={cn(
-        "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm",
-        "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-control w-full rounded-md border border-rule-strong bg-surface px-3 py-2 text-ui text-text-1",
+        "placeholder:text-text-3 disabled:cursor-not-allowed disabled:opacity-50",
+        // Ошибка — красная рамка 1px (правило хендоффа: красный только там, где что-то
+        // реально пошло не так). aria-invalid ставится вызывающим кодом на поле с ошибкой.
+        "aria-[invalid=true]:border-status-overdue",
         className,
       )}
       {...props}

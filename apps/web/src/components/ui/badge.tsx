@@ -2,22 +2,24 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium",
-  {
-    variants: {
-      variant: {
-        default: "border-transparent bg-primary/10 text-primary",
-        success: "border-transparent bg-success/10 text-success",
-        warning: "border-transparent bg-warning/10 text-warning",
-        destructive: "border-transparent bg-destructive/10 text-destructive",
-        confidential: "border-transparent bg-confidential/10 text-confidential",
-        outline: "border-border text-foreground",
-      },
+/** Пилюли — пара «цвет текста на тинте» из status-* токенов (design_handoff_lemark_one/
+ * README.md "Цвет"). variant-имена сохранены (default/success/warning/destructive/
+ * confidential/outline) — переиспользуются существующими вызывающими без смены сигнатуры,
+ * значения теперь читаются из единой лемарковской палитры вместо разрозненных hex. */
+const badgeVariants = cva("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-meta font-medium", {
+  variants: {
+    variant: {
+      default: "bg-status-open-tint text-status-open",
+      progress: "bg-status-progress-tint text-status-progress",
+      success: "bg-status-closed-tint text-status-closed",
+      warning: "bg-status-review-tint text-status-review",
+      destructive: "bg-status-overdue-tint text-status-overdue",
+      confidential: "bg-confidential-tint text-confidential",
+      outline: "border border-rule-strong text-text-1",
     },
-    defaultVariants: { variant: "default" },
   },
-);
+  defaultVariants: { variant: "default" },
+});
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLSpanElement>,

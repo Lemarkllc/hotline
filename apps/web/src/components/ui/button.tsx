@@ -4,22 +4,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors " +
-    "focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 cursor-pointer [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-ui font-medium transition-colors duration-1 " +
+    "disabled:pointer-events-none disabled:opacity-50 cursor-pointer [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-border bg-surface hover:bg-background",
-        ghost: "hover:bg-background",
-        link: "text-primary underline-offset-4 hover:underline",
+        default: "bg-action text-action-fg hover:bg-action/90",
+        destructive: "bg-status-overdue text-white hover:bg-status-overdue/90",
+        outline: "border border-rule-strong bg-surface hover:bg-surface-sunk",
+        ghost: "hover:bg-surface-sunk",
+        link: "text-text-1 underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-4 py-2 min-w-[44px]",
-        sm: "h-9 rounded-md px-3",
+        default: "h-control px-4 min-w-[44px]",
+        sm: "h-8 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        icon: "h-control w-control",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

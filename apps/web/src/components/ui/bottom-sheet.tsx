@@ -11,16 +11,16 @@ export const BottomSheetTrigger = DialogPrimitive.Trigger;
 export function BottomSheetContent({ className, children, ...props }: DialogPrimitive.DialogContentProps) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-foreground/40 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-text-1/40 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 max-h-[80dvh] overflow-y-auto rounded-t-[20px] border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.15)]",
+          "fixed inset-x-0 bottom-0 z-50 max-h-[80dvh] overflow-y-auto rounded-t-xl border-t border-rule bg-surface pb-[env(safe-area-inset-bottom)] shadow-3",
           "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom",
           className,
         )}
         {...props}
       >
-        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-border" />
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-rule-strong" />
         {children}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>

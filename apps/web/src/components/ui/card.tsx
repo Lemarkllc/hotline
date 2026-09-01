@@ -1,9 +1,11 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+/** Границы вместо теней (design_handoff_lemark_one/README.md "Размеры и форма") —
+ * тень допустима только у плавающих слоёв (bottom sheet, поповер, панель массовых действий). */
 export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("rounded-lg border border-border bg-surface shadow-sm", className)} {...props} />
+    <div ref={ref} className={cn("rounded-lg border border-rule bg-surface", className)} {...props} />
   ),
 );
 Card.displayName = "Card";
@@ -17,14 +19,14 @@ CardHeader.displayName = "CardHeader";
 
 export const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn("text-base font-semibold leading-none", className)} {...props} />
+    <h3 ref={ref} className={cn("text-head font-semibold leading-none text-text-1", className)} {...props} />
   ),
 );
 CardTitle.displayName = "CardTitle";
 
 export const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
+    <p ref={ref} className={cn("text-meta text-text-2", className)} {...props} />
   ),
 );
 CardDescription.displayName = "CardDescription";

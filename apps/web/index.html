@@ -3,11 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HotLine — панель управления</title>
+    <title>Lemark One — панель управления</title>
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#d97706" />
+    <meta name="theme-color" content="#16171A" />
     <link rel="icon" href="/icons/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <script>
+      // Тему нужно применить ДО первой отрисовки — иначе на тёмной системной теме
+      // страница на долю секунды мигает светлым сплэшем (themeStore — zustand persist,
+      // ключ "lemark-theme", инициализируется уже после гидратации React).
+      (function () {
+        try {
+          var raw = localStorage.getItem("lemark-theme");
+          var theme = raw ? JSON.parse(raw).state.theme : "system";
+          var dark = theme === "dark" || (theme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.add(dark ? "dark" : "light");
+        } catch (e) {
+          /* localStorage недоступен (приватный режим и т.п.) — остаёмся на системной теме через CSS media */
+        }
+      })();
+    </script>
     <style>
       /* Статический сплэш (не React-компонент — должен появиться раньше, чем JS
        * успеет распарситься/выполниться). Только мобильная ширина — на десктопе
@@ -22,22 +37,31 @@
         align-items: center;
         justify-content: center;
         gap: 16px;
-        background: #f8fafc;
+        background: #f7f6f5;
         transition: opacity 0.25s ease;
       }
-      #app-splash img {
-        width: 76px;
-        height: 76px;
-        border-radius: 20px;
+      html.dark #app-splash {
+        background: #101011;
       }
       #app-splash .wordmark {
-        font-family: "Inter", system-ui, sans-serif;
-        font-size: 22px;
-        font-weight: 800;
-        color: #0f172a;
+        font-family: "Golos Text", system-ui, sans-serif;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #16171a;
       }
-      #app-splash .wordmark span {
-        color: #d97706;
+      html.dark #app-splash .wordmark {
+        color: #ededea;
+      }
+      #app-splash .wordmark .dot {
+        color: #c20f1a;
+      }
+      #app-splash .wordmark .one {
+        font-weight: 300;
+        color: #4c4b49;
+      }
+      html.dark #app-splash .wordmark .one {
+        color: #a5a49f;
       }
       @media (min-width: 768px) {
         #app-splash {
@@ -48,8 +72,7 @@
   </head>
   <body>
     <div id="app-splash" aria-hidden="true">
-      <img src="/icons/icon-192.png" alt="" width="76" height="76" />
-      <div class="wordmark">Hot<span>Line</span></div>
+      <div class="wordmark">Lemark<span class="dot">·</span> <span class="one">One</span></div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

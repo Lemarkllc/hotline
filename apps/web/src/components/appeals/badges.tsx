@@ -17,32 +17,35 @@ export const APPEAL_TYPE_LABELS: Record<string, string> = {
   ...CUSTOMER_APPEAL_TYPE_LABELS,
 };
 
-const STATUS_VARIANT: Record<AppealStatus, "default" | "warning" | "success"> = {
+/** Единственный источник правды по цвету статуса обращения (UI_REWORK_BRIEF.md §A1
+ * зафиксировал, что раньше их было три: STATUS_VARIANT/STATUS_HEX здесь и STATUS_COLORS
+ * на DashboardPage.tsx рисовали один и тот же статус по-разному). Значения — светлая
+ * тема токенов Lemark One (design_rework/ui_kit/tokens.css); тёмная тема применяется
+ * автоматически для DOM-элементов через Tailwind-классы status-*, но Recharts принимает
+ * только строковый литерал цвета (не CSS-переменную и не класс), поэтому statusColor()
+ * ниже — единственное законное место, где статусный hex зашит буквально. */
+const STATUS_VARIANT: Record<AppealStatus, "default" | "warning" | "progress" | "success"> = {
   OPEN: "default",
   UNDER_REVIEW: "warning",
-  IN_PROGRESS: "warning",
+  IN_PROGRESS: "progress",
   CLOSED: "success",
 };
 
 export function StatusBadge({ status }: { status: AppealStatus }) {
-  const variant = STATUS_VARIANT[status];
-  return (
-    <Badge variant={variant === "default" ? "outline" : variant}>{APPEAL_STATUS_LABELS[status]}</Badge>
-  );
+  return <Badge variant={STATUS_VARIANT[status]}>{APPEAL_STATUS_LABELS[status]}</Badge>;
 }
 
-/** Сплошные hex вместо Tailwind-вариантов Badge выше — мобильные пилюли
- * (design_handoff_mobile_pwa) заливные (белый текст на цветном фоне), а не
- * мягкий tint-стиль десктопной Badge; общая палитра та же (tailwind.config.ts). */
-export const STATUS_HEX: Record<AppealStatus, string> = {
-  OPEN: "#2563EB",
-  UNDER_REVIEW: "#D97706",
-  IN_PROGRESS: "#1E40AF",
-  CLOSED: "#16A34A",
+const STATUS_HEX: Record<AppealStatus, string> = {
+  OPEN: "#4A5568",
+  UNDER_REVIEW: "#96631A",
+  IN_PROGRESS: "#0F5C57",
+  CLOSED: "#2F6B4F",
 };
 
+/** Для Recharts (заливка графиков) и мобильных заливных пилюль
+ * (design_handoff_mobile_pwa), которым нужен литерал цвета, а не Tailwind-класс. */
 export function statusColor(status: AppealStatus): string {
-  return STATUS_HEX[status] ?? "#64748B";
+  return STATUS_HEX[status] ?? "#6E6C68";
 }
 
 /** Конфиденциальный маркер — единственный сознательный цветовой акцент дизайн-системы (PLAN.md §5). */
