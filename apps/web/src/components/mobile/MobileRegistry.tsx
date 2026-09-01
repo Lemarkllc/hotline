@@ -36,10 +36,10 @@ export function MobileRegistry({
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-[20px] font-extrabold text-foreground">Обращения</h1>
+      <h1 className="text-head font-bold text-text-1">Обращения</h1>
 
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-3" />
         <input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -47,7 +47,7 @@ export function MobileRegistry({
           // text-[16px], не 14px: iOS Safari сам зумит страницу при фокусе на любом
           // поле с font-size < 16px и не всегда отменяет зум после потери фокуса —
           // клавиатура закрывается, а страница остаётся увеличенной.
-          className="h-[42px] w-full rounded-[12px] border border-border bg-surface pl-10 pr-3 text-[16px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          className="h-touch w-full rounded-lg border border-rule-strong bg-surface pl-10 pr-3 text-[16px] text-text-1 placeholder:text-text-3 focus:outline-none active:bg-surface-sunk"
         />
       </div>
 
@@ -57,8 +57,8 @@ export function MobileRegistry({
             key={c.value}
             onClick={() => onChipChange(c.value)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-[13px] font-medium",
-              chip === c.value ? "bg-primary text-primary-foreground" : "bg-background text-[#475569]",
+              "shrink-0 rounded-full px-4 py-2 text-meta font-medium active:opacity-70",
+              chip === c.value ? "bg-action text-action-fg" : "bg-surface-sunk text-text-2",
             )}
           >
             {c.label}
@@ -67,9 +67,9 @@ export function MobileRegistry({
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Загрузка...</p>}
+        {isLoading && <p className="py-8 text-center text-ui text-text-3">Загрузка...</p>}
         {!isLoading && !appeals.length && (
-          <p className="py-8 text-center text-sm text-muted-foreground">Обращений не найдено.</p>
+          <p className="py-8 text-center text-ui text-text-3">Обращений не найдено.</p>
         )}
         {appeals.map((a) => {
           const title = (a.workingEdit ?? a.originalText).trim();
@@ -77,13 +77,13 @@ export function MobileRegistry({
             <button
               key={a.id}
               onClick={() => navigate(`/appeals/${a.id}`)}
-              className="relative rounded-[14px] border border-border bg-surface p-3.5 text-left"
+              className="relative rounded-lg border border-rule bg-surface p-3.5 text-left active:bg-surface-sunk"
             >
               {a.mode === "CONFIDENTIAL" && (
                 <Lock className="absolute right-3.5 top-3.5 size-4 text-confidential" />
               )}
               <div className="flex gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-background text-[14px] font-bold text-muted-foreground">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-sunk font-mono text-ui font-medium text-text-2">
                   {(APPEAL_TYPE_LABELS[a.type] ?? a.type)[0]}
                 </span>
                 <span className="min-w-0 flex-1 pr-5">
@@ -94,17 +94,17 @@ export function MobileRegistry({
                       поэтому побеждал и полностью отключал обрезание (реальный баг,
                       пойманный вживую — line-clamp сам объявляет свой display, ставить
                       его нельзя). */}
-                  <span className="line-clamp-1 break-words text-[14px] font-semibold leading-snug text-foreground">
+                  <span className="line-clamp-1 break-words text-ui font-medium leading-snug text-text-1">
                     {title || "Без текста"}
                   </span>
-                  <span className="mt-1 block text-[12px] text-muted-foreground">
+                  <span className="mt-1 block font-mono text-meta text-text-3">
                     {a.publicNumber} · {APPEAL_TYPE_LABELS[a.type] ?? a.type} ·{" "}
                     {new Date(a.createdAt).toLocaleDateString("ru-RU")}
                   </span>
                 </span>
               </div>
               <span
-                className="mt-3 inline-block rounded-full px-2.5 py-1 text-[11px] font-semibold text-white"
+                className="mt-3 inline-block rounded-full px-2.5 py-1 text-label font-semibold text-white"
                 style={{ background: statusColor(a.status as AppealStatus) }}
               >
                 {APPEAL_STATUS_LABELS[a.status]}

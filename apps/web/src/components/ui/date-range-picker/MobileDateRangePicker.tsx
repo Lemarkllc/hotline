@@ -44,8 +44,8 @@ export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRa
         <button
           type="button"
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] font-semibold",
-            hasRange ? "border-primary bg-[#EFF6FF] text-primary" : "border-border bg-surface text-[#475569]",
+            "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-meta font-semibold active:opacity-70",
+            hasRange ? "border-text-1 bg-surface-sunk text-text-1" : "border-rule-strong bg-surface text-text-2",
           )}
         >
           <CalendarIcon className="size-3.5" />
@@ -64,7 +64,7 @@ export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRa
             >
               <ChevronLeft className="size-4" />
             </button>
-            <div className="text-[14px] font-bold text-foreground">
+            <div className="text-ui font-semibold text-text-1">
               {MONTH_NAMES[view.month]} {view.year}
             </div>
             <button
@@ -84,8 +84,8 @@ export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRa
                 type="button"
                 onClick={() => applyPreset(p.id, p.start, p.end)}
                 className={cn(
-                  "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-semibold",
-                  activePreset === p.id ? "bg-[#EFF6FF] text-primary" : "bg-background text-[#475569]",
+                  "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-label font-semibold active:opacity-70",
+                  activePreset === p.id ? "bg-action text-action-fg" : "bg-surface-sunk text-text-2",
                 )}
               >
                 {p.label}
@@ -95,7 +95,7 @@ export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRa
 
           <div className="mb-1 grid grid-cols-7 gap-1">
             {WEEKDAYS.map((wd) => (
-              <div key={wd} className="text-center text-[11px] font-semibold text-muted-foreground">
+              <div key={wd} className="text-center text-label font-semibold text-text-3">
                 {wd}
               </div>
             ))}
@@ -108,11 +108,11 @@ export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRa
                 disabled={day.label === null}
                 onClick={() => day.label !== null && selectDay(day.key)}
                 className={cn(
-                  "flex aspect-square items-center justify-center rounded-[10px] text-[13px]",
+                  "flex aspect-square items-center justify-center rounded-md text-meta active:opacity-70",
                   day.label === null && "cursor-default",
-                  day.isEdge && "bg-primary font-bold text-primary-foreground",
-                  !day.isEdge && day.inRange && "bg-[#DBEAFE] font-medium text-[#1E40AF]",
-                  !day.isEdge && !day.inRange && day.label !== null && "font-medium text-foreground",
+                  day.isEdge && "bg-action font-semibold text-action-fg",
+                  !day.isEdge && day.inRange && "bg-status-progress-tint font-medium text-status-progress",
+                  !day.isEdge && !day.inRange && day.label !== null && "font-medium text-text-1",
                 )}
               >
                 {day.label}
@@ -124,7 +124,7 @@ export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRa
             <button
               type="button"
               onClick={() => clearDraft(resetRange.from, resetRange.to)}
-              className="h-11 flex-1 rounded-xl bg-background text-[14px] font-semibold text-foreground"
+              className="h-touch flex-1 rounded-lg bg-surface-sunk text-ui font-semibold text-text-1 active:opacity-70"
             >
               Сбросить
             </button>
@@ -135,7 +135,7 @@ export function MobileDateRangePicker({ from, to, onChange, resetRange }: DateRa
                 commit();
                 setOpen(false);
               }}
-              className="h-11 flex-1 rounded-xl bg-primary text-[14px] font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-touch flex-1 rounded-lg bg-action text-ui font-semibold text-action-fg disabled:cursor-not-allowed disabled:opacity-50 active:opacity-90"
             >
               Применить
             </button>

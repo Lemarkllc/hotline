@@ -22,7 +22,7 @@ export function PullToRefreshIndicator({
       style={{ height, transition: refreshing ? "height 150ms ease" : undefined }}
     >
       <RefreshCw
-        className={cn("size-5", ready || refreshing ? "text-primary" : "text-muted-foreground", refreshing && "animate-spin")}
+        className={cn("size-5", ready || refreshing ? "text-text-1" : "text-text-3", refreshing && "animate-spin")}
         style={!refreshing ? { transform: `rotate(${Math.min(pullDistance, threshold) * 2.5}deg)` } : undefined}
       />
     </div>

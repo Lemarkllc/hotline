@@ -18,7 +18,7 @@ export function MobileShell() {
   const { pullDistance, refreshing, threshold } = usePullToRefresh();
 
   return (
-    <div className="min-h-dvh bg-background pt-[env(safe-area-inset-top)]">
+    <div className="min-h-dvh bg-ground pt-[env(safe-area-inset-top)]">
       {!isDetailRoute && (
         <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} threshold={threshold} />
       )}

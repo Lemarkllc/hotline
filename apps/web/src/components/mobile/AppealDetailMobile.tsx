@@ -98,22 +98,22 @@ export function AppealDetailMobile({
   const { pullDistance, refreshing, threshold } = usePullToRefresh(contentRef);
 
   return (
-    <div className="fixed inset-0 z-20 flex animate-in slide-in-from-right flex-col bg-background duration-300">
+    <div className="fixed inset-0 z-20 flex animate-in slide-in-from-right flex-col bg-ground duration-3">
       {/* Header */}
-      <div className="flex items-start gap-3 border-b border-border bg-background px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
-        <button onClick={onBack} className="mt-0.5 flex size-8 shrink-0 items-center justify-center">
-          <ChevronLeft className="size-6 text-foreground" />
+      <div className="flex items-start gap-3 border-b border-rule bg-ground px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
+        <button onClick={onBack} className="mt-0.5 flex size-8 shrink-0 items-center justify-center active:opacity-60">
+          <ChevronLeft className="size-6 text-text-1" />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-bold text-foreground">{appeal.publicNumber}</p>
+          <p className="truncate font-mono text-ui font-semibold text-text-1">{appeal.publicNumber}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span
-              className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+              className="rounded-full px-2.5 py-0.5 text-label font-semibold text-white"
               style={{ background: statusColor(appeal.status) }}
             >
               {APPEAL_STATUS_LABELS[appeal.status]}
             </span>
-            <span className="text-[13px] text-muted-foreground">{APPEAL_TYPE_LABELS[appeal.type] ?? appeal.type}</span>
+            <span className="text-meta text-text-3">{APPEAL_TYPE_LABELS[appeal.type] ?? appeal.type}</span>
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -122,7 +122,7 @@ export function AppealDetailMobile({
               key={s}
               disabled={(s === "CLOSED" && !canClose) || transitionPending}
               onClick={() => onTransitionClick(s)}
-              className="whitespace-nowrap rounded-full bg-[#EFF6FF] px-3 py-1.5 text-[12px] font-semibold text-primary disabled:opacity-50"
+              className="whitespace-nowrap rounded-full bg-surface-sunk px-3 py-1.5 text-label font-semibold text-text-1 disabled:opacity-50 active:opacity-70"
             >
               → {APPEAL_STATUS_LABELS[s]}
             </button>
@@ -137,18 +137,18 @@ export function AppealDetailMobile({
           type="button"
           onClick={appeal.isAuthorHidden && !revealedAuthor && appeal.canRevealAuthor ? onRevealClick : undefined}
           className={cn(
-            "flex w-full items-center gap-3 rounded-[16px] border p-4 text-left",
-            appeal.mode === "CONFIDENTIAL" ? "border-confidential" : "border-border",
+            "flex w-full items-center gap-3 rounded-lg border p-4 text-left active:bg-surface-sunk",
+            appeal.mode === "CONFIDENTIAL" ? "border-confidential/40" : "border-rule",
           )}
         >
           {appeal.isAuthorHidden ? (
             <>
               <Lock className="size-5 shrink-0 text-confidential" />
               <div>
-                <p className="text-[14px] font-bold text-confidential">
+                <p className="text-ui font-semibold text-confidential">
                   {revealedAuthor ? revealedAuthor.fullName : "Автор скрыт (конфиденциально)"}
                 </p>
-                <p className="mt-0.5 text-[12px] text-muted-foreground">
+                <p className="mt-0.5 text-meta text-text-3">
                   {revealedAuthor
                     ? "Автор раскрыт для этого просмотра — действие в аудите."
                     : appeal.canRevealAuthor
@@ -159,31 +159,29 @@ export function AppealDetailMobile({
             </>
           ) : (
             <>
-              <ShieldAlert className="size-5 shrink-0 text-muted-foreground" />
+              <ShieldAlert className="size-5 shrink-0 text-text-3" />
               <div>
-                <p className="text-[14px] font-bold text-foreground">{appeal.author?.fullName ?? "Автор не указан"}</p>
-                <p className="mt-0.5 text-[12px] text-muted-foreground">Автор обращения</p>
+                <p className="text-ui font-semibold text-text-1">{appeal.author?.fullName ?? "Автор не указан"}</p>
+                <p className="mt-0.5 text-meta text-text-3">Автор обращения</p>
               </div>
             </>
           )}
         </button>
 
         {/* Segmented tabs — фикс бага прототипа: полная ширина без клиппинга последнего сегмента. */}
-        <div className="mt-4 grid grid-cols-4 gap-0.5 rounded-[10px] bg-[#F1F5F9] p-[3px]">
+        <div className="mt-4 grid grid-cols-4 gap-0.5 rounded-lg bg-surface-sunk p-[3px]">
           {(Object.keys(TAB_LABELS) as DetailTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => onTabChange(tab)}
               className={cn(
-                "relative rounded-[8px] px-1 py-2 text-center text-[12px] font-semibold leading-tight",
-                activeTab === tab
-                  ? "bg-white text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.12)]"
-                  : "text-muted-foreground",
+                "relative rounded-md px-1 py-2 text-center text-label font-semibold leading-tight",
+                activeTab === tab ? "bg-surface text-text-1 shadow-1" : "text-text-3",
               )}
             >
               {TAB_LABELS[tab]}
               {((tab === "messages" && unreadTabs.messages) || (tab === "internal" && unreadTabs.internal)) && (
-                <span className="absolute right-1.5 top-1.5 size-[5px] rounded-full bg-destructive" />
+                <span className="absolute right-1.5 top-1.5 size-[5px] rounded-full bg-status-overdue" />
               )}
             </button>
           ))}
@@ -193,31 +191,31 @@ export function AppealDetailMobile({
         {activeTab === "appeal" && (
           <div className="mt-4 flex flex-col gap-4">
             <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="mb-2 font-mono text-label font-medium uppercase tracking-wide text-text-3">
                 Оригинальный текст
               </p>
-              <div className="rounded-[16px] border border-border bg-surface p-4">
-                <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-foreground">{appeal.originalText}</p>
+              <div className="rounded-lg border border-rule bg-surface p-4">
+                <p className="whitespace-pre-wrap text-ui leading-relaxed text-text-1">{appeal.originalText}</p>
               </div>
             </div>
 
             {canReadAuthor && (
               <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="mb-2 font-mono text-label font-medium uppercase tracking-wide text-text-3">
                   Рабочая редакция
                 </p>
-                <div className="rounded-[16px] border border-border bg-surface p-4">
+                <div className="rounded-lg border border-rule bg-surface p-4">
                   <textarea
                     rows={3}
                     defaultValue={appeal.workingEdit ?? ""}
                     onChange={(e) => onWorkingEditChange(e.target.value)}
                     placeholder="Необязательно — обезличенная формулировка без деталей, раскрывающих автора"
-                    className="w-full resize-none border-none bg-transparent text-[16px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    className="w-full resize-none border-none bg-transparent text-[16px] text-text-1 placeholder:text-text-3 focus:outline-none"
                   />
                   <button
                     disabled={!workingEdit.trim() || saveWorkingEditPending}
                     onClick={onSaveWorkingEdit}
-                    className="mt-2 rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+                    className="mt-2 rounded-full bg-action px-4 py-2 text-meta font-semibold text-action-fg disabled:opacity-50 active:opacity-90"
                   >
                     Сохранить
                   </button>
@@ -226,21 +224,21 @@ export function AppealDetailMobile({
             )}
 
             {appeal.rating && (
-              <div className="rounded-[16px] border border-border bg-surface p-4 text-[14px] text-foreground">
+              <div className="rounded-lg border border-rule bg-surface p-4 text-ui text-text-1">
                 {appeal.rating.score !== null ? (
                   <>
-                    Оценка автора: <span className="font-bold">{appeal.rating.score}/5</span>
+                    Оценка автора: <span className="font-semibold">{appeal.rating.score}/5</span>
                     {appeal.rating.comment && (
-                      <p className="mt-1 text-[13px] text-muted-foreground">{appeal.rating.comment}</p>
+                      <p className="mt-1 text-meta text-text-3">{appeal.rating.comment}</p>
                     )}
                   </>
                 ) : (
                   <div className="flex flex-col gap-1">
                     <span>
-                      Порекомендовал(а) бы нас: <span className="font-bold">{appeal.rating.wouldRecommendScore}/5</span>
+                      Порекомендовал(а) бы нас: <span className="font-semibold">{appeal.rating.wouldRecommendScore}/5</span>
                     </span>
                     <span>
-                      Обратится ли снова: <span className="font-bold">{appeal.rating.wouldReturnScore}/5</span>
+                      Обратится ли снова: <span className="font-semibold">{appeal.rating.wouldReturnScore}/5</span>
                     </span>
                   </div>
                 )}
@@ -248,30 +246,30 @@ export function AppealDetailMobile({
             )}
 
             <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="mb-2 font-mono text-label font-medium uppercase tracking-wide text-text-3">
                 Ответственный
               </p>
-              <div className="flex items-center gap-3 rounded-[16px] border border-border bg-surface p-4">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background text-[13px] font-bold text-muted-foreground">
+              <div className="flex items-center gap-3 rounded-lg border border-rule bg-surface p-4">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-sunk font-mono text-meta font-medium text-text-2">
                   {appeal.assignees[0] ? initials(appeal.assignees[0].fullName) : "?"}
                 </div>
-                <span className="flex-1 text-[14px] text-foreground">
+                <span className="flex-1 text-ui text-text-1">
                   {appeal.assignees.map((a) => a.fullName).join(", ") || "Не назначен"}
                 </span>
                 {canAssign && (
                   <BottomSheet open={assignSheetOpen} onOpenChange={setAssignSheetOpen}>
                     <BottomSheetTrigger asChild>
-                      <button className="shrink-0 rounded-full bg-[#EFF6FF] px-3.5 py-1.5 text-[13px] font-semibold text-primary">
+                      <button className="shrink-0 rounded-full bg-surface-sunk px-3.5 py-1.5 text-meta font-semibold text-text-1 active:opacity-70">
                         {appeal.assignees.length ? "Изменить" : "Назначить"}
                       </button>
                     </BottomSheetTrigger>
                     <BottomSheetContent>
-                      <BottomSheetTitle className="px-5 pb-1 pt-3 text-[15px] font-bold text-foreground">
+                      <BottomSheetTitle className="px-5 pb-1 pt-3 text-ui font-semibold text-text-1">
                         Назначить ответственного
                       </BottomSheetTitle>
                       <div className="flex flex-col gap-1 px-3 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-2">
                         {!managers?.length && (
-                          <p className="px-2 py-4 text-center text-[13px] text-muted-foreground">
+                          <p className="px-2 py-4 text-center text-meta text-text-3">
                             Нет доступных сотрудников.
                           </p>
                         )}
@@ -282,12 +280,12 @@ export function AppealDetailMobile({
                               onAssign(m.id);
                               setAssignSheetOpen(false);
                             }}
-                            className="flex items-center gap-3 rounded-[12px] px-3 py-3 text-left active:bg-background"
+                            className="flex min-h-touch items-center gap-3 rounded-md px-3 py-3 text-left active:bg-surface-sunk"
                           >
-                            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background text-[13px] font-bold text-muted-foreground">
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-sunk font-mono text-meta font-medium text-text-2">
                               {initials(m.fullName)}
                             </span>
-                            <span className="text-[14px] text-foreground">{m.fullName}</span>
+                            <span className="text-ui text-text-1">{m.fullName}</span>
                           </button>
                         ))}
                       </div>
@@ -303,18 +301,20 @@ export function AppealDetailMobile({
         {activeTab === "messages" && (
           <div className="mt-4 flex flex-col gap-3">
             {!appeal.messages.length && (
-              <p className="py-6 text-center text-[13px] text-muted-foreground">Переписки пока нет.</p>
+              <p className="py-6 text-center text-meta text-text-3">Переписки пока нет.</p>
             )}
             {appeal.messages.map((m) => (
               <div key={m.id} className={cn("flex", m.fromHrd ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-[16px] p-3 text-[14px]",
-                    m.fromHrd ? "bg-[#DBEAFE] text-foreground" : "border border-border bg-surface text-foreground",
+                    "max-w-[85%] p-3 text-ui",
+                    m.fromHrd
+                      ? "rounded-[12px_12px_4px_12px] bg-action text-action-fg"
+                      : "rounded-[12px_12px_12px_4px] border border-rule bg-surface text-text-1",
                   )}
                 >
                   <p className="leading-relaxed">{m.text}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className={cn("mt-1 font-mono text-label", m.fromHrd ? "text-action-fg/70" : "text-text-3")}>
                     {m.fromHrd ? (m.fromFullName ?? "Сотрудник") : (appeal.author?.fullName ?? "Автор")} ·{" "}
                     {new Date(m.createdAt).toLocaleString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                   </p>
@@ -328,14 +328,14 @@ export function AppealDetailMobile({
         {activeTab === "internal" && (
           <div className="mt-4 flex flex-col gap-3">
             {!appeal.comments.filter((c) => c.visibility === "INTERNAL").length && (
-              <p className="py-6 text-center text-[13px] text-muted-foreground">Внутренних заметок пока нет.</p>
+              <p className="py-6 text-center text-meta text-text-3">Внутренних заметок пока нет.</p>
             )}
             {appeal.comments
               .filter((c) => c.visibility === "INTERNAL")
               .map((c) => (
-                <div key={c.id} className="rounded-[16px] bg-[#F1F5F9] p-3 text-[14px] text-foreground">
+                <div key={c.id} className="border-l-2 border-status-review bg-surface-sunk p-3 text-ui text-text-1">
                   <p className="leading-relaxed">{c.text}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 font-mono text-label text-text-3">
                     {c.authorFullName} · {new Date(c.createdAt).toLocaleString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
@@ -363,7 +363,7 @@ export function AppealDetailMobile({
 
       {/* Fixed input bar — только для Переписка/Внутр. работа, как в прототипе. */}
       {activeTab === "messages" && (
-        <div className="flex items-center gap-2 border-t border-border bg-surface p-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+        <div className="flex items-center gap-2 border-t border-rule bg-surface p-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
           <input
             value={newMessage}
             onChange={(e) => onNewMessageChange(e.target.value)}
@@ -374,20 +374,20 @@ export function AppealDetailMobile({
               }
             }}
             placeholder="Написать автору..."
-            className="h-11 flex-1 rounded-full border border-border bg-background px-4 text-[16px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-touch flex-1 rounded-full border border-rule-strong bg-ground px-4 text-[16px] text-text-1 placeholder:text-text-3 focus:outline-none"
           />
           <button
             disabled={!newMessage.trim() || sendPending}
             onClick={onSendMessage}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"
+            className="flex size-touch shrink-0 items-center justify-center rounded-full bg-action text-action-fg disabled:opacity-50 active:opacity-90"
           >
             <Send className="size-4" />
           </button>
         </div>
       )}
       {activeTab === "internal" && (
-        <div className="flex items-end gap-2 border-t border-border bg-surface p-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-          <div className="flex-1 rounded-[18px] border border-border bg-background px-3 py-2">
+        <div className="flex items-end gap-2 border-t border-status-review bg-surface p-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+          <div className="flex-1 rounded-[18px] border border-rule-strong bg-ground px-3 py-2">
             <MentionTextarea
               rows={1}
               placeholder="Заметка коллегам, @упомянуть..."
@@ -397,13 +397,13 @@ export function AppealDetailMobile({
               mentionedUserIds={mentionedUserIds}
               onMentionedUserIdsChange={onMentionedUserIdsChange}
               onSubmit={onAddInternalNote}
-              className="min-h-0 border-none bg-transparent p-0 text-[16px] focus-visible:ring-0"
+              className="min-h-0 border-none bg-transparent p-0 text-[16px] focus-visible:outline-none"
             />
           </div>
           <button
             disabled={!newInternalNote.trim() || addNotePending}
             onClick={onAddInternalNote}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-foreground text-white disabled:opacity-50"
+            className="flex size-touch shrink-0 items-center justify-center rounded-full bg-status-review text-white disabled:opacity-50 active:opacity-90"
           >
             <Send className="size-4" />
           </button>

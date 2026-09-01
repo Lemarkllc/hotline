@@ -34,8 +34,8 @@ export function MobileTabBar() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-rule bg-surface"
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 18px)" }}
     >
       {tabs.map(({ to, label, icon: Icon }) => (
         <NavLink
@@ -43,15 +43,15 @@ export function MobileTabBar() {
           to={to}
           className={({ isActive }) =>
             cn(
-              "flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 pt-2 text-[11px] font-medium",
-              isActive ? "text-primary" : "text-muted-foreground",
+              "flex min-h-touch flex-1 flex-col items-center justify-center gap-1 pt-2 text-[11px] font-medium active:bg-surface-sunk",
+              isActive ? "text-text-1" : "text-text-3",
             )
           }
         >
           <span className="relative">
-            <Icon className="size-6" />
+            <Icon className="size-6" strokeWidth={1.5} />
             {label === "Уведомл." && hasUnread && (
-              <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-destructive" />
+              <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-status-overdue" />
             )}
           </span>
           {label}

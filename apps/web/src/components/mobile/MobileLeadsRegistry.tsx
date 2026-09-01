@@ -11,20 +11,23 @@ const CHIPS: { label: string; value: LeadsView }[] = [
   { label: "Стоп-лист", value: "stop_listed" },
 ];
 
+/** Те же status-* токены, что и на десктопе (LeadsPage.tsx: NEW→open, IN_PROGRESS→
+ * review, CONVERTED→closed, STOP_LISTED→overdue) — литерал, не CSS-переменная,
+ * тем же принципом, что и statusColor() в components/appeals/badges.tsx. */
 const STATUS_COLOR: Record<LeadStatus, string> = {
-  NEW: "#2563eb",
-  IN_PROGRESS: "#d97706",
-  CONVERTED: "#16a34a",
-  STOP_LISTED: "#dc2626",
+  NEW: "#4A5568",
+  IN_PROGRESS: "#96631A",
+  CONVERTED: "#2F6B4F",
+  STOP_LISTED: "#C20F1A",
 };
 
 /** Плитки статистики за выбранный период — тот же 2×2 паттерн, что и у
  * MobileDashboard.tsx (крупная цифра + подпись), без графика по дням: recharts на
  * телефоне не нужен, тот же принцип, что и у MobileDashboard (см. его комментарий). */
 const STAT_CARDS: { key: keyof LeadConversionStats; label: string; color: string; suffix?: string }[] = [
-  { key: "total", label: "Всего заявок", color: "#475569" },
-  { key: "converted", label: "Передано в CRM", color: "#16a34a" },
-  { key: "aiRelevant", label: "Качественных (ИИ)", color: "#d97706" },
+  { key: "total", label: "Всего заявок", color: "#6E6C68" },
+  { key: "converted", label: "Передано в CRM", color: "#2F6B4F" },
+  { key: "aiRelevant", label: "Качественных (ИИ)", color: "#96631A" },
 ];
 
 /** Мобильный список "Заявки" (по образцу MobileRegistry.tsx у "Обращений") — карточки
@@ -61,7 +64,7 @@ export function MobileLeadsRegistry({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-[20px] font-extrabold text-foreground">Заявки</h1>
+        <h1 className="text-head font-bold text-text-1">Заявки</h1>
         <MobileDateRangePicker
           from={from}
           to={to}
@@ -75,18 +78,18 @@ export function MobileLeadsRegistry({
 
       <div className="grid grid-cols-2 gap-2.5">
         {STAT_CARDS.map((stat) => (
-          <div key={stat.key} className="rounded-[15px] border border-border bg-surface p-3.5">
-            <div className="text-[22px] font-extrabold" style={{ color: stat.color }}>
+          <div key={stat.key} className="rounded-lg border border-rule bg-surface p-3.5">
+            <div className="font-mono text-[22px] font-semibold tabular-nums" style={{ color: stat.color }}>
               {stats ? (stats[stat.key] ?? "—") : "—"}
             </div>
-            <div className="mt-0.5 text-[12px] leading-tight text-muted-foreground">{stat.label}</div>
+            <div className="mt-0.5 text-meta leading-tight text-text-3">{stat.label}</div>
           </div>
         ))}
-        <div className="rounded-[15px] border border-border bg-surface p-3.5">
-          <div className="text-[22px] font-extrabold text-[#2563eb]">
+        <div className="rounded-lg border border-rule bg-surface p-3.5">
+          <div className="font-mono text-[22px] font-semibold tabular-nums text-status-progress">
             {stats?.conversionRate !== null && stats?.conversionRate !== undefined ? `${stats.conversionRate.toFixed(0)}%` : "—"}
           </div>
-          <div className="mt-0.5 text-[12px] leading-tight text-muted-foreground">Конверсия</div>
+          <div className="mt-0.5 text-meta leading-tight text-text-3">Конверсия</div>
         </div>
       </div>
 
@@ -96,8 +99,8 @@ export function MobileLeadsRegistry({
             key={c.value}
             onClick={() => onViewChange(c.value)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-[13px] font-medium",
-              view === c.value ? "bg-primary text-primary-foreground" : "bg-background text-[#475569]",
+              "shrink-0 rounded-full px-4 py-2 text-meta font-medium active:opacity-70",
+              view === c.value ? "bg-action text-action-fg" : "bg-surface-sunk text-text-2",
             )}
           >
             {c.label}
@@ -106,41 +109,41 @@ export function MobileLeadsRegistry({
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {isError && <p className="py-8 text-center text-sm text-destructive">Не удалось загрузить заявки.</p>}
-        {!isError && isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Загрузка...</p>}
+        {isError && <p className="py-8 text-center text-ui text-status-overdue">Не удалось загрузить заявки.</p>}
+        {!isError && isLoading && <p className="py-8 text-center text-ui text-text-3">Загрузка...</p>}
         {!isError && !isLoading && !leads.length && (
-          <p className="py-8 text-center text-sm text-muted-foreground">Заявок не найдено.</p>
+          <p className="py-8 text-center text-ui text-text-3">Заявок не найдено.</p>
         )}
         {!isError && leads.map((lead) => (
           <button
             key={lead.id}
             onClick={() => navigate(`/leads/${lead.id}`)}
-            className="relative rounded-[14px] border border-border bg-surface p-3.5 text-left"
+            className="relative rounded-lg border border-rule bg-surface p-3.5 text-left active:bg-surface-sunk"
           >
             {lead.aiIsRelevant !== null && (
               <span className="absolute right-3.5 top-3.5">
                 {lead.aiIsRelevant ? (
-                  <CheckCircle2 className="size-4 text-success" aria-label="ИИ считает релевантным" />
+                  <CheckCircle2 className="size-4 text-status-closed" aria-label="ИИ считает релевантным" />
                 ) : (
-                  <AlertTriangle className="size-4 text-warning" aria-label="ИИ считает нерелевантным" />
+                  <AlertTriangle className="size-4 text-status-review" aria-label="ИИ считает нерелевантным" />
                 )}
               </span>
             )}
-            <span className="block pr-6 text-[14px] font-semibold leading-snug text-foreground">
+            <span className="block pr-6 text-ui font-medium leading-snug text-text-1">
               {lead.fromName ?? lead.fromEmail}
             </span>
             {/* line-clamp-1 — та же логика, что и у MobileRegistry.tsx (обращения):
                 одна высота карточки независимо от длины темы письма. БЕЗ block рядом
                 — конфликтует с display, который сам объявляет line-clamp (реальный
                 баг, из-за которого текст вообще не обрезался — см. MobileRegistry.tsx). */}
-            <span className="mt-0.5 line-clamp-1 break-words text-[13px] leading-snug text-muted-foreground">
+            <span className="mt-0.5 line-clamp-1 break-words text-meta leading-snug text-text-3">
               {lead.subject}
             </span>
-            <span className="mt-1.5 block text-[12px] text-muted-foreground">
+            <span className="mt-1.5 block font-mono text-meta text-text-3">
               {lead.publicNumber} · {new Date(lead.createdAt).toLocaleDateString("ru-RU")}
             </span>
             <span
-              className="mt-3 inline-block rounded-full px-2.5 py-1 text-[11px] font-semibold text-white"
+              className="mt-3 inline-block rounded-full px-2.5 py-1 text-label font-semibold text-white"
               style={{ background: STATUS_COLOR[lead.status] }}
             >
               {LEAD_STATUS_LABELS[lead.status]}
