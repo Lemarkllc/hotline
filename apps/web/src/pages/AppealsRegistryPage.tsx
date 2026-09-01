@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Inbox, KanbanSquare, List, TrendingDown, X } from "lucide-react";
+import { Inbox, KanbanSquare, List, Search, TrendingDown, X } from "lucide-react";
 import { APPEAL_STATUSES, APPEAL_STATUS_LABELS } from "@hotline/shared";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { APPEAL_TYPE_LABELS, ModeBadge, StatusBadge, TypeLabel } from "@/components/appeals/badges";
 import { KanbanBoard } from "@/components/appeals/KanbanBoard";
@@ -12,19 +11,34 @@ import { useAppeals } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileRegistry } from "@/components/mobile/MobileRegistry";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 type View = "list" | "kanban";
 
+const GRID_COLS = "92px minmax(0,1fr) 132px 132px 116px minmax(0,160px) 88px";
+
 function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   return (
-    <div className="inline-flex rounded-md border border-border bg-surface p-1">
-      <Button variant={view === "list" ? "default" : "ghost"} size="sm" onClick={() => onChange("list")}>
-        <List className="size-4" /> Список
-      </Button>
-      <Button variant={view === "kanban" ? "default" : "ghost"} size="sm" onClick={() => onChange("kanban")}>
-        <KanbanSquare className="size-4" /> Kanban
-      </Button>
+    <div className="inline-flex gap-1 rounded-full bg-surface-sunk p-1">
+      <button
+        onClick={() => onChange("list")}
+        className={cn(
+          "flex items-center gap-1.5 rounded-full px-3 py-1 text-ui font-medium transition-colors duration-1",
+          view === "list" ? "bg-action text-action-fg" : "text-text-2 hover:text-text-1",
+        )}
+      >
+        <List className="size-3.5" /> Список
+      </button>
+      <button
+        onClick={() => onChange("kanban")}
+        className={cn(
+          "flex items-center gap-1.5 rounded-full px-3 py-1 text-ui font-medium transition-colors duration-1",
+          view === "kanban" ? "bg-action text-action-fg" : "text-text-2 hover:text-text-1",
+        )}
+      >
+        <KanbanSquare className="size-3.5" /> Kanban
+      </button>
     </div>
   );
 }
@@ -90,7 +104,7 @@ export function AppealsRegistryPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Обращения</h1>
+        <h1 className="text-title font-bold text-text-1">Обращения</h1>
         <ViewSwitch view={view} onChange={setView} />
       </div>
 
@@ -98,16 +112,19 @@ export function AppealsRegistryPage() {
         <KanbanBoard />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            <Input
-              placeholder="Поиск по номеру или тексту"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="max-w-xs"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-[280px]">
+              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-text-3" />
+              <Input
+                placeholder="Поиск по номеру или тексту"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-8"
+              />
+            </div>
             <Select
               value={statusFilter}
               disabled={backlogOnly}
@@ -129,32 +146,36 @@ export function AppealsRegistryPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              variant={backlogOnly ? "default" : "outline"}
-              size="sm"
-              title="Открыто/На проверке и без назначенного менеджера"
+            <button
               onClick={() => {
                 setBacklogOnly((v) => !v);
                 setPage(1);
               }}
+              title="Открыто/На проверке и без назначенного менеджера"
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-ui font-medium transition-colors duration-1",
+                backlogOnly ? "bg-action text-action-fg" : "bg-surface-sunk text-text-2 hover:text-text-1",
+              )}
             >
-              <Inbox className="size-4" /> Только бэклог
-            </Button>
-            <Button
-              variant={lowRatingOnly ? "default" : "outline"}
-              size="sm"
-              title="Оценка автора 1-2"
+              <Inbox className="size-3.5" /> Только бэклог
+            </button>
+            <button
               onClick={() => {
                 setLowRatingOnly((v) => !v);
                 setPage(1);
               }}
+              title="Оценка автора 1-2"
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-ui font-medium transition-colors duration-1",
+                lowRatingOnly ? "bg-action text-action-fg" : "bg-surface-sunk text-text-2 hover:text-text-1",
+              )}
             >
-              <TrendingDown className="size-4" /> Низкие оценки
-            </Button>
+              <TrendingDown className="size-3.5" /> Низкие оценки
+            </button>
             {type && (
               <button
                 onClick={() => setType(undefined)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm hover:bg-background"
+                className="flex items-center gap-1.5 rounded-full bg-surface-sunk px-3 py-1.5 text-ui text-text-2 hover:text-text-1"
               >
                 Тип: {APPEAL_TYPE_LABELS[type] ?? type}
                 <X className="size-3.5" />
@@ -162,81 +183,82 @@ export function AppealsRegistryPage() {
             )}
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Номер</TableHead>
-                <TableHead>Дата</TableHead>
-                <TableHead>Тип</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Режим</TableHead>
-                <TableHead>Ответственный</TableHead>
-                <TableHead>Оценка</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    Загрузка...
-                  </TableCell>
-                </TableRow>
-              )}
-              {!isLoading && !data?.items.length && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    Обращений не найдено.
-                  </TableCell>
-                </TableRow>
-              )}
-              {data?.items.map((appeal) => (
-                <TableRow key={appeal.id}>
-                  <TableCell>
-                    <Link
-                      to={`/appeals/${appeal.id}`}
-                      className="inline-flex items-center gap-2 font-medium text-primary hover:underline"
-                    >
-                      {appeal.publicNumber}
-                      {appeal.unreadCount > 0 && (
-                        <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">
-                          {appeal.unreadCount}
-                        </span>
-                      )}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {new Date(appeal.createdAt).toLocaleDateString("ru-RU")}
-                  </TableCell>
-                  <TableCell>
-                    <TypeLabel type={appeal.type} />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={appeal.status} />
-                  </TableCell>
-                  <TableCell>
-                    <ModeBadge mode={appeal.mode} />
-                  </TableCell>
-                  <TableCell>{appeal.assignees.map((a) => a.fullName).join(", ") || "—"}</TableCell>
-                  <TableCell className="tabular-nums">{appeal.rating?.score ?? "—"}</TableCell>
-                </TableRow>
+          <div className="overflow-x-auto rounded-lg border border-rule">
+            <div
+              className="grid min-w-[900px] border-b border-rule bg-surface-sunk"
+              style={{ gridTemplateColumns: GRID_COLS }}
+            >
+              {["Номер", "Тема / тип", "Статус", "Режим", "Ответственный", "Оценка", "Дата"].map((h) => (
+                <div key={h} className="flex h-[34px] items-center px-3 font-mono text-label font-medium uppercase tracking-wide text-text-3">
+                  {h}
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+
+            {isLoading && (
+              <div className="divide-y divide-rule">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div key={i} className="flex h-row items-center px-3">
+                    <div className="h-3.5 w-full animate-pulse rounded bg-surface-sunk" style={{ animationDuration: "1.1s" }} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {!isLoading && !data?.items.length && (
+              <p className="px-4 py-10 text-center text-ui text-text-3">Обращений не найдено.</p>
+            )}
+            {!isLoading && Boolean(data?.items.length) && (
+              <div className="divide-y divide-rule">
+                {data!.items.map((appeal) => (
+                  <div
+                    key={appeal.id}
+                    className="grid h-row min-w-[900px] items-center"
+                    style={{ gridTemplateColumns: GRID_COLS }}
+                  >
+                    <div className="px-3">
+                      <Link
+                        to={`/appeals/${appeal.id}`}
+                        className="inline-flex items-center gap-1.5 font-mono text-ui tabular-nums text-text-2 hover:text-text-1 hover:underline"
+                      >
+                        {appeal.publicNumber}
+                        {appeal.unreadCount > 0 && (
+                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-status-overdue-tint px-1 font-mono text-[10px] font-semibold text-status-overdue">
+                            {appeal.unreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    </div>
+                    <div className="min-w-0 truncate px-3">
+                      <TypeLabel type={appeal.type} />
+                    </div>
+                    <div className="px-3">
+                      <StatusBadge status={appeal.status} />
+                    </div>
+                    <div className="px-3">
+                      <ModeBadge mode={appeal.mode} />
+                    </div>
+                    <div className="truncate px-3 text-ui text-text-2">
+                      {appeal.assignees.map((a) => a.fullName).join(", ") || "—"}
+                    </div>
+                    <div className="px-3 font-mono text-ui tabular-nums text-text-2">{appeal.rating?.score ?? "—"}</div>
+                    <div className="px-3 font-mono text-meta tabular-nums text-text-3">
+                      {new Date(appeal.createdAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
+            <span className="font-mono text-meta text-text-3">
               Стр. {page} из {totalPages}
             </span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                 Назад
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
                 Вперёд
               </Button>
             </div>

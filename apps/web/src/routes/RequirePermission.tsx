@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import type { Channel, Permission } from "@hotline/shared";
-import { ShieldAlert } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
+import { NoAccess } from "@/components/layout/NoAccess";
 
 /**
  * Гейтинг на уровне роута — Sidebar уже прячет пункты меню без нужного permission,
@@ -10,16 +10,6 @@ import { useAuthStore } from "@/lib/authStore";
  */
 export function RequirePermission({ permission, channel }: { permission: Permission; channel?: Channel }) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
-  if (!hasPermission(permission, channel)) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-        <ShieldAlert className="size-10 text-muted-foreground" />
-        <p className="text-lg font-medium">Доступ запрещён</p>
-        <p className="text-sm text-muted-foreground">
-          Для этого раздела нужны права, которых нет у вашей роли.
-        </p>
-      </div>
-    );
-  }
+  if (!hasPermission(permission, channel)) return <NoAccess />;
   return <Outlet />;
 }

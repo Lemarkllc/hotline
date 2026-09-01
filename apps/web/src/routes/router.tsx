@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/pages/LoginPage";
+import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { AppealsRegistryPage } from "@/pages/AppealsRegistryPage";
@@ -14,12 +15,14 @@ import { LeadDetailPage } from "@/pages/LeadDetailPage";
 import { AccessRequestsPage } from "@/pages/AccessRequestsPage";
 import { DirectoriesPage } from "@/pages/DirectoriesPage";
 import { AuditPage } from "@/pages/AuditPage";
+import { ComponentLibraryPage } from "@/pages/ComponentLibraryPage";
 import { RequireAuth } from "./RequireAuth";
 import { RequirePermission } from "./RequirePermission";
 import { RequireRole } from "./RequireRole";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/forgot-password", element: <ForgotPasswordPage /> },
   {
     element: <RequireAuth />,
     children: [
@@ -35,6 +38,7 @@ export const router = createBrowserRouter([
           { path: "/reports", element: <ReportsPage /> },
           { path: "/notifications", element: <NotificationsPage /> },
           { path: "/profile", element: <ProfilePage /> },
+          { path: "/component-library", element: <ComponentLibraryPage /> },
           {
             element: <RequirePermission permission="user.manage" />,
             children: [

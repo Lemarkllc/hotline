@@ -22,12 +22,14 @@ const COLUMNS: AppealStatus[] = ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "CLOSED"
 /** Колонки отличаются по цвету — visual cue стадии воронки (SRS не требует
  * дословно, но так быстрее читается доска: где новое, где ждёт, где в работе,
  * где закрыто). Акцент только в верхней полосе и счётчике — не в фоне карточек,
- * чтобы не конкурировать с фиолетовым маркером конфиденциальности. */
+ * чтобы не конкурировать с фиолетовым маркером конфиденциальности. Те же
+ * status-* токены, что и StatusBadge (components/appeals/badges.tsx) — единый
+ * источник цвета статуса по всему приложению (UI_REWORK_BRIEF.md §A1). */
 const COLUMN_STYLES: Record<AppealStatus, { border: string; badge: string }> = {
-  OPEN: { border: "border-t-slate-400", badge: "bg-slate-200 text-slate-700" },
-  UNDER_REVIEW: { border: "border-t-warning", badge: "bg-warning/15 text-warning" },
-  IN_PROGRESS: { border: "border-t-primary", badge: "bg-primary/15 text-primary" },
-  CLOSED: { border: "border-t-success", badge: "bg-success/15 text-success" },
+  OPEN: { border: "border-t-status-open", badge: "bg-status-open-tint text-status-open" },
+  UNDER_REVIEW: { border: "border-t-status-review", badge: "bg-status-review-tint text-status-review" },
+  IN_PROGRESS: { border: "border-t-status-progress", badge: "bg-status-progress-tint text-status-progress" },
+  CLOSED: { border: "border-t-status-closed", badge: "bg-status-closed-tint text-status-closed" },
 };
 
 function AppealCard({ appeal }: { appeal: AppealDTO }) {
@@ -40,16 +42,16 @@ function AppealCard({ appeal }: { appeal: AppealDTO }) {
     >
       <CardContent className="flex flex-col gap-2 p-3">
         <div className="flex items-center justify-between">
-          <Link to={`/appeals/${appeal.id}`} className="text-sm font-medium text-primary hover:underline">
+          <Link to={`/appeals/${appeal.id}`} className="font-mono text-ui text-text-2 hover:text-text-1 hover:underline">
             {appeal.publicNumber}
           </Link>
           <div className="flex items-center gap-2">
             {appeal.unreadCount > 0 && (
-              <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">
+              <span className="flex size-4 items-center justify-center rounded-full bg-status-overdue-tint font-mono text-[10px] font-semibold text-status-overdue">
                 {appeal.unreadCount}
               </span>
             )}
-            <span className="text-xs text-muted-foreground">{ageDays} дн.</span>
+            <span className="font-mono text-meta text-text-3">{ageDays} дн.</span>
           </div>
         </div>
         <TypeLabel type={appeal.type} />
@@ -63,7 +65,7 @@ function AppealCard({ appeal }: { appeal: AppealDTO }) {
             ((appeal.rating.score !== null && appeal.rating.score <= 2) ||
               (appeal.rating.wouldRecommendScore !== null && appeal.rating.wouldRecommendScore <= 2) ||
               (appeal.rating.wouldReturnScore !== null && appeal.rating.wouldReturnScore <= 2)) && (
-              <span className="text-xs font-medium text-destructive">Низкая оценка</span>
+              <span className="text-meta font-medium text-status-overdue">Низкая оценка</span>
             )}
         </div>
       </CardContent>
@@ -84,7 +86,7 @@ function KanbanColumn({
   const style = COLUMN_STYLES[status];
   return (
     <div
-      className={`flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-t-4 border-border bg-background p-3 ${style.border} ${dragOver ? "ring-2 ring-primary" : ""}`}
+      className={`flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-t-4 border-rule bg-ground p-3 ${style.border} ${dragOver ? "ring-2 ring-text-1" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
         setDragOver(true);
@@ -98,8 +100,8 @@ function KanbanColumn({
       }}
     >
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold">{APPEAL_STATUS_LABELS[status]}</h2>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${style.badge}`}>
+        <h2 className="text-ui font-semibold text-text-1">{APPEAL_STATUS_LABELS[status]}</h2>
+        <span className={`rounded-full px-2 py-0.5 font-mono text-meta font-medium tabular-nums ${style.badge}`}>
           {appeals.length}
         </span>
       </div>
