@@ -44,6 +44,29 @@ export class EmailSendService {
     }
   }
 
+  /** Ответ сотрудника клиенту прямо из карточки лида (leadService.reply) — та же
+   * транспортная логика, что и sendConfirmation (fromAddress, best-effort: если SMTP-креды
+   * не выданы, письмо тихо не уходит, но сообщение в треде всё равно создаётся — см.
+   * leadService.reply). Возвращает true/false тем же принципом, что и sendTemporaryPassword,
+   * чтобы вызывающий код мог отличить "ушло" от "SMTP не настроен". */
+  async sendLeadReply(lead: EmailLead, body: string, fromFullName: string): Promise<boolean> {
+    const transporter = this.getTransporter();
+    if (!transporter) return false;
+
+    try {
+      await transporter.sendMail({
+        from: config.email.fromAddress,
+        to: lead.fromEmail,
+        subject: `Re: ${lead.subject}`,
+        text: `${body}\n\n—\n${fromFullName}`,
+      });
+      return true;
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, "emailSendService: lead reply send failed");
+      return false;
+    }
+  }
+
   /** Возвращает true, если письмо реально ушло — userService использует это как
    * сигнал: показать пароль администратору как резервный канал (письмо не дошло)
    * или нет (дошло, дублировать в UI не нужно). */

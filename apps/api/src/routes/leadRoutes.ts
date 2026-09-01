@@ -5,9 +5,11 @@ import { requirePlainPermission } from "@/middleware/rbac.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
 import { validate } from "@/middleware/validate.js";
 import {
+  assignLeadSchema,
   convertLeadToCrmSchema,
   leadDateRangeQuerySchema,
   listLeadsQuerySchema,
+  replyToLeadSchema,
   searchBitrixUsersQuerySchema,
   stopListLeadSchema,
 } from "@/validators/lead.schema.js";
@@ -26,6 +28,10 @@ leadRoutes.get(
   validate(searchBitrixUsersQuerySchema, "query"),
   asyncErrorWrapper((req, res) => leadController.searchBitrixUsers(req, res)),
 );
+
+// Должен идти раньше "/:id", иначе express примет "assignable-users" за :id
+// (тот же приём, что и у appealRoutes, см. комментарий там).
+leadRoutes.get("/assignable-users", asyncErrorWrapper((req, res) => leadController.listAssignable(req, res)));
 
 leadRoutes.get(
   "/conversion-stats",
@@ -50,6 +56,18 @@ leadRoutes.post(
 );
 
 leadRoutes.post("/:id/restore", asyncErrorWrapper((req, res) => leadController.restore(req, res)));
+
+leadRoutes.post(
+  "/:id/assign",
+  validate(assignLeadSchema),
+  asyncErrorWrapper((req, res) => leadController.assign(req, res)),
+);
+
+leadRoutes.post(
+  "/:id/reply",
+  validate(replyToLeadSchema),
+  asyncErrorWrapper((req, res) => leadController.reply(req, res)),
+);
 
 leadRoutes.post(
   "/:id/convert-to-crm",

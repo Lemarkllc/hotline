@@ -502,20 +502,31 @@ export interface LeadDTO {
   extractedEmail: string | null;
   subject: string;
   status: "NEW" | "IN_PROGRESS" | "CONVERTED" | "STOP_LISTED";
+  assignee: { id: string; fullName: string } | null;
   bitrixLeadId: string | null;
   stopListReason: string | null;
   aiIsRelevant: boolean | null;
   aiReasoning: string | null;
+  firstResponseDueAt: string;
+  firstRespondedAt: string | null;
   messages: {
     id: string;
     fromEmail: string;
     subject: string;
     body: string;
     receivedAt: string;
+    direction: "INBOUND" | "OUTBOUND";
+    sentBy: { id: string; fullName: string } | null;
     attachments: { id: string; filename: string; mimeType: string; fileSize: number }[];
   }[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LeadAssignableUserDTO {
+  id: string;
+  fullName: string;
+  email: string | null;
 }
 
 export interface BitrixUserDTO {
@@ -598,10 +609,62 @@ export function useBulkStopListLeads() {
   });
 }
 
+/** Массовые "Взять в работу"/"Назначить" из плавающей панели LeadsPage — тем же
+ * принципом, что и useBulkStopListLeads выше: нет отдельного bulk-эндпоинта, поэтому
+ * цикл через allSettled, чтобы один сбойный id не остановил остальные. */
+export function useBulkTakeInProgressLeads() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(ids.map((id) => apiRequest<LeadDTO>(`/leads/${id}/take`, { method: "POST" })));
+      return { total: ids.length, failed: results.filter((r) => r.status === "rejected").length };
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["leads"] }),
+  });
+}
+
+export function useBulkAssignLeads() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, userId }: { ids: string[]; userId: string }) => {
+      const results = await Promise.allSettled(
+        ids.map((id) => apiRequest<LeadDTO>(`/leads/${id}/assign`, { method: "POST", body: { userId } })),
+      );
+      return { total: ids.length, failed: results.filter((r) => r.status === "rejected").length };
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["leads"] }),
+  });
+}
+
 export function useRestoreLead(id: string) {
   const invalidate = useInvalidateLead(id);
   return useMutation({
     mutationFn: () => apiRequest<LeadDTO>(`/leads/${id}/restore`, { method: "POST" }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useLeadAssignableUsers(enabled = true) {
+  return useQuery({
+    queryKey: ["leads", "assignable-users"],
+    queryFn: () => apiRequest<LeadAssignableUserDTO[]>("/leads/assignable-users"),
+    enabled,
+  });
+}
+
+export function useAssignLead(id: string) {
+  const invalidate = useInvalidateLead(id);
+  return useMutation({
+    mutationFn: (userId: string | null) =>
+      apiRequest<LeadDTO>(`/leads/${id}/assign`, { method: "POST", body: { userId } }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useReplyToLead(id: string) {
+  const invalidate = useInvalidateLead(id);
+  return useMutation({
+    mutationFn: (body: string) => apiRequest<LeadDTO>(`/leads/${id}/reply`, { method: "POST", body: { body } }),
     onSuccess: invalidate,
   });
 }

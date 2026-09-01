@@ -7,7 +7,11 @@ import { nextSequence } from "@/utils/sequence.js";
 const OPEN_STATUSES: LeadStatus[] = ["NEW", "IN_PROGRESS"];
 
 export const LEAD_DETAIL_INCLUDE = {
-  messages: { orderBy: { receivedAt: "asc" as const }, include: { attachments: true } },
+  assignee: true,
+  messages: {
+    orderBy: { receivedAt: "asc" as const },
+    include: { attachments: true, sentBy: true },
+  },
 } satisfies Prisma.EmailLeadInclude;
 
 export type EmailLeadWithMessages = Prisma.EmailLeadGetPayload<{ include: typeof LEAD_DETAIL_INCLUDE }>;
@@ -140,6 +144,25 @@ export class EmailLeadRepository {
     return prisma.emailLead.update({
       where: { id },
       data: { status: "CONVERTED", convertedByUserId: userId, convertedAt: new Date(), bitrixLeadId },
+    });
+  }
+
+  /** userId: null снимает назначение — та же семантика, что и у appealRepository.assign
+   * не имеющая аналога здесь: "Заявки" не поддерживают несколько исполнителей одновременно
+   * (в отличие от AppealAssignment), поэтому простое поле, а не отдельная таблица. */
+  assign(id: string, userId: string | null): Promise<EmailLead> {
+    return prisma.emailLead.update({ where: { id }, data: { assigneeId: userId } });
+  }
+
+  /** Ответ сотрудника с sales@ (leadService.reply) — та же таблица, что и входящие письма
+   * (EmailLeadMessage), но direction: OUTBOUND и sentByUserId вместо fromEmail клиента. */
+  addOutboundMessage(
+    emailLeadId: string,
+    data: { fromEmail: string; subject: string; body: string; sentByUserId: string },
+  ): Promise<unknown> {
+    const now = new Date();
+    return prisma.emailLeadMessage.create({
+      data: { emailLeadId, ...data, receivedAt: now, direction: "OUTBOUND" },
     });
   }
 

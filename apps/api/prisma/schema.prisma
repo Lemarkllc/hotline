@@ -126,6 +126,8 @@ model User {
   accessRequest         AccessRequest?
   decidedAccessRequests AccessRequest[]       @relation("DecidedBy")
   pushSubscriptions     PushSubscription[]
+  assignedLeads         EmailLead[]           @relation("LeadAssignee")
+  sentLeadMessages      EmailLeadMessage[]    @relation("LeadMessageSentBy")
 
   @@index([status])
   @@map("users")
@@ -487,6 +489,15 @@ enum LeadStatus {
   STOP_LISTED
 }
 
+/// OUTBOUND — ответ сотрудника с sales@ (leadService.reply), не письмо от клиента.
+/// Появилось вместе с assigneeId/SLA-таймером — до этого EmailLeadMessage хранил
+/// только входящие письма (design_handoff_lemark_one/Leads.dc.html предполагает
+/// композер ответа прямо из карточки).
+enum EmailLeadMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
 model EmailLead {
   id           String @id @default(uuid())
   publicNumber String @unique
@@ -501,6 +512,12 @@ model EmailLead {
   originalBody   String
 
   status LeadStatus @default(NEW)
+
+  /// Ответственный за заявку (design_handoff_lemark_one/Leads.dc.html) — независим от
+  /// статуса, назначить/переназначить можно в любой момент жизни заявки, в отличие от
+  /// takeInProgress(), который лишь двигает статус NEW -> IN_PROGRESS.
+  assigneeId String?
+  assignee   User?   @relation("LeadAssignee", fields: [assigneeId], references: [id])
 
   bitrixLeadId      String?
   convertedByUserId String?
@@ -544,6 +561,12 @@ model EmailLeadMessage {
   subject    String
   body       String
   receivedAt DateTime
+
+  direction   EmailLeadMessageDirection @default(INBOUND)
+  /// Заполнен только у OUTBOUND (кто ответил с sales@) — для подписи в треде
+  /// («имя · время · доставлено», design_handoff_lemark_one/Leads.dc.html).
+  sentByUserId String?
+  sentBy       User?   @relation("LeadMessageSentBy", fields: [sentByUserId], references: [id])
 
   createdAt DateTime @default(now())
 
