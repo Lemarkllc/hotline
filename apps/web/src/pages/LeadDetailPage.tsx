@@ -1,23 +1,28 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Clock, MoreHorizontal } from "lucide-react";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@hotline/shared";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
 import { useLeadsRealtime } from "@/lib/realtimeLeads";
 import {
   fetchLeadAttachmentUrl,
+  useAssignLead,
   useConvertLeadToCrm,
   useLead,
+  useLeadAssignableUsers,
+  useReplyToLead,
   useRestoreLead,
   useSearchBitrixUsers,
   useStopListLead,
   useTakeLeadInProgress,
 } from "@/hooks/api";
+import { cn } from "@/lib/utils";
 
 const STATUS_VARIANT: Record<LeadStatus, BadgeProps["variant"]> = {
   NEW: "default",
@@ -55,21 +60,22 @@ function ConvertToCrmDialog({ leadId, open, onClose }: { leadId: string; open: b
           }}
         />
         <div className="mt-2 flex max-h-56 flex-col gap-1 overflow-y-auto">
-          {isLoading && <p className="text-sm text-muted-foreground">Поиск...</p>}
+          {isLoading && <p className="text-meta text-text-3">Поиск...</p>}
           {!isLoading && query.trim().length >= 2 && !users?.length && (
-            <p className="text-sm text-muted-foreground">Никого не нашлось.</p>
+            <p className="text-meta text-text-3">Никого не нашлось.</p>
           )}
           {users?.map((u) => (
             <button
               key={u.id}
               type="button"
               onClick={() => setSelectedId(u.id)}
-              className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                selectedId === u.id ? "border-primary bg-primary/10" : "border-border hover:bg-background"
-              }`}
+              className={cn(
+                "rounded-md border px-3 py-2 text-left text-ui transition-colors duration-1",
+                selectedId === u.id ? "border-text-1 bg-surface-sunk" : "border-rule hover:bg-surface-sunk",
+              )}
             >
-              <div className="font-medium">{u.fullName}</div>
-              {u.email && <div className="text-xs text-muted-foreground">{u.email}</div>}
+              <div className="font-medium text-text-1">{u.fullName}</div>
+              {u.email && <div className="text-meta text-text-3">{u.email}</div>}
             </button>
           ))}
         </div>
@@ -86,6 +92,76 @@ function ConvertToCrmDialog({ leadId, open, onClose }: { leadId: string; open: b
   );
 }
 
+const SLA_TOTAL_MS = 4 * 60 * 60 * 1000;
+
+function SlaBlock({ lead }: { lead: NonNullable<ReturnType<typeof useLead>["data"]> }) {
+  const isActive = lead.status === "NEW" || lead.status === "IN_PROGRESS";
+  if (!isActive || lead.firstRespondedAt) return null;
+
+  const dueAt = new Date(lead.firstResponseDueAt).getTime();
+  const now = Date.now();
+  const overdueMs = now - dueAt;
+
+  if (overdueMs > 0) {
+    const hours = Math.floor(overdueMs / 3_600_000);
+    const minutes = Math.floor((overdueMs % 3_600_000) / 60_000);
+    return (
+      <div className="flex items-start gap-2 rounded-md border border-status-overdue/35 bg-status-overdue-tint px-3 py-2.5">
+        <Clock className="mt-0.5 size-4 shrink-0 text-status-overdue" />
+        <div>
+          <p className="text-ui font-medium text-status-overdue">
+            Первый ответ просрочен на {hours} ч {minutes} мин
+          </p>
+          <p className="text-meta text-text-3">SLA 4 ч</p>
+        </div>
+      </div>
+    );
+  }
+
+  const remainingMs = dueAt - now;
+  const hours = Math.floor(remainingMs / 3_600_000);
+  const minutes = Math.floor((remainingMs % 3_600_000) / 60_000);
+  const progress = Math.max(0, Math.min(1, 1 - remainingMs / SLA_TOTAL_MS));
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="font-mono text-meta font-medium text-status-review">
+        осталось {hours} ч {minutes} мин
+      </p>
+      <div className="h-1 overflow-hidden rounded-full bg-surface-sunk">
+        <div className="h-full rounded-full bg-status-review" style={{ width: `${progress * 100}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function AssigneeCard({ leadId, assignee }: { leadId: string; assignee: { id: string; fullName: string } | null }) {
+  const { data: users } = useLeadAssignableUsers();
+  const assign = useAssignLead(leadId);
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-2 p-4">
+        <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">Ответственный</p>
+        <select
+          value={assignee?.id ?? ""}
+          onChange={(e) => assign.mutate(e.target.value || null)}
+          disabled={assign.isPending}
+          className={cn(
+            "h-control rounded-md border bg-surface px-2 text-ui",
+            assignee ? "border-rule-strong text-text-1" : "border-status-review/40 font-medium text-status-review",
+          )}
+        >
+          <option value="">Не назначен</option>
+          {users?.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.fullName}
+            </option>
+          ))}
+        </select>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function LeadDetailPage() {
   useLeadsRealtime();
   const { id = "" } = useParams();
@@ -94,38 +170,63 @@ export function LeadDetailPage() {
   const takeInProgress = useTakeLeadInProgress(id);
   const stopList = useStopListLead(id);
   const restore = useRestoreLead(id);
+  const reply = useReplyToLead(id);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [replyText, setReplyText] = useState("");
 
   if (isLoading || !lead) {
-    return <p className="text-muted-foreground">Загрузка...</p>;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="h-4 w-24 animate-pulse rounded bg-surface-sunk" />
+        <div className="h-24 w-full animate-pulse rounded-lg bg-surface-sunk" />
+      </div>
+    );
+  }
+
+  async function handleReply() {
+    if (!replyText.trim() || reply.isPending) return;
+    await reply.mutateAsync(replyText);
+    setReplyText("");
   }
 
   return (
     <div className="flex flex-col gap-4">
       <button
         onClick={() => navigate("/leads")}
-        className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex w-fit items-center gap-1.5 text-meta text-text-3 hover:text-text-1"
       >
         <ArrowLeft className="size-4" /> К заявкам
       </button>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">{lead.publicNumber}</h1>
-          <div className="mt-1">
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => navigate("/leads")}
+              className="flex size-9 shrink-0 items-center justify-center rounded-md border border-rule-strong text-text-2 hover:bg-surface-sunk"
+              aria-label="Назад"
+            >
+              <ArrowLeft className="size-4" />
+            </button>
+            <span className="font-mono text-[22px] tabular-nums text-text-2">{lead.publicNumber}</span>
+          </div>
+          <h1 className="mt-1 text-[22px] font-semibold text-text-1">{lead.subject}</h1>
+          <div className="mt-1.5 flex items-center gap-2">
             <Badge variant={STATUS_VARIANT[lead.status]}>{LEAD_STATUS_LABELS[lead.status]}</Badge>
+            <span className="font-mono text-meta text-text-3">
+              Почта · {lead.fromEmail} · {new Date(lead.createdAt).toLocaleString("ru-RU")}
+            </span>
           </div>
         </div>
         <div className="flex gap-2">
           {lead.status === "NEW" && (
-            <Button size="sm" disabled={takeInProgress.isPending} onClick={() => takeInProgress.mutate()}>
+            <Button disabled={takeInProgress.isPending} onClick={() => takeInProgress.mutate()}>
               Взять в работу
             </Button>
           )}
           {lead.status === "IN_PROGRESS" && (
             <>
               <Button
-                size="sm"
                 variant="outline"
                 disabled={stopList.isPending}
                 onClick={() => {
@@ -135,83 +236,40 @@ export function LeadDetailPage() {
               >
                 В стоп-лист
               </Button>
-              <Button size="sm" onClick={() => setConvertDialogOpen(true)}>
-                Передать в CRM
-              </Button>
+              <Button onClick={() => setConvertDialogOpen(true)}>Передать в CRM</Button>
             </>
           )}
           {lead.status === "STOP_LISTED" && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={restore.isPending}
-              onClick={() => restore.mutate()}
-            >
+            <Button variant="outline" disabled={restore.isPending} onClick={() => restore.mutate()}>
               Вернуть в работу
             </Button>
           )}
+          <Button variant="ghost" size="icon" aria-label="Ещё">
+            <MoreHorizontal className="size-4" />
+          </Button>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="flex flex-col gap-2 p-5 text-sm">
-          <div>
-            <span className="text-muted-foreground">Email: </span>
-            {lead.fromEmail}
-          </div>
-          {lead.fromName && (
-            <div>
-              <span className="text-muted-foreground">Имя: </span>
-              {lead.fromName}
-            </div>
-          )}
-          {lead.extractedPhone && (
-            <div>
-              <span className="text-muted-foreground">Телефон: </span>
-              {lead.extractedPhone}
-            </div>
-          )}
-          {lead.extractedEmail && (
-            <div>
-              <span className="text-muted-foreground">Доп. email: </span>
-              {lead.extractedEmail}
-            </div>
-          )}
-          {lead.aiIsRelevant !== null && (
-            <div>
-              <span className="text-muted-foreground">ИИ: </span>
-              <Badge variant={lead.aiIsRelevant ? "success" : "warning"}>
-                {lead.aiIsRelevant ? "релевантно" : "похоже, нерелевантно"}
-              </Badge>
-              {lead.aiReasoning && <span className="ml-2 text-muted-foreground">{lead.aiReasoning}</span>}
-            </div>
-          )}
-          {lead.status === "CONVERTED" && lead.bitrixLeadId && (
-            <div>
-              <span className="text-muted-foreground">Лид Bitrix24: </span>#{lead.bitrixLeadId}
-            </div>
-          )}
-          {lead.status === "STOP_LISTED" && lead.stopListReason && (
-            <div>
-              <span className="text-muted-foreground">Причина стоп-листа: </span>
-              {lead.stopListReason}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col gap-3">
-        {lead.messages.map((m) => (
-          <Card key={m.id}>
-            <CardContent className="flex flex-col gap-1 p-4">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{m.fromEmail}</span>
-                <span>{new Date(m.receivedAt).toLocaleString("ru-RU")}</span>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="flex min-h-[420px] flex-col gap-3">
+          {lead.messages.map((m) =>
+            m.direction === "OUTBOUND" ? (
+              <div key={m.id} className="ml-auto flex max-w-[74%] flex-col items-end gap-1">
+                <div className="rounded-[12px_12px_4px_12px] bg-action px-3.5 py-2.5 text-body text-action-fg">
+                  <p className="whitespace-pre-wrap">{m.body}</p>
+                </div>
+                <p className="font-mono text-label text-text-3">
+                  {m.sentBy?.fullName ?? "Сотрудник"} · {new Date(m.receivedAt).toLocaleString("ru-RU")} · доставлено
+                </p>
               </div>
-              <div className="text-sm font-medium">{m.subject}</div>
-              <div className="whitespace-pre-wrap text-sm">{m.body}</div>
-              {Boolean(m.attachments.length) && (
-                <div className="mt-2">
+            ) : (
+              <div key={m.id} className="flex max-w-[74ch] flex-col gap-1 rounded-lg border border-rule bg-surface p-3.5">
+                <div className="flex items-center justify-between text-meta text-text-3">
+                  <span>{m.fromEmail}</span>
+                  <span>{new Date(m.receivedAt).toLocaleString("ru-RU")}</span>
+                </div>
+                <p className="whitespace-pre-wrap text-body text-text-1">{m.body}</p>
+                {Boolean(m.attachments.length) && (
                   <AttachmentGallery
                     attachments={m.attachments.map((a) => ({
                       id: a.id,
@@ -222,11 +280,94 @@ export function LeadDetailPage() {
                     getQueryKey={(attachmentId) => ["attachment-url", "lead", id, attachmentId]}
                     fetchUrl={(attachmentId, download) => fetchLeadAttachmentUrl(id, attachmentId, download)}
                   />
+                )}
+              </div>
+            ),
+          )}
+          {!lead.messages.length && <p className="text-ui text-text-3">Переписки пока нет.</p>}
+
+          {lead.status !== "STOP_LISTED" && (
+            <div className="mt-auto flex flex-col gap-2 border-t border-rule pt-3">
+              <p className="text-meta text-text-3">Ответ уйдёт с sales@lemarkllc.ru, тема сохранится · Enter — отправить</p>
+              <div className="flex gap-2">
+                <Textarea
+                  rows={2}
+                  className="min-h-16"
+                  placeholder="Ответить клиенту…"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleReply();
+                    }
+                  }}
+                />
+                <Button disabled={!replyText.trim() || reply.isPending} onClick={handleReply}>
+                  Отправить
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <AssigneeCard leadId={id} assignee={lead.assignee} />
+          <Card>
+            <CardContent className="flex flex-col gap-2 p-4 text-ui">
+              <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">Клиент</p>
+              <div className="flex justify-between gap-2">
+                <span className="text-text-3">Email</span>
+                <span className="truncate text-text-1">{lead.fromEmail}</span>
+              </div>
+              {lead.fromName && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-text-3">Имя</span>
+                  <span className="text-text-1">{lead.fromName}</span>
+                </div>
+              )}
+              {lead.extractedPhone && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-text-3">Телефон</span>
+                  <span className="text-text-1">{lead.extractedPhone}</span>
+                </div>
+              )}
+              {lead.extractedEmail && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-text-3">Доп. email</span>
+                  <span className="truncate text-text-1">{lead.extractedEmail}</span>
                 </div>
               )}
             </CardContent>
           </Card>
-        ))}
+          <Card>
+            <CardContent className="flex flex-col gap-2 p-4 text-ui">
+              <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">Заявка</p>
+              {lead.aiIsRelevant !== null && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-text-3">ИИ</span>
+                  <Badge variant={lead.aiIsRelevant ? "success" : "warning"}>
+                    {lead.aiIsRelevant ? "релевантно" : "нерелевантно"}
+                  </Badge>
+                </div>
+              )}
+              {lead.aiReasoning && <p className="text-meta text-text-3">{lead.aiReasoning}</p>}
+              {lead.status === "CONVERTED" && lead.bitrixLeadId && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-text-3">Лид Bitrix24</span>
+                  <span className="text-text-1">#{lead.bitrixLeadId}</span>
+                </div>
+              )}
+              {lead.status === "STOP_LISTED" && lead.stopListReason && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-text-3">Причина</span>
+                  <span className="text-text-1">{lead.stopListReason}</span>
+                </div>
+              )}
+              <SlaBlock lead={lead} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <ConvertToCrmDialog leadId={id} open={convertDialogOpen} onClose={() => setConvertDialogOpen(false)} />
