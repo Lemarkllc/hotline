@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { EyeOff, ShieldAlert } from "lucide-react";
+import { AlertCircle, EyeOff, MessageSquare, ShieldAlert } from "lucide-react";
 import {
   APPEAL_STATUS_LABELS,
   APPEAL_STATUS_TRANSITIONS,
@@ -36,6 +36,23 @@ import {
   useAssignableUsers,
 } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
+import { cn } from "@/lib/utils";
+
+const FINAL_ANSWER_MAX = 4000;
+
+type ThreadEntry =
+  | { kind: "message"; id: string; createdAt: string; fromHrd: boolean; fromFullName: string | null; text: string }
+  | { kind: "internal"; id: string; createdAt: string; authorFullName: string; text: string }
+  | { kind: "status"; id: string; createdAt: string; fromStatus: string | null; toStatus: string };
+
+type ThreadFilter = "all" | "author" | "internal" | "events";
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return "СЕГОДНЯ";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }).toUpperCase();
+}
 
 export function AppealDetailPage() {
   const { id = "" } = useParams();
@@ -48,21 +65,22 @@ export function AppealDetailPage() {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [finalAnswer, setFinalAnswer] = useState("");
   const [resignationOutcome, setResignationOutcome] = useState<ResignationOutcome | "">("");
+  const [requestRating, setRequestRating] = useState(true);
   const [workingEdit, setWorkingEdit] = useState("");
-  const [newMessage, setNewMessage] = useState("");
-  const [newInternalNote, setNewInternalNote] = useState("");
+  const [composerMode, setComposerMode] = useState<"author" | "internal">("author");
+  const [composerText, setComposerText] = useState("");
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("appeal");
+  const [threadFilter, setThreadFilter] = useState<ThreadFilter>("all");
+  const [activeTab, setActiveTab] = useState("thread");
   const [revealDialogOpen, setRevealDialogOpen] = useState(false);
   const [revealPassword, setRevealPassword] = useState("");
   const [revealError, setRevealError] = useState("");
   const [revealedAuthor, setRevealedAuthor] = useState<{ id: string; fullName: string } | null>(null);
   const revealAuthor = useRevealAuthor(id);
 
-  // Точки на вкладках "Переписка"/"Внутренняя работа" — снимок с ПЕРВОЙ успешной
-  // загрузки карточки, не с каждого 5-секундного поллинга (useAppeal), иначе точка
-  // гаснет сама через один тик вместо того, чтобы ждать, пока пользователь реально
-  // откроет вкладку.
+  // Точка на вкладке "Тред" — снимок с ПЕРВОЙ успешной загрузки карточки, не с каждого
+  // 5-секундного поллинга (useAppeal), иначе точка гаснет сама через один тик вместо
+  // того, чтобы ждать, пока пользователь реально откроет вкладку.
   const [unreadTabs, setUnreadTabs] = useState({ messages: false, internal: false });
   const unreadTabsInitialized = useRef(false);
   useEffect(() => {
@@ -72,9 +90,6 @@ export function AppealDetailPage() {
     }
   }, [appeal]);
 
-  // Явный channel = appeal.channel, не глобальный activeChannel переключателя —
-  // у конкретно этой карточки канал фиксирован независимо от того, что сейчас
-  // выбрано в Sidebar (Фаза 7, PLAN.md §6).
   const canReadAuthor = hasPermission("appeal.read_author", appeal?.channel);
   const canClassify = hasPermission("appeal.read_all", appeal?.channel);
   const canAssign = hasPermission("appeal.assign", appeal?.channel);
@@ -87,14 +102,37 @@ export function AppealDetailPage() {
   const assignMutation = useAssignAppeal(id);
   const addComment = useAddComment(id);
   const { data: epics } = useEpics(appeal?.channel ?? activeChannel);
-  // enabled: без permission эти запросы гарантированно вернут 403 — не дёргаем их зря.
   const { data: managers } = useAssignableUsers(appeal?.channel ?? activeChannel, canAssign);
   const { data: auditEntries } = useAuditLog({ appealId: id }, canReadAudit);
-  const { data: mentionableUsers } = useMentionableUsers(id, activeTab === "internal");
+  const { data: mentionableUsers } = useMentionableUsers(id, composerMode === "internal");
   const getAttachmentUrl = useAttachmentUrl();
 
+  const thread = useMemo<ThreadEntry[]>(() => {
+    if (!appeal) return [];
+    const entries: ThreadEntry[] = [
+      ...appeal.messages.map((m) => ({ kind: "message" as const, ...m })),
+      ...appeal.comments
+        .filter((c) => c.visibility === "INTERNAL")
+        .map((c) => ({ kind: "internal" as const, id: c.id, createdAt: c.createdAt, authorFullName: c.authorFullName, text: c.text })),
+      ...appeal.statusHistory.map((h, i) => ({ kind: "status" as const, id: `status-${i}`, ...h })),
+    ];
+    return entries.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [appeal]);
+
+  const filteredThread = thread.filter((e) => {
+    if (threadFilter === "all") return true;
+    if (threadFilter === "author") return e.kind === "message";
+    if (threadFilter === "internal") return e.kind === "internal";
+    return e.kind === "status";
+  });
+
   if (isLoading || !appeal) {
-    return <p className="text-muted-foreground">Загрузка...</p>;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="h-4 w-24 animate-pulse rounded bg-surface-sunk" />
+        <div className="h-24 w-full animate-pulse rounded-lg bg-surface-sunk" />
+      </div>
+    );
   }
 
   const availableTransitions = APPEAL_STATUS_TRANSITIONS[appeal.status];
@@ -110,18 +148,21 @@ export function AppealDetailPage() {
     await changeStatus.mutateAsync({ toStatus, reason });
   }
 
-
-  async function handleSendMessage() {
-    if (!newMessage.trim() || addComment.isPending) return;
-    await addComment.mutateAsync({ text: newMessage, visibility: "PUBLIC" });
-    setNewMessage("");
+  function openComposer(mode: "author" | "internal") {
+    setComposerMode(mode);
+    setActiveTab("thread");
+    requestAnimationFrame(() => document.getElementById("thread-composer")?.focus());
   }
 
-  async function handleAddInternalNote() {
-    if (!newInternalNote.trim() || addComment.isPending) return;
-    await addComment.mutateAsync({ text: newInternalNote, visibility: "INTERNAL", mentionedUserIds });
-    setNewInternalNote("");
-    setMentionedUserIds([]);
+  async function handleSend() {
+    if (!composerText.trim() || addComment.isPending) return;
+    if (composerMode === "author") {
+      await addComment.mutateAsync({ text: composerText, visibility: "PUBLIC" });
+    } else {
+      await addComment.mutateAsync({ text: composerText, visibility: "INTERNAL", mentionedUserIds });
+      setMentionedUserIds([]);
+    }
+    setComposerText("");
   }
 
   async function handleRevealAuthor() {
@@ -153,10 +194,12 @@ export function AppealDetailPage() {
     >
       <DialogContent>
         <DialogTitle>Раскрыть автора конфиденциального обращения</DialogTitle>
-        <DialogDescription>
-          Вы открываете конфиденциальную информацию — личность автора. Это действие будет зафиксировано в
-          журнале аудита с вашим именем и временем просмотра. Подтвердите паролем от своей учётной записи.
-        </DialogDescription>
+        <DialogDescription>Единственная необратимая кнопка в системе — прочитайте до конца.</DialogDescription>
+        <ul className="mt-3 flex flex-col gap-1.5 rounded-md bg-surface-sunk p-3 text-ui text-text-2">
+          <li>• Автор получит уведомление о раскрытии</li>
+          <li>• Запись попадёт в журнал аудита с вашим именем и временем</li>
+          <li>• Вернуть конфиденциальность обратно нельзя</li>
+        </ul>
         <form
           className="mt-4 flex flex-col gap-3"
           onSubmit={(e) => {
@@ -165,7 +208,7 @@ export function AppealDetailPage() {
           }}
         >
           <div className="flex flex-col gap-1">
-            <Label htmlFor="revealPassword">Пароль</Label>
+            <Label htmlFor="revealPassword">Пароль (код 2FA повторно не запрашивается)</Label>
             <Input
               id="revealPassword"
               type="password"
@@ -173,15 +216,16 @@ export function AppealDetailPage() {
               value={revealPassword}
               onChange={(e) => setRevealPassword(e.target.value)}
               required
+              aria-invalid={Boolean(revealError)}
             />
           </div>
-          {revealError && <p className="text-sm text-destructive">{revealError}</p>}
+          {revealError && <p className="text-meta text-status-overdue">{revealError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setRevealDialogOpen(false)}>
               Отменить
             </Button>
-            <Button type="submit" disabled={!revealPassword || revealAuthor.isPending}>
-              Раскрыть автора
+            <Button type="submit" variant="destructive" disabled={!revealPassword || revealAuthor.isPending}>
+              Раскрыть автора — необратимо
             </Button>
           </DialogFooter>
         </form>
@@ -194,14 +238,23 @@ export function AppealDetailPage() {
       <DialogContent>
         <DialogTitle>Закрытие обращения</DialogTitle>
         <DialogDescription>Закрытие требует итогового ответа автору (FR-WF-005).</DialogDescription>
-        <Textarea rows={4} value={finalAnswer} onChange={(e) => setFinalAnswer(e.target.value)} className="mt-4" />
+        <div className="mt-4 flex flex-col gap-1">
+          <Textarea
+            rows={4}
+            autoFocus
+            className="min-h-[104px]"
+            maxLength={FINAL_ANSWER_MAX}
+            value={finalAnswer}
+            onChange={(e) => setFinalAnswer(e.target.value)}
+          />
+          <p className="self-end font-mono text-label tabular-nums text-text-3">
+            {finalAnswer.length} / {FINAL_ANSWER_MAX}
+          </p>
+        </div>
         {appeal.type === "RESIGNATION" && (
-          <div className="mt-4 flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
             <Label>Исход</Label>
-            <Select
-              value={resignationOutcome}
-              onValueChange={(v) => setResignationOutcome(v as ResignationOutcome)}
-            >
+            <Select value={resignationOutcome} onValueChange={(v) => setResignationOutcome(v as ResignationOutcome)}>
               <SelectTrigger>
                 <SelectValue placeholder="Выберите исход" />
               </SelectTrigger>
@@ -212,6 +265,13 @@ export function AppealDetailPage() {
             </Select>
           </div>
         )}
+        <label className="mt-1 flex items-center gap-2 text-ui text-text-1">
+          <input type="checkbox" checked={requestRating} onChange={(e) => setRequestRating(e.target.checked)} />
+          Запросить у автора оценку решения
+        </label>
+        <div className="rounded-md border border-status-review/35 bg-status-review-tint px-3 py-2.5 text-meta text-text-2">
+          Переоткрыть можно в течение 14 дней — потребуется причина, она попадёт в тред отдельным событием.
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>
             Отменить
@@ -245,10 +305,6 @@ export function AppealDetailPage() {
       <>
         <AppealDetailMobile
           appeal={appeal}
-          // Не navigate(-1) — history может быть пустой (открытие по deep link из
-          // push-уведомления, новая вкладка, свежий запуск PWA), тогда "назад" молча
-          // ничего не делал бы. "/appeals" — всегда валидный, предсказуемый пункт
-          // назначения независимо от того, откуда реально попали на карточку.
           onBack={() => navigate("/appeals")}
           activeTab={activeTab as "appeal" | "messages" | "internal" | "attachments"}
           onTabChange={(tab) => {
@@ -273,16 +329,16 @@ export function AppealDetailPage() {
           onWorkingEditChange={setWorkingEdit}
           onSaveWorkingEdit={() => setWorkingEditMutation.mutate(workingEdit)}
           saveWorkingEditPending={setWorkingEditMutation.isPending}
-          newMessage={newMessage}
-          onNewMessageChange={setNewMessage}
-          onSendMessage={handleSendMessage}
+          newMessage={composerMode === "author" ? composerText : ""}
+          onNewMessageChange={setComposerText}
+          onSendMessage={handleSend}
           sendPending={addComment.isPending}
-          newInternalNote={newInternalNote}
-          onNewInternalNoteChange={setNewInternalNote}
+          newInternalNote={composerMode === "internal" ? composerText : ""}
+          onNewInternalNoteChange={setComposerText}
           mentionableUsers={mentionableUsers}
           mentionedUserIds={mentionedUserIds}
           onMentionedUserIdsChange={setMentionedUserIds}
-          onAddInternalNote={handleAddInternalNote}
+          onAddInternalNote={handleSend}
           addNotePending={addComment.isPending}
           getAttachmentQueryKey={(attachmentId) => ["attachment-url", "appeal", id, attachmentId]}
           fetchAttachmentUrl={(attachmentId, download) =>
@@ -295,11 +351,13 @@ export function AppealDetailPage() {
     );
   }
 
+  const hasUnread = unreadTabs.messages || unreadTabs.internal;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">{appeal.publicNumber}</h1>
+          <h1 className="font-mono text-[22px] tabular-nums text-text-2">{appeal.publicNumber}</h1>
           <div className="mt-1 flex items-center gap-2">
             <StatusBadge status={appeal.status} />
             <ModeBadge mode={appeal.mode} />
@@ -315,111 +373,58 @@ export function AppealDetailPage() {
               disabled={(s === "CLOSED" && !canClose) || changeStatus.isPending}
               onClick={() => handleTransition(s)}
             >
-              → {APPEAL_STATUS_LABELS[s]}
+              {s === "IN_PROGRESS" ? "Взять в работу" : `→ ${APPEAL_STATUS_LABELS[s]}`}
             </Button>
           ))}
         </div>
       </div>
 
-      {/* Блок автора — визуально отделён (SRS §34.5) */}
-      <Card className={appeal.mode === "CONFIDENTIAL" ? "border-confidential" : undefined}>
+      {/* "Автор скрыт" — содержимое, не иконка в углу (design_handoff_lemark_one/README.md). */}
+      <Card className={appeal.mode === "CONFIDENTIAL" ? "border-confidential/40" : undefined}>
         <CardContent className="flex items-center gap-3 p-4">
           {appeal.isAuthorHidden ? (
             revealedAuthor ? (
               <>
                 <ShieldAlert className="size-5 text-confidential" />
                 <div>
-                  <p className="text-sm font-medium text-confidential">{revealedAuthor.fullName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Автор раскрыт для этого просмотра — действие зафиксировано в аудите.
-                  </p>
+                  <p className="text-ui font-medium text-confidential">{revealedAuthor.fullName}</p>
+                  <p className="text-meta text-text-3">Автор раскрыт для этого просмотра — действие зафиксировано в аудите.</p>
                 </div>
               </>
             ) : appeal.canRevealAuthor ? (
-              <button
-                type="button"
-                onClick={() => setRevealDialogOpen(true)}
-                className="flex w-full items-center gap-3 text-left"
-              >
-                <EyeOff className="size-5 text-confidential" />
+              <button type="button" onClick={() => setRevealDialogOpen(true)} className="flex w-full items-center gap-3 text-left">
+                <div className="flex size-9 items-center justify-center rounded-full bg-confidential-tint">
+                  <EyeOff className="size-4 text-confidential" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium text-confidential underline decoration-dotted">
+                  <p className="text-ui font-medium text-confidential underline decoration-dotted">
                     Автор скрыт (конфиденциальный режим) — нажмите, чтобы раскрыть
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Потребуется повторный ввод пароля; каждый просмотр журналируется.
-                  </p>
+                  <p className="text-meta text-text-3">Потребуется повторный ввод пароля; каждый просмотр журналируется.</p>
                 </div>
               </button>
             ) : (
               <>
-                <EyeOff className="size-5 text-confidential" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-confidential-tint">
+                  <EyeOff className="size-4 text-confidential" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium text-confidential">Автор скрыт (конфиденциальный режим)</p>
-                  <p className="text-xs text-muted-foreground">
-                    Данные автора доступны только HRD и Администратору; каждый просмотр журналируется.
-                  </p>
+                  <p className="text-ui font-medium text-confidential">Автор скрыт (конфиденциальный режим)</p>
+                  <p className="text-meta text-text-3">Данные автора доступны только HRD и Администратору.</p>
                 </div>
               </>
             )
           ) : (
             <>
-              <ShieldAlert className="size-5 text-muted-foreground" />
+              <ShieldAlert className="size-5 text-text-3" />
               <div>
-                <p className="text-sm font-medium">{appeal.author?.fullName ?? "Автор не указан"}</p>
-                <p className="text-xs text-muted-foreground">Автор обращения</p>
+                <p className="text-ui font-medium text-text-1">{appeal.author?.fullName ?? "Автор не указан"}</p>
+                <p className="text-meta text-text-3">Автор обращения</p>
               </div>
             </>
           )}
         </CardContent>
       </Card>
-
-      <Dialog
-        open={revealDialogOpen}
-        onOpenChange={(open) => {
-          setRevealDialogOpen(open);
-          if (!open) {
-            setRevealPassword("");
-            setRevealError("");
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogTitle>Раскрыть автора конфиденциального обращения</DialogTitle>
-          <DialogDescription>
-            Вы открываете конфиденциальную информацию — личность автора. Это действие будет зафиксировано в
-            журнале аудита с вашим именем и временем просмотра. Подтвердите паролем от своей учётной записи.
-          </DialogDescription>
-          <form
-            className="mt-4 flex flex-col gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void handleRevealAuthor();
-            }}
-          >
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="revealPassword">Пароль</Label>
-              <Input
-                id="revealPassword"
-                type="password"
-                autoFocus
-                value={revealPassword}
-                onChange={(e) => setRevealPassword(e.target.value)}
-                required
-              />
-            </div>
-            {revealError && <p className="text-sm text-destructive">{revealError}</p>}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRevealDialogOpen(false)}>
-                Отменить
-              </Button>
-              <Button type="submit" disabled={!revealPassword || revealAuthor.isPending}>
-                Раскрыть автора
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       <div className="flex flex-wrap items-center gap-3">
         {canClassify && (
@@ -454,44 +459,214 @@ export function AppealDetailPage() {
       </div>
 
       <Tabs
-        defaultValue="appeal"
+        value={activeTab}
         onValueChange={(value) => {
           setActiveTab(value);
-          if (value === "messages" || value === "internal") {
-            setUnreadTabs((t) => ({ ...t, [value]: false }));
-          }
+          if (value === "thread") setUnreadTabs({ messages: false, internal: false });
         }}
       >
         <TabsList>
+          <TabsTrigger value="thread" className="relative">
+            Тред
+            {hasUnread && <span className="absolute -right-2 top-0 size-1.5 rounded-full bg-status-overdue" />}
+          </TabsTrigger>
           <TabsTrigger value="appeal">Обращение</TabsTrigger>
-          <TabsTrigger value="messages" className="relative">
-            Переписка
-            {unreadTabs.messages && (
-              <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-destructive" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="internal" className="relative">
-            Внутренняя работа
-            {unreadTabs.internal && (
-              <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-destructive" />
-            )}
-          </TabsTrigger>
           <TabsTrigger value="attachments">Вложения</TabsTrigger>
-          <TabsTrigger value="history">История</TabsTrigger>
           <TabsTrigger value="audit">Аудит</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="thread" className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["all", "Всё", "bg-text-3"],
+                ["author", "С автором", "bg-status-open"],
+                ["internal", "Внутренние", "bg-status-review"],
+                ["events", "События", "bg-text-3"],
+              ] as [ThreadFilter, string, string][]
+            ).map(([value, label, dot]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setThreadFilter(value)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-3 py-1 text-meta font-medium transition-colors duration-1",
+                  threadFilter === value ? "bg-action text-action-fg" : "bg-surface-sunk text-text-2 hover:text-text-1",
+                )}
+              >
+                <span className={cn("size-1.5 rounded-full", threadFilter === value ? "bg-action-fg" : dot)} />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex min-h-[280px] flex-col gap-3 rounded-lg border border-rule bg-surface p-4">
+            {!filteredThread.length && (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+                <MessageSquare className="size-8 text-text-3" />
+                <p className="text-ui text-text-2">Переписки пока нет</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => openComposer("author")}>
+                    Запросить уточнение
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => openComposer("internal")}>
+                    Заметка для коллег
+                  </Button>
+                </div>
+              </div>
+            )}
+            {filteredThread.map((entry, i) => {
+              const prev = filteredThread[i - 1];
+              const showSeparator = !prev || new Date(prev.createdAt).toDateString() !== new Date(entry.createdAt).toDateString();
+              const time = new Date(entry.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+              return (
+                <div key={`${entry.kind}-${entry.id}`} className="flex flex-col gap-3">
+                  {showSeparator && (
+                    <div className="flex items-center gap-3 py-1">
+                      <span className="h-px flex-1 bg-rule" />
+                      <span className="font-mono text-label text-text-3">{dayLabel(entry.createdAt)}</span>
+                      <span className="h-px flex-1 bg-rule" />
+                    </div>
+                  )}
+                  {entry.kind === "status" && (
+                    <div className="flex items-center gap-2 py-1 text-meta text-text-3">
+                      <span className="size-1.5 rounded-full border border-text-3" />
+                      {entry.fromStatus ? `${APPEAL_STATUS_LABELS[entry.fromStatus as AppealStatus]} → ` : ""}
+                      {APPEAL_STATUS_LABELS[entry.toStatus as AppealStatus]}
+                      <span className="ml-auto font-mono">{time}</span>
+                    </div>
+                  )}
+                  {entry.kind === "internal" && (
+                    <div className="flex flex-col gap-1 border-l-2 border-status-review pl-3">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-status-review-tint px-2 py-0.5 text-label font-medium uppercase tracking-wide text-status-review">
+                          Внутренняя заметка
+                        </span>
+                        <span className="text-meta text-text-3">
+                          {entry.authorFullName} · {time}
+                        </span>
+                      </div>
+                      <p className="whitespace-pre-wrap text-body text-text-1">{entry.text}</p>
+                    </div>
+                  )}
+                  {entry.kind === "message" && !entry.fromHrd && (
+                    <div className="flex max-w-[74%] items-start gap-2.5">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-sunk text-meta font-medium text-text-2">
+                        {(appeal.author?.fullName ?? "А")[0]}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <div className="rounded-[12px_12px_12px_4px] border border-rule bg-surface px-3.5 py-2.5">
+                          <p className="whitespace-pre-wrap text-body text-text-1">{entry.text}</p>
+                        </div>
+                        <p className="font-mono text-label text-text-3">
+                          {appeal.isAuthorHidden ? "Автор" : appeal.author?.fullName ?? "Автор"} · {time}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {entry.kind === "message" && entry.fromHrd && (
+                    <div className="ml-auto flex max-w-[74%] flex-col items-end gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded-full bg-status-open-tint px-2 py-0.5 text-label font-medium uppercase tracking-wide text-status-open">
+                          Автору в бот
+                        </span>
+                      </div>
+                      <div className="rounded-[12px_12px_4px_12px] bg-action px-3.5 py-2.5">
+                        <p className="whitespace-pre-wrap text-body text-action-fg">{entry.text}</p>
+                      </div>
+                      <p className="font-mono text-label text-text-3">
+                        {entry.fromFullName ?? "Сотрудник"} · {time}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Один композер с переключателем режима вместо двух полей на разных вкладках
+           * (design_handoff_lemark_one/README.md) — режим меняет рамку, подпись и текст кнопки. */}
+          <div
+            className={cn(
+              "flex flex-col gap-2 rounded-lg border-2 p-3 transition-colors duration-1",
+              composerMode === "author" ? "border-rule-strong" : "border-status-review",
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1 rounded-full bg-surface-sunk p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setComposerMode("author")}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-meta font-medium transition-colors duration-1",
+                    composerMode === "author" ? "bg-surface text-text-1 shadow-1" : "text-text-3",
+                  )}
+                >
+                  <span className="size-1.5 rounded-full bg-status-open" /> Ответ автору
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setComposerMode("internal")}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-meta font-medium transition-colors duration-1",
+                    composerMode === "internal" ? "bg-surface text-text-1 shadow-1" : "text-text-3",
+                  )}
+                >
+                  <span className="size-1.5 rounded-full bg-status-review" /> Внутренняя заметка
+                </button>
+              </div>
+              <span className="text-meta text-text-3">
+                {composerMode === "author" ? "Уйдёт в Telegram-бот автору" : "Автор этого не увидит"}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              {composerMode === "internal" ? (
+                <MentionTextarea
+                  value={composerText}
+                  onChange={setComposerText}
+                  users={mentionableUsers ?? []}
+                  mentionedUserIds={mentionedUserIds}
+                  onMentionedUserIdsChange={setMentionedUserIds}
+                  onSubmit={() => void handleSend()}
+                  rows={2}
+                  placeholder="Внутренняя заметка (не видна автору)... @ФИО — тегнуть коллегу"
+                  className="border-none bg-transparent px-0 focus-visible:outline-none"
+                />
+              ) : (
+                <Textarea
+                  id="thread-composer"
+                  rows={2}
+                  placeholder="Написать автору (например, запросить уточнение)…"
+                  value={composerText}
+                  onChange={(e) => setComposerText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleSend();
+                    }
+                  }}
+                  className="border-none bg-transparent px-0 focus-visible:outline-none"
+                />
+              )}
+              <Button disabled={!composerText.trim() || addComment.isPending} onClick={handleSend} className="self-end">
+                {composerMode === "author" ? "Отправить" : "Добавить заметку"}
+              </Button>
+            </div>
+            <p className="text-label text-text-3">Enter — отправить · Shift+Enter — перенос</p>
+          </div>
+        </TabsContent>
 
         <TabsContent value="appeal" className="flex flex-col gap-4">
           <Card>
             <CardContent className="p-4">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">Оригинальный текст</p>
-              <p className="whitespace-pre-wrap text-sm">{appeal.originalText}</p>
+              <p className="mb-1 font-mono text-label font-medium uppercase tracking-wide text-text-3">Оригинальный текст</p>
+              <p className="whitespace-pre-wrap text-ui text-text-1">{appeal.originalText}</p>
             </CardContent>
           </Card>
           {canReadAuthor && (
             <Card>
               <CardContent className="flex flex-col gap-2 p-4">
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">
                   Рабочая редакция (нейтральная формулировка для менеджера, SRS §7.3)
                 </p>
                 <Textarea
@@ -513,89 +688,25 @@ export function AppealDetailPage() {
           )}
           {appeal.rating && (
             <Card>
-              <CardContent className="p-4 text-sm">
+              <CardContent className="p-4 text-ui">
                 {appeal.rating.score !== null ? (
                   <>
                     Оценка автора: <span className="font-semibold tabular-nums">{appeal.rating.score}/5</span>
-                    {appeal.rating.comment && <p className="mt-1 text-muted-foreground">{appeal.rating.comment}</p>}
+                    {appeal.rating.comment && <p className="mt-1 text-text-3">{appeal.rating.comment}</p>}
                   </>
                 ) : (
-                  // CUSTOMER — NPS-style, два отдельных числа вместо score (Фаза 7, PLAN.md §6).
                   <div className="flex flex-col gap-1">
                     <span>
-                      Порекомендовал(а) бы нас:{" "}
-                      <span className="font-semibold tabular-nums">{appeal.rating.wouldRecommendScore}/5</span>
+                      Порекомендовал(а) бы нас: <span className="font-semibold tabular-nums">{appeal.rating.wouldRecommendScore}/5</span>
                     </span>
                     <span>
-                      Обратится ли снова:{" "}
-                      <span className="font-semibold tabular-nums">{appeal.rating.wouldReturnScore}/5</span>
+                      Обратится ли снова: <span className="font-semibold tabular-nums">{appeal.rating.wouldReturnScore}/5</span>
                     </span>
                   </div>
                 )}
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-
-        <TabsContent value="messages" className="flex flex-col gap-3">
-          {appeal.messages.map((m) => (
-            <div
-              key={m.id}
-              className={`max-w-lg rounded-lg p-3 text-sm ${m.fromHrd ? "self-start bg-background" : "self-end bg-primary/10"}`}
-            >
-              <p>{m.text}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {m.fromHrd ? (m.fromFullName ?? "Сотрудник") : (appeal.author?.fullName ?? "Автор")} ·{" "}
-                {new Date(m.createdAt).toLocaleString("ru-RU")}
-              </p>
-            </div>
-          ))}
-          {!appeal.messages.length && <p className="text-sm text-muted-foreground">Переписки пока нет.</p>}
-          <div className="mt-2 flex gap-2">
-            <Textarea
-              rows={2}
-              placeholder="Написать автору (например, запросить уточнение)... Enter — отправить, Shift+Enter — новая строка"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleSendMessage();
-                }
-              }}
-            />
-            <Button disabled={!newMessage.trim() || addComment.isPending} onClick={handleSendMessage}>
-              Отправить
-            </Button>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="internal" className="flex flex-col gap-3">
-          {appeal.comments
-            .filter((c) => c.visibility === "INTERNAL")
-            .map((c) => (
-              <div key={c.id} className="rounded-lg bg-background p-3 text-sm">
-                <p>{c.text}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {c.authorFullName} · {new Date(c.createdAt).toLocaleString("ru-RU")}
-                </p>
-              </div>
-            ))}
-          <div className="mt-2 flex gap-2">
-            <MentionTextarea
-              rows={2}
-              placeholder="Внутренняя заметка (не видна автору)... @ФИО — тегнуть коллегу. Enter — добавить, Shift+Enter — новая строка"
-              value={newInternalNote}
-              onChange={setNewInternalNote}
-              users={mentionableUsers ?? []}
-              mentionedUserIds={mentionedUserIds}
-              onMentionedUserIdsChange={setMentionedUserIds}
-              onSubmit={() => void handleAddInternalNote()}
-            />
-            <Button disabled={!newInternalNote.trim() || addComment.isPending} onClick={handleAddInternalNote}>
-              Добавить
-            </Button>
-          </div>
         </TabsContent>
 
         <TabsContent value="attachments" className="flex flex-col gap-2">
@@ -607,83 +718,27 @@ export function AppealDetailPage() {
               label: a.kind === "PHOTO" ? "Фото" : "Видео",
             }))}
             getQueryKey={(attachmentId) => ["attachment-url", "appeal", id, attachmentId]}
-            fetchUrl={(attachmentId, download) =>
-              getAttachmentUrl.mutateAsync({ appealId: id, attachmentId, download }).then((r) => r.url)
-            }
+            fetchUrl={(attachmentId, download) => getAttachmentUrl.mutateAsync({ appealId: id, attachmentId, download }).then((r) => r.url)}
           />
         </TabsContent>
 
-        <TabsContent value="history" className="flex flex-col gap-2">
-          {appeal.statusHistory.map((h, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{new Date(h.createdAt).toLocaleString("ru-RU")}</span>
-              <span>
-                {h.fromStatus ? `${APPEAL_STATUS_LABELS[h.fromStatus as AppealStatus]} → ` : ""}
-                {APPEAL_STATUS_LABELS[h.toStatus as AppealStatus]}
-              </span>
-            </div>
-          ))}
-        </TabsContent>
-
         <TabsContent value="audit" className="flex flex-col gap-2">
-          {!auditEntries?.length && <p className="text-sm text-muted-foreground">Записей аудита нет.</p>}
+          {!auditEntries?.length && (
+            <p className="flex items-center gap-2 text-ui text-text-3">
+              <AlertCircle className="size-4" /> Записей аудита нет.
+            </p>
+          )}
           {auditEntries?.map((entry) => (
-            <div key={entry.id} className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{new Date(entry.createdAt).toLocaleString("ru-RU")}</span>
-              <span>{entry.action}</span>
+            <div key={entry.id} className="flex items-center gap-2 text-ui">
+              <span className="font-mono text-meta text-text-3">{new Date(entry.createdAt).toLocaleString("ru-RU")}</span>
+              <span className="text-text-1">{entry.action}</span>
             </div>
           ))}
         </TabsContent>
       </Tabs>
 
-      <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
-        <DialogContent>
-          <DialogTitle>Закрытие обращения</DialogTitle>
-          <DialogDescription>Закрытие требует итогового ответа автору (FR-WF-005).</DialogDescription>
-          <Textarea rows={4} value={finalAnswer} onChange={(e) => setFinalAnswer(e.target.value)} className="mt-4" />
-          {appeal.type === "RESIGNATION" && (
-            <div className="mt-4 flex flex-col gap-1">
-              <Label>Исход</Label>
-              <Select
-                value={resignationOutcome}
-                onValueChange={(v) => setResignationOutcome(v as ResignationOutcome)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите исход" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TERMINATED">{RESIGNATION_OUTCOME_LABELS.TERMINATED}</SelectItem>
-                  <SelectItem value="WITHDRAWN">{RESIGNATION_OUTCOME_LABELS.WITHDRAWN}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>
-              Отменить
-            </Button>
-            <Button
-              disabled={
-                !finalAnswer.trim() ||
-                changeStatus.isPending ||
-                (appeal.type === "RESIGNATION" && !resignationOutcome)
-              }
-              onClick={async () => {
-                await changeStatus.mutateAsync({
-                  toStatus: "CLOSED",
-                  finalAnswer,
-                  resignationOutcome: resignationOutcome || undefined,
-                });
-                setCloseDialogOpen(false);
-                setFinalAnswer("");
-                setResignationOutcome("");
-              }}
-            >
-              Закрыть обращение
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {revealDialogEl}
+      {closeDialogEl}
     </div>
   );
 }

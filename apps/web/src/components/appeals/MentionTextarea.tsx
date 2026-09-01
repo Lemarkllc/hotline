@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 const MRU_KEY = "hotline-mention-mru";
 
@@ -152,21 +153,24 @@ export function MentionTextarea({
         className={className}
       />
       {mention && candidates.length > 0 && (
-        <div className="absolute bottom-full left-0 z-20 mb-1 w-64 rounded-md border border-border bg-surface p-1 shadow-lg">
+        <div className="absolute bottom-full left-0 z-20 mb-1 w-[280px] rounded-md border border-rule bg-surface p-1 shadow-3">
           {candidates.map((u, i) => (
             <button
               key={u.id}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => selectMention(u)}
-              className={
-                "block w-full rounded-sm px-2 py-1.5 text-left text-sm " +
-                (i === activeIndex ? "bg-primary/10 text-primary" : "hover:bg-background")
-              }
+              className={cn(
+                "flex min-h-11 w-full items-center rounded-sm px-2.5 text-left text-ui",
+                i === activeIndex ? "bg-surface-sunk text-text-1" : "text-text-2 hover:bg-surface-sunk",
+              )}
             >
               {u.fullName}
             </button>
           ))}
+          <p className="border-t border-rule px-2.5 py-1.5 text-meta text-text-3">
+            Только те, у кого есть доступ к этому обращению
+          </p>
         </div>
       )}
     </div>
