@@ -209,24 +209,24 @@ export function AppealsRegistryPage() {
             )}
             {!isLoading && Boolean(data?.items.length) && (
               <div className="divide-y divide-rule">
+                {/* Вся строка — ссылка (не только номер), тем же принципом, что и
+                    MobileRegistry (карточка целиком кликабельна) и LeadsPage — раньше
+                    только 92px из ~900px были кликабельны, три реестра расходились в
+                    этом поведении (прогон impeccable). */}
                 {data!.items.map((appeal) => (
-                  <div
+                  <Link
                     key={appeal.id}
-                    className="grid h-row min-w-[900px] items-center"
+                    to={`/appeals/${appeal.id}`}
+                    className="grid h-row min-w-[900px] items-center transition-colors duration-1 hover:bg-surface-sunk/60"
                     style={{ gridTemplateColumns: GRID_COLS }}
                   >
-                    <div className="px-3">
-                      <Link
-                        to={`/appeals/${appeal.id}`}
-                        className="inline-flex items-center gap-1.5 font-mono text-ui tabular-nums text-text-2 hover:text-text-1 hover:underline"
-                      >
-                        {appeal.publicNumber}
-                        {appeal.unreadCount > 0 && (
-                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-status-overdue-tint px-1 font-mono text-[10px] font-semibold text-status-overdue">
-                            {appeal.unreadCount}
-                          </span>
-                        )}
-                      </Link>
+                    <div className="flex items-center gap-1.5 px-3 font-mono text-ui tabular-nums text-text-2">
+                      {appeal.publicNumber}
+                      {appeal.unreadCount > 0 && (
+                        <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-status-overdue-tint px-1 font-mono text-[10px] font-semibold text-status-overdue">
+                          {appeal.unreadCount}
+                        </span>
+                      )}
                     </div>
                     <div className="min-w-0 truncate px-3">
                       <TypeLabel type={appeal.type} />
@@ -244,7 +244,7 @@ export function AppealsRegistryPage() {
                     <div className="px-3 font-mono text-meta tabular-nums text-text-3">
                       {new Date(appeal.createdAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

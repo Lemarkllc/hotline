@@ -472,7 +472,10 @@ export function AppealDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="appeal">Обращение</TabsTrigger>
           <TabsTrigger value="attachments">Вложения</TabsTrigger>
-          <TabsTrigger value="audit">Аудит</TabsTrigger>
+          {/* Раньше вкладка была видна всем ролям независимо от audit.read и показывала
+           * вводящее в заблуждение "Записей аудита нет" вместо того, чтобы просто не
+           * существовать (предсуществующий баг, найден прогоном impeccable). */}
+          {canReadAudit && <TabsTrigger value="audit">Аудит</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="thread" className="flex flex-col gap-4">

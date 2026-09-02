@@ -25,11 +25,11 @@ const COLUMNS: AppealStatus[] = ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "CLOSED"
  * чтобы не конкурировать с фиолетовым маркером конфиденциальности. Те же
  * status-* токены, что и StatusBadge (components/appeals/badges.tsx) — единый
  * источник цвета статуса по всему приложению (UI_REWORK_BRIEF.md §A1). */
-const COLUMN_STYLES: Record<AppealStatus, { border: string; badge: string }> = {
-  OPEN: { border: "border-t-status-open", badge: "bg-status-open-tint text-status-open" },
-  UNDER_REVIEW: { border: "border-t-status-review", badge: "bg-status-review-tint text-status-review" },
-  IN_PROGRESS: { border: "border-t-status-progress", badge: "bg-status-progress-tint text-status-progress" },
-  CLOSED: { border: "border-t-status-closed", badge: "bg-status-closed-tint text-status-closed" },
+const COLUMN_STYLES: Record<AppealStatus, { strip: string; badge: string }> = {
+  OPEN: { strip: "bg-status-open", badge: "bg-status-open-tint text-status-open" },
+  UNDER_REVIEW: { strip: "bg-status-review", badge: "bg-status-review-tint text-status-review" },
+  IN_PROGRESS: { strip: "bg-status-progress", badge: "bg-status-progress-tint text-status-progress" },
+  CLOSED: { strip: "bg-status-closed", badge: "bg-status-closed-tint text-status-closed" },
 };
 
 function AppealCard({ appeal }: { appeal: AppealDTO }) {
@@ -86,7 +86,7 @@ function KanbanColumn({
   const style = COLUMN_STYLES[status];
   return (
     <div
-      className={`flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-t-4 border-rule bg-ground p-3 ${style.border} ${dragOver ? "ring-2 ring-text-1" : ""}`}
+      className={`flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-rule bg-ground ${dragOver ? "ring-2 ring-text-1" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
         setDragOver(true);
@@ -99,16 +99,22 @@ function KanbanColumn({
         if (appealId) onDrop(appealId, status);
       }}
     >
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-ui font-semibold text-text-1">{APPEAL_STATUS_LABELS[status]}</h2>
-        <span className={`rounded-full px-2 py-0.5 font-mono text-meta font-medium tabular-nums ${style.badge}`}>
-          {appeals.length}
-        </span>
-      </div>
-      <div className="flex flex-col gap-2">
-        {appeals.map((a) => (
-          <AppealCard key={a.id} appeal={a} />
-        ))}
+      {/* Цветовая полоса вынесена в отдельный блок, не border-t-4 на самом контейнере —
+       * толстая цветная граница поверх скруглённых углов "ломала" скругление визуально
+       * (детектор impeccable: border-accent-on-rounded). */}
+      <div className={`h-1 shrink-0 ${style.strip}`} />
+      <div className="flex flex-col gap-3 p-3">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-ui font-semibold text-text-1">{APPEAL_STATUS_LABELS[status]}</h2>
+          <span className={`rounded-full px-2 py-0.5 font-mono text-meta font-medium tabular-nums ${style.badge}`}>
+            {appeals.length}
+          </span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {appeals.map((a) => (
+            <AppealCard key={a.id} appeal={a} />
+          ))}
+        </div>
       </div>
     </div>
   );

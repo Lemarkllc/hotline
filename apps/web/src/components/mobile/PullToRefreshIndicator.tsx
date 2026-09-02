@@ -17,14 +17,23 @@ export function PullToRefreshIndicator({
   const ready = pullDistance >= threshold;
 
   return (
+    // grid-template-rows вместо height — во время живого перетаскивания transition
+    // не задан (JS обновляет каждый кадр по позиции пальца), а "снэп" к 44px при
+    // refreshing анимируется через ряд грида, не layout-свойство height напрямую
+    // (детектор impeccable: layout-transition).
     <div
-      className="flex shrink-0 items-center justify-center overflow-hidden"
-      style={{ height, transition: refreshing ? "height 150ms ease" : undefined }}
+      className="grid shrink-0 overflow-hidden"
+      style={{
+        gridTemplateRows: `${height}px`,
+        transition: refreshing ? "grid-template-rows 150ms ease" : undefined,
+      }}
     >
-      <RefreshCw
-        className={cn("size-5", ready || refreshing ? "text-text-1" : "text-text-3", refreshing && "animate-spin")}
-        style={!refreshing ? { transform: `rotate(${Math.min(pullDistance, threshold) * 2.5}deg)` } : undefined}
-      />
+      <div className="flex min-h-0 items-center justify-center">
+        <RefreshCw
+          className={cn("size-5", ready || refreshing ? "text-text-1" : "text-text-3", refreshing && "animate-spin")}
+          style={!refreshing ? { transform: `rotate(${Math.min(pullDistance, threshold) * 2.5}deg)` } : undefined}
+        />
+      </div>
     </div>
   );
 }

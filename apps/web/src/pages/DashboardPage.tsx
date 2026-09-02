@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
+  BarChart3,
   CheckCircle2,
   CircleDot,
   FilePlus2,
@@ -59,6 +60,18 @@ const RESIGNATION_OUTCOME_COLORS: Record<"TERMINATED" | "WITHDRAWN", string> = {
   TERMINATED: "#C20F1A",
   WITHDRAWN: "#2F6B4F",
 };
+
+/** Пустое состояние графика — при нулевом периоде BarChart/PieChart рендерились
+ * полностью пустыми без единого сообщения (канвас дашборда явно проектировал
+ * "Нет обращений/данных за период", здесь это не было подключено — прогон impeccable). */
+function EmptyChartState({ label }: { label: string }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+      <BarChart3 className="size-7 text-text-3" strokeWidth={1.5} />
+      <p className="text-meta text-text-3">{label}</p>
+    </div>
+  );
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -164,24 +177,28 @@ export function DashboardPage() {
             <CardTitle className="text-ui">По статусам</CardTitle>
           </CardHeader>
           <CardContent className="h-64 p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--lm-rule)" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6E6C68" }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#6E6C68" }} />
-                <Tooltip />
-                <Bar
-                  dataKey="value"
-                  radius={[4, 4, 0, 0]}
-                  cursor="pointer"
-                  onClick={(entry) => navigate(`/appeals?status=${entry.key}`)}
-                >
-                  {statusData.map((d) => (
-                    <Cell key={d.key} fill={appealStatusColor(d.key as AppealStatus)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {statusData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statusData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--lm-rule)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6E6C68" }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#6E6C68" }} />
+                  <Tooltip />
+                  <Bar
+                    dataKey="value"
+                    radius={[4, 4, 0, 0]}
+                    cursor="pointer"
+                    onClick={(entry) => navigate(`/appeals?status=${entry.key}`)}
+                  >
+                    {statusData.map((d) => (
+                      <Cell key={d.key} fill={appealStatusColor(d.key as AppealStatus)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChartState label="Нет обращений за период" />
+            )}
           </CardContent>
         </Card>
 
@@ -190,40 +207,46 @@ export function DashboardPage() {
             <CardTitle className="text-ui">По типам</CardTitle>
           </CardHeader>
           <CardContent className="flex h-64 items-center gap-6 p-4">
-            <ResponsiveContainer width="50%" height="100%">
-              <PieChart>
-                <Pie
-                  data={typeData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={55}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  cursor="pointer"
-                  onClick={(entry) => navigate(`/appeals?type=${entry.key}`)}
-                >
+            {typeData.length ? (
+              <>
+                <ResponsiveContainer width="50%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={typeData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={55}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      cursor="pointer"
+                      onClick={(entry) => navigate(`/appeals?type=${entry.key}`)}
+                    >
+                      {typeData.map((d) => (
+                        <Cell key={d.key} fill={TYPE_CHART_COLORS[d.key] ?? TYPE_CHART_FALLBACK_COLOR} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Прямые подписи легенды — donut без встроенных label-линий читается яснее
+                 * при 6 категориях (dataviz-скилл: "selective direct labels, never a number
+                 * on every point"). */}
+                <div className="flex flex-1 flex-col gap-2">
                   {typeData.map((d) => (
-                    <Cell key={d.key} fill={TYPE_CHART_COLORS[d.key] ?? TYPE_CHART_FALLBACK_COLOR} stroke="none" />
+                    <div key={d.key} className="flex items-center gap-2 text-meta text-text-2">
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: TYPE_CHART_COLORS[d.key] ?? TYPE_CHART_FALLBACK_COLOR }}
+                      />
+                      <span className="truncate">{d.name}</span>
+                      <span className="ml-auto font-mono tabular-nums text-text-1">{d.value}</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Прямые подписи легенды — donut без встроенных label-линий читается яснее
-             * при 6 категориях (dataviz-скилл: "selective direct labels, never a number
-             * on every point"). */}
-            <div className="flex flex-1 flex-col gap-2">
-              {typeData.map((d) => (
-                <div key={d.key} className="flex items-center gap-2 text-meta text-text-2">
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ background: TYPE_CHART_COLORS[d.key] ?? TYPE_CHART_FALLBACK_COLOR }}
-                  />
-                  <span className="truncate">{d.name}</span>
-                  <span className="ml-auto font-mono tabular-nums text-text-1">{d.value}</span>
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <EmptyChartState label="Нет данных за период" />
+            )}
           </CardContent>
         </Card>
 
@@ -233,24 +256,28 @@ export function DashboardPage() {
               <CardTitle className="text-ui">Увольнения: уволено vs удержано</CardTitle>
             </CardHeader>
             <CardContent className="h-64 p-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={resignationData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--lm-rule)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6E6C68" }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#6E6C68" }} />
-                  <Tooltip />
-                  <Bar
-                    dataKey="value"
-                    radius={[4, 4, 0, 0]}
-                    cursor="pointer"
-                    onClick={() => navigate("/appeals?type=RESIGNATION")}
-                  >
-                    {resignationData.map((d) => (
-                      <Cell key={d.key} fill={RESIGNATION_OUTCOME_COLORS[d.key]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {resignationData.some((d) => d.value > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={resignationData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--lm-rule)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6E6C68" }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#6E6C68" }} />
+                    <Tooltip />
+                    <Bar
+                      dataKey="value"
+                      radius={[4, 4, 0, 0]}
+                      cursor="pointer"
+                      onClick={() => navigate("/appeals?type=RESIGNATION")}
+                    >
+                      {resignationData.map((d) => (
+                        <Cell key={d.key} fill={RESIGNATION_OUTCOME_COLORS[d.key]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChartState label="Увольнений не было" />
+              )}
             </CardContent>
           </Card>
         )}
