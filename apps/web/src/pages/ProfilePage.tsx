@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
 import { setupWebPush } from "@/lib/webPush";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const ROLE_LABELS: Record<string, string> = {
   EMPLOYEE: "Сотрудник",
@@ -64,6 +65,10 @@ export function ProfilePage() {
           Сменить пароль
           <ChevronRight className="size-4 text-muted-foreground" />
         </button>
+        <div className="flex w-full items-center justify-between px-4 py-4 text-[15px] text-foreground">
+          Тема
+          <ThemeToggle />
+        </div>
         <div className="px-4 py-4 text-[15px] text-foreground">
           <p>Двухфакторная аутентификация</p>
           <p className="mt-1 text-[12px] text-muted-foreground">

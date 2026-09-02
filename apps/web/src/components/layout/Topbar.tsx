@@ -1,31 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Moon, Sun } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
 import { useMarkNotificationRead, useNotifications } from "@/hooks/api";
 import { describeNotification } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
-import { useThemeStore } from "@/lib/themeStore";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/utils";
-
-function ThemeToggle() {
-  const theme = useThemeStore((s) => s.theme);
-  const setTheme = useThemeStore((s) => s.setTheme);
-  // "system" переключается в конкретную тему по одному клику (не в трёхпозиционный
-  // цикл) — большинству достаточно двух состояний, а "вернуться к системной" по
-  // запросу через отдельный пункт не заводим, пока никто не попросил.
-  const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label={isDark ? "Включить светлую тему" : "Включить тёмную тему"}
-      onClick={() => setTheme(isDark ? "light" : "dark")}
-    >
-      {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
-    </Button>
-  );
-}
 
 export function Topbar() {
   const user = useAuthStore((s) => s.user);
