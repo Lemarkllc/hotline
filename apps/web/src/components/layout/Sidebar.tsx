@@ -166,15 +166,17 @@ export function Sidebar() {
       </nav>
 
       <div className="flex items-center gap-2.5 border-t border-rule px-3 py-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-sunk font-mono text-meta font-medium text-text-2">
+        <div
+          title={user?.fullName}
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-sunk font-mono text-meta font-medium text-text-2"
+        >
           {user ? initials(user.fullName) : "?"}
         </div>
-        <span className="flex-1 truncate text-ui font-medium text-text-1">{user?.fullName}</span>
         <button
           type="button"
           onClick={logout}
           aria-label="Выйти"
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-text-3 hover:bg-surface-sunk hover:text-text-1"
+          className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-md text-text-3 hover:bg-surface-sunk hover:text-text-1"
         >
           <LogOut className="size-4" />
         </button>
