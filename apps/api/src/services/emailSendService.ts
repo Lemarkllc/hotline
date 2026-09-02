@@ -19,6 +19,14 @@ export class EmailSendService {
       port: config.email.smtpPort,
       secure: config.email.smtpPort === 465,
       auth: { user: config.email.smtpUser, pass: config.email.smtpPassword },
+      // Без таймаутов протухшее/зависшее TLS-соединение (пул nodemailer держит его
+      // открытым между вызовами) вешает transporter.sendMail() навечно — воспроизведено
+      // вживую: composer "Ответить клиенту" оставался в состоянии "отправляется"
+      // бесконечно, ни ошибки, ни записи в тред. sendMail() уже обёрнут в try/catch
+      // (см. вызовы ниже), поэтому таймаут корректно всплывёт как обычная ошибка отправки.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
     });
     return this.transporter;
   }
