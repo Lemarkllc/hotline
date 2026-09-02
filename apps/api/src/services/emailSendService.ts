@@ -4,6 +4,7 @@ import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
 import { emailLeadRepository } from "@/repositories/EmailLeadRepository.js";
 import { renderLeadConfirmationHtml } from "@/templates/leadConfirmation.js";
+import { renderLeadReplyHtml } from "@/templates/leadReply.js";
 import { renderTemporaryPasswordHtml } from "@/templates/temporaryPassword.js";
 
 /** Автоответ клиенту только при создании НОВОЙ заявки (PLAN.md, решение №7) — вызывается
@@ -58,7 +59,11 @@ export class EmailSendService {
         from: config.email.fromAddress,
         to: lead.fromEmail,
         subject: `Re: ${lead.subject}`,
+        // text — фолбэк для клиентов без HTML (и для того, чтобы форвард/цитирование
+        // в почтовике клиента не тянуло за собой вёрстку письма); html — основной
+        // вид, фирменная оболочка Lemark (та же, что и у автоответа-подтверждения).
         text: `${body}\n\n—\n${fromFullName}`,
+        html: renderLeadReplyHtml(lead.publicNumber, body, fromFullName),
       });
       return true;
     } catch (error) {
