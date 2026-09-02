@@ -265,18 +265,18 @@ export function LeadsPage() {
       <div className="overflow-x-auto rounded-lg border border-rule">
         <div
           className="grid min-w-[900px] items-center gap-0 border-b border-rule bg-surface-sunk"
-          style={{ gridTemplateColumns: `40px 92px minmax(0,1fr) 116px 150px 132px 96px` }}
+          style={{ gridTemplateColumns: `40px 92px minmax(0,1fr) 116px 150px 180px 96px` }}
         >
-          {view === "active" && (
-            <div className="flex h-[34px] items-center justify-center">
+          <div className="flex h-[34px] items-center justify-center">
+            {view === "active" && (
               <input
                 type="checkbox"
                 aria-label="Выбрать все"
                 checked={Boolean(filteredLeads.length) && selectedIds.size === filteredLeads.length}
                 onChange={(e) => setSelectedIds(e.target.checked ? new Set(filteredLeads.map((l) => l.id)) : new Set())}
               />
-            </div>
-          )}
+            )}
+          </div>
           {["Номер", "Тема", "Источник", "Ответственный", "Статус", "Обновлено"].map((h) => (
             <div key={h} className="flex h-[34px] items-center px-3 font-mono text-label font-medium uppercase tracking-wide text-text-3">
               {h}
@@ -325,18 +325,18 @@ export function LeadsPage() {
                     "grid h-row min-w-[900px] cursor-pointer items-center transition-colors duration-1 hover:bg-surface-sunk/60",
                     selectedIds.has(lead.id) && "bg-surface-sunk",
                   )}
-                  style={{ gridTemplateColumns: `40px 92px minmax(0,1fr) 116px 150px 132px 96px` }}
+                  style={{ gridTemplateColumns: `40px 92px minmax(0,1fr) 116px 150px 180px 96px` }}
                 >
-                  {view === "active" && (
-                    <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                    {view === "active" && (
                       <input
                         type="checkbox"
                         aria-label={`Выбрать ${lead.publicNumber}`}
                         checked={selectedIds.has(lead.id)}
                         onChange={() => toggleSelected(lead.id)}
                       />
-                    </div>
-                  )}
+                    )}
+                  </div>
                   <div className="px-3 font-mono text-ui tabular-nums text-text-2">{lead.publicNumber}</div>
                   <div className="flex min-w-0 items-center gap-2 px-3">
                     <span className="truncate text-ui font-medium text-text-1">{lead.subject}</span>

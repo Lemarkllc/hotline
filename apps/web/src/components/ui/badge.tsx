@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * README.md "Цвет"). variant-имена сохранены (default/success/warning/destructive/
  * confidential/outline) — переиспользуются существующими вызывающими без смены сигнатуры,
  * значения теперь читаются из единой лемарковской палитры вместо разрозненных hex. */
-const badgeVariants = cva("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-meta font-medium", {
+const badgeVariants = cva("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-meta font-medium", {
   variants: {
     variant: {
       default: "bg-status-open-tint text-status-open",

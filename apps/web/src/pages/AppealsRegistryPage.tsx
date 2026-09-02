@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 const PAGE_SIZE = 20;
 type View = "list" | "kanban";
 
-const GRID_COLS = "92px minmax(0,1fr) 132px 132px 116px minmax(0,160px) 88px";
+const GRID_COLS = "92px minmax(0,1fr) 152px 210px 116px minmax(0,160px) 88px";
 
 function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   return (
