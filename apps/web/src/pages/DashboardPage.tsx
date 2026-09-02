@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
-  BarChart3,
   CheckCircle2,
   CircleDot,
   FilePlus2,
@@ -29,6 +28,7 @@ import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { APPEAL_TYPE_LABELS, statusColor as appealStatusColor } from "@/components/appeals/badges";
 import { KpiCard } from "@/components/dashboard/KpiCard";
+import { EmptyChartState } from "@/components/dashboard/EmptyChartState";
 import { useAppeals, useReportSummary } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -60,18 +60,6 @@ const RESIGNATION_OUTCOME_COLORS: Record<"TERMINATED" | "WITHDRAWN", string> = {
   TERMINATED: "#C20F1A",
   WITHDRAWN: "#2F6B4F",
 };
-
-/** Пустое состояние графика — при нулевом периоде BarChart/PieChart рендерились
- * полностью пустыми без единого сообщения (канвас дашборда явно проектировал
- * "Нет обращений/данных за период", здесь это не было подключено — прогон impeccable). */
-function EmptyChartState({ label }: { label: string }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-      <BarChart3 className="size-7 text-text-3" strokeWidth={1.5} />
-      <p className="text-meta text-text-3">{label}</p>
-    </div>
-  );
-}
 
 export function DashboardPage() {
   const navigate = useNavigate();

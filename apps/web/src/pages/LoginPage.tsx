@@ -160,6 +160,9 @@ export function LoginPage() {
                 className="h-touch rounded-lg text-[16px]"
                 aria-invalid={Boolean(credentialsError)}
               />
+              <Link to="/forgot-password" className="self-end text-meta text-text-3 hover:text-text-1">
+                Забыли пароль?
+              </Link>
               {credentialsError && <ErrorBanner title="Не удалось войти" detail={credentialsError} />}
               <Button type="submit" disabled={login.isPending} className="h-touch rounded-lg text-[16px] font-semibold">
                 Войти
