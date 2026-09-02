@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { Copy, Check } from "lucide-react";
 import { CHANNELS, ROLE_NAMES, USER_STATUS_LABELS, type Channel, type UserStatus } from "@hotline/shared";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -31,71 +33,157 @@ const CHANNEL_LABELS: Record<Channel, string> = {
   CUSTOMER: "Клиенты (Продажи)",
 };
 
+interface TempPasswordResult {
+  emailSent: boolean;
+  email?: string;
+  fullName: string;
+  temporaryPassword?: string;
+}
+
+/** Замена window.alert() с паролем внутри — системный диалог не стилизуется и
+ * показывает секрет в самый чувствительный момент (найдено QA-аудитом). Тот же
+ * паттерн "код + кнопка копировать", что и SecretBlock на LoginPage.tsx (там —
+ * TOTP-секрет, здесь — временный пароль, оба существуют только пока их не скопируют). */
+function TempPasswordDialog({ result, onClose }: { result: TempPasswordResult | null; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <Dialog open={result !== null} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogTitle>{result?.emailSent ? "Письмо отправлено" : "Письмо не отправилось"}</DialogTitle>
+        <DialogDescription>
+          {result?.emailSent
+            ? `Временный пароль отправлен на ${result.email}.`
+            : `Нет связи с почтой — передайте временный пароль ${result?.fullName} вручную.`}
+        </DialogDescription>
+        {!result?.emailSent && result?.temporaryPassword && (
+          <div className="mt-4 flex items-center gap-2">
+            <code className="flex-1 break-all rounded-md bg-surface-sunk px-3 py-2 font-mono text-meta text-text-1">
+              {result.temporaryPassword}
+            </code>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void navigator.clipboard.writeText(result.temporaryPassword ?? "");
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }}
+            >
+              {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+            </Button>
+          </div>
+        )}
+        <DialogFooter>
+          <Button onClick={onClose}>Готово</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Замена window.confirm() — блокирует автоматизацию/тестирование и не
+ * стилизуется (найдено QA-аудитом). Простое да/нет-подтверждение без сбора
+ * текста — ReasonDialog для этого избыточен (у него обязательное поле причины). */
+function ConfirmDialog({
+  open,
+  onClose,
+  title,
+  description,
+  confirmLabel = "Подтвердить",
+  pending = false,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  pending?: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Отменить
+          </Button>
+          <Button disabled={pending} onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CreateWebAccountDialog() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("MANAGER");
+  const [result, setResult] = useState<TempPasswordResult | null>(null);
   const create = useCreateWebAccount();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const result = await create.mutateAsync({ email, fullName, roleNames: [role] });
+    const created = await create.mutateAsync({ email, fullName, roleNames: [role] });
     setOpen(false);
+    setResult({ emailSent: created.emailSent, email, fullName, temporaryPassword: created.temporaryPassword });
     setEmail("");
     setFullName("");
-    if (result.emailSent) {
-      window.alert(`Веб-аккаунт создан. Временный пароль отправлен на ${email}.`);
-    } else {
-      window.alert(
-        `Веб-аккаунт создан, но письмо не отправилось (нет связи с почтой). Временный пароль для ${fullName}: ${result.temporaryPassword}`,
-      );
-    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>Новый веб-аккаунт</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogTitle>Новый веб-аккаунт</DialogTitle>
-        <DialogDescription>
-          Регистрация в веб-панели отдельная от бота (SRS §4.1) — заводит Администратор. Временный пароль
-          сгенерируется автоматически и уйдёт письмом на указанный email.
-        </DialogDescription>
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="fullName">ФИО</Label>
-            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="role">Роль</Label>
-            <select
-              id="role"
-              className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              {ROLE_NAMES.filter((r) => r !== "EMPLOYEE").map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-          <DialogFooter>
-            <Button type="submit" disabled={create.isPending}>
-              Создать
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button>Новый веб-аккаунт</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogTitle>Новый веб-аккаунт</DialogTitle>
+          <DialogDescription>
+            Регистрация в веб-панели отдельная от бота (SRS §4.1) — заводит Администратор. Временный пароль
+            сгенерируется автоматически и уйдёт письмом на указанный email.
+          </DialogDescription>
+          <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="fullName">ФИО</Label>
+              <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="role">Роль</Label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger id="role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_NAMES.filter((r) => r !== "EMPLOYEE").map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={create.isPending}>
+                Создать
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <TempPasswordDialog result={result} onClose={() => setResult(null)} />
+    </>
   );
 }
 
@@ -155,26 +243,26 @@ function EditUserDialog({ user }: { user: UserDTO }) {
           </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor="editRole">Роль</Label>
-            <select
-              id="editRole"
-              className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              {ROLE_NAMES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger id="editRole">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_NAMES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Доступ к каналам</Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-meta text-text-3">
               Определяет, чьи обращения видит пользователь — не то же самое, что роль.
             </p>
             {CHANNELS.map((c) => (
-              <label key={c} className="flex items-center gap-2 text-sm">
+              <label key={c} className="flex items-center gap-2 text-ui text-text-1">
                 <input type="checkbox" checked={channels.includes(c)} onChange={() => toggleChannel(c)} />
                 {CHANNEL_LABELS[c]}
               </label>
@@ -197,11 +285,13 @@ export function UsersPage() {
   const unblock = useUnblockUser();
   const resetPassword = useResetPassword();
   const [blockTarget, setBlockTarget] = useState<UserDTO | null>(null);
+  const [unblockTarget, setUnblockTarget] = useState<UserDTO | null>(null);
+  const [resetResult, setResetResult] = useState<TempPasswordResult | null>(null);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Пользователи</h1>
+        <h1 className="text-title font-bold text-text-1">Пользователи</h1>
         <CreateWebAccountDialog />
       </div>
 
@@ -220,7 +310,7 @@ export function UsersPage() {
           {users?.map((u) => (
             <TableRow key={u.id}>
               <TableCell>{u.fullName}</TableCell>
-              <TableCell className="text-muted-foreground">{u.email ?? u.telegramId}</TableCell>
+              <TableCell className="text-text-3">{u.email ?? u.telegramId}</TableCell>
               <TableCell>
                 <Badge variant={u.status === "ACTIVE" ? "success" : u.status === "BLOCKED" ? "destructive" : "outline"}>
                   {USER_STATUS_LABELS[u.status as UserStatus] ?? u.status}
@@ -236,11 +326,12 @@ export function UsersPage() {
                       disabled={resetPassword.isPending}
                       onClick={async () => {
                         const result = await resetPassword.mutateAsync(u.id);
-                        window.alert(
-                          result.emailSent
-                            ? `Временный пароль отправлен на ${u.email}.`
-                            : `Письмо не отправилось (нет связи с почтой). Временный пароль для ${u.fullName}: ${result.temporaryPassword}`,
-                        );
+                        setResetResult({
+                          emailSent: result.emailSent,
+                          email: u.email ?? undefined,
+                          fullName: u.fullName,
+                          temporaryPassword: result.temporaryPassword,
+                        });
                       }}
                     >
                       Сбросить пароль
@@ -252,14 +343,7 @@ export function UsersPage() {
                     </Button>
                   )}
                   {u.status === "BLOCKED" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={unblock.isPending}
-                      onClick={() => {
-                        if (window.confirm(`Разблокировать ${u.fullName}?`)) unblock.mutate(u.id);
-                      }}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => setUnblockTarget(u)}>
                       Разблокировать
                     </Button>
                   )}
@@ -269,6 +353,22 @@ export function UsersPage() {
           ))}
         </TableBody>
       </Table>
+
+      <TempPasswordDialog result={resetResult} onClose={() => setResetResult(null)} />
+
+      <ConfirmDialog
+        open={unblockTarget !== null}
+        onClose={() => setUnblockTarget(null)}
+        title="Разблокировать пользователя"
+        description={unblockTarget ? `Разблокировать ${unblockTarget.fullName}?` : ""}
+        confirmLabel="Разблокировать"
+        pending={unblock.isPending}
+        onConfirm={() => {
+          if (!unblockTarget) return;
+          unblock.mutate(unblockTarget.id);
+          setUnblockTarget(null);
+        }}
+      />
 
       <ReasonDialog
         open={blockTarget !== null}

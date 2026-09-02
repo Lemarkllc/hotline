@@ -10,7 +10,7 @@ export function AuditPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Аудит</h1>
+      <h1 className="text-title font-bold text-text-1">Аудит</h1>
       <Input
         placeholder="Фильтр по действию, например appeal.view_confidential_author"
         value={action}
@@ -31,7 +31,7 @@ export function AuditPage() {
             <TableRow key={entry.id}>
               <TableCell className="tabular-nums">{new Date(entry.createdAt).toLocaleString("ru-RU")}</TableCell>
               <TableCell>{entry.action}</TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="text-text-3">
                 {entry.objectType} {entry.objectId?.slice(0, 8)}
               </TableCell>
               <TableCell>{entry.result}</TableCell>

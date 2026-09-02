@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAccessRequests, useApproveAccessRequest, useRejectAccessRequest } from "@/hooks/api";
 
@@ -13,32 +13,32 @@ export function AccessRequestsCard() {
 
   return (
     <Card>
-      <CardContent className="p-4">
-        <h2 className="mb-3 text-sm font-semibold">Заявки на подтверждение</h2>
-        {!requests?.length && <p className="text-sm text-muted-foreground">Заявок нет.</p>}
-        <div className="flex flex-col gap-2">
-          {requests?.map((r) => (
-            <div key={r.id} className="flex items-center justify-between rounded-md border border-border p-3">
-              <div>
-                <p className="text-sm font-medium">{r.fullName}</p>
-                <p className="text-xs text-muted-foreground">telegramId: {r.telegramId}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => approve.mutate(r.id)} disabled={approve.isPending}>
-                  Подтвердить
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => reject.mutate({ id: r.id })}
-                  disabled={reject.isPending}
-                >
-                  Отклонить
-                </Button>
-              </div>
+      <CardHeader>
+        <CardTitle>Заявки на подтверждение</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {!requests?.length && <p className="text-ui text-text-3">Заявок нет.</p>}
+        {requests?.map((r) => (
+          <div key={r.id} className="flex items-center justify-between rounded-md border border-rule p-3">
+            <div>
+              <p className="text-ui font-medium text-text-1">{r.fullName}</p>
+              <p className="text-meta text-text-3">telegramId: {r.telegramId}</p>
             </div>
-          ))}
-        </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => approve.mutate(r.id)} disabled={approve.isPending}>
+                Подтвердить
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => reject.mutate({ id: r.id })}
+                disabled={reject.isPending}
+              >
+                Отклонить
+              </Button>
+            </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

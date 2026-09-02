@@ -20,8 +20,8 @@ export function DirectoriesPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Справочники — Эпики</h1>
-        <div className="inline-flex rounded-md border border-border bg-surface p-1">
+        <h1 className="text-title font-bold text-text-1">Справочники — Эпики</h1>
+        <div className="inline-flex rounded-md border border-rule-strong bg-surface p-1">
           <Button variant={channel === "EMPLOYEE" ? "default" : "ghost"} size="sm" onClick={() => setChannel("EMPLOYEE")}>
             Сотрудники
           </Button>
@@ -44,10 +44,10 @@ export function DirectoriesPage() {
               Добавить
             </Button>
           </div>
-          <div className="flex flex-col divide-y divide-border">
+          <div className="flex flex-col divide-y divide-rule">
             {epics?.map((epic) => (
               <div key={epic.id} className="flex items-center justify-between py-2">
-                <span className="flex items-center gap-2 text-sm">
+                <span className="flex items-center gap-2 text-ui text-text-1">
                   {epic.name}
                   {!epic.isActive && <Badge variant="outline">неактивен</Badge>}
                 </span>
