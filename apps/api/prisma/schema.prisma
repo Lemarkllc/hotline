@@ -126,7 +126,6 @@ model User {
   accessRequest         AccessRequest?
   decidedAccessRequests AccessRequest[]       @relation("DecidedBy")
   pushSubscriptions     PushSubscription[]
-  assignedLeads         EmailLead[]           @relation("LeadAssignee")
   sentLeadMessages      EmailLeadMessage[]    @relation("LeadMessageSentBy")
 
   @@index([status])
@@ -513,15 +512,21 @@ model EmailLead {
 
   status LeadStatus @default(NEW)
 
-  /// Ответственный за заявку (design_handoff_lemark_one/Leads.dc.html) — независим от
-  /// статуса, назначить/переназначить можно в любой момент жизни заявки, в отличие от
-  /// takeInProgress(), который лишь двигает статус NEW -> IN_PROGRESS.
-  assigneeId String?
-  assignee   User?   @relation("LeadAssignee", fields: [assigneeId], references: [id])
-
   bitrixLeadId      String?
   convertedByUserId String?
   convertedAt       DateTime?
+
+  /// Ответственный — не внутреннее назначение, а снимок Bitrix24-пользователя,
+  /// выбранного в момент "Передать в CRM" (leadService.convertToCrm), тот же человек,
+  /// что стал ASSIGNED_BY_ID в самом Bitrix. До конвертации у заявки нет ответственного
+  /// вовсе — продажники работают в Bitrix, не в HotLine (решение пользователя: не
+  /// заводить отдельное внутреннее назначение и связь HotLine-юзер↔Bitrix-юзер ради
+  /// уведомления, которое всё равно никто не увидит). Денормализованный кэш имени/email,
+  /// не FK — тем же принципом, что и bitrixLeadId выше, нет локальной таблицы Bitrix-
+  /// пользователей.
+  bitrixAssigneeId    String?
+  bitrixAssigneeName  String?
+  bitrixAssigneeEmail String?
 
   stopListedByUserId String?
   stopListedAt       DateTime?

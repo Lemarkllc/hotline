@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Clock, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@hotline/shared";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,18 +9,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
+import { MobileLeadDetail } from "@/components/mobile/MobileLeadDetail";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLeadsRealtime } from "@/lib/realtimeLeads";
 import {
   fetchLeadAttachmentUrl,
-  useAssignLead,
   useConvertLeadToCrm,
   useLead,
-  useLeadAssignableUsers,
   useReplyToLead,
   useRestoreLead,
   useSearchBitrixUsers,
   useStopListLead,
-  useTakeLeadInProgress,
 } from "@/hooks/api";
 import { cn } from "@/lib/utils";
 
@@ -134,29 +133,18 @@ function SlaBlock({ lead }: { lead: NonNullable<ReturnType<typeof useLead>["data
   );
 }
 
-function AssigneeCard({ leadId, assignee }: { leadId: string; assignee: { id: string; fullName: string } | null }) {
-  const { data: users } = useLeadAssignableUsers();
-  const assign = useAssignLead(leadId);
+/** Ответственный — только снимок Bitrix24-пользователя с момента "Передать в CRM"
+ * (leadService.convertToCrm), не редактируемое поле: продажники работают в Bitrix,
+ * не в HotLine, назначение там же и происходит (см. ConvertToCrmDialog). До
+ * конвертации у заявки нет ответственного вовсе. */
+function AssigneeCard({ bitrixAssignee }: { bitrixAssignee: { name: string; email: string | null } | null }) {
+  if (!bitrixAssignee) return null;
   return (
     <Card>
-      <CardContent className="flex flex-col gap-2 p-4">
-        <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">Ответственный</p>
-        <select
-          value={assignee?.id ?? ""}
-          onChange={(e) => assign.mutate(e.target.value || null)}
-          disabled={assign.isPending}
-          className={cn(
-            "h-control rounded-md border bg-surface px-2 text-ui",
-            assignee ? "border-rule-strong text-text-1" : "border-status-review/40 font-medium text-status-review",
-          )}
-        >
-          <option value="">Не назначен</option>
-          {users?.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.fullName}
-            </option>
-          ))}
-        </select>
+      <CardContent className="flex flex-col gap-1 p-4">
+        <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">Ответственный в Bitrix24</p>
+        <p className="text-ui text-text-1">{bitrixAssignee.name}</p>
+        {bitrixAssignee.email && <p className="text-meta text-text-3">{bitrixAssignee.email}</p>}
       </CardContent>
     </Card>
   );
@@ -164,10 +152,10 @@ function AssigneeCard({ leadId, assignee }: { leadId: string; assignee: { id: st
 
 export function LeadDetailPage() {
   useLeadsRealtime();
+  const isMobile = useIsMobile();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const { data: lead, isLoading } = useLead(id);
-  const takeInProgress = useTakeLeadInProgress(id);
   const stopList = useStopListLead(id);
   const restore = useRestoreLead(id);
   const reply = useReplyToLead(id);
@@ -189,15 +177,34 @@ export function LeadDetailPage() {
     setReplyText("");
   }
 
+  if (isMobile) {
+    return (
+      <>
+        <MobileLeadDetail
+          lead={lead}
+          onBack={() => navigate("/leads")}
+          onStopList={() => {
+            const reason = window.prompt("Причина (спам / нецелевое обращение):") ?? undefined;
+            stopList.mutate(reason);
+          }}
+          stopListPending={stopList.isPending}
+          onConvertClick={() => setConvertDialogOpen(true)}
+          onRestore={() => restore.mutate()}
+          restorePending={restore.isPending}
+          replyText={replyText}
+          onReplyTextChange={setReplyText}
+          onSendReply={() => void handleReply()}
+          sendReplyPending={reply.isPending}
+          getAttachmentQueryKey={(attachmentId) => ["attachment-url", "lead", id, attachmentId]}
+          fetchAttachmentUrl={(attachmentId, download) => fetchLeadAttachmentUrl(id, attachmentId, download)}
+        />
+        <ConvertToCrmDialog leadId={id} open={convertDialogOpen} onClose={() => setConvertDialogOpen(false)} />
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <button
-        onClick={() => navigate("/leads")}
-        className="inline-flex w-fit items-center gap-1.5 text-meta text-text-3 hover:text-text-1"
-      >
-        <ArrowLeft className="size-4" /> К заявкам
-      </button>
-
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2.5">
@@ -219,12 +226,7 @@ export function LeadDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {lead.status === "NEW" && (
-            <Button disabled={takeInProgress.isPending} onClick={() => takeInProgress.mutate()}>
-              Взять в работу
-            </Button>
-          )}
-          {lead.status === "IN_PROGRESS" && (
+          {(lead.status === "NEW" || lead.status === "IN_PROGRESS") && (
             <>
               <Button
                 variant="outline"
@@ -244,9 +246,6 @@ export function LeadDetailPage() {
               Вернуть в работу
             </Button>
           )}
-          <Button variant="ghost" size="icon" aria-label="Ещё">
-            <MoreHorizontal className="size-4" />
-          </Button>
         </div>
       </div>
 
@@ -312,7 +311,7 @@ export function LeadDetailPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <AssigneeCard leadId={id} assignee={lead.assignee} />
+          <AssigneeCard bitrixAssignee={lead.bitrixAssignee} />
           <Card>
             <CardContent className="flex flex-col gap-2 p-4 text-ui">
               <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">Клиент</p>

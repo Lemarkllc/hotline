@@ -112,13 +112,6 @@ export const convertLeadToCrmSchema = z.object({
 });
 export type ConvertLeadToCrmInput = z.infer<typeof convertLeadToCrmSchema>;
 
-/** userId: null снимает назначение — карточка лида должна уметь и назначать, и
- * возвращать в состояние "без ответственного" (design_handoff_lemark_one/Leads.dc.html). */
-export const assignLeadSchema = z.object({
-  userId: z.string().uuid().nullable(),
-});
-export type AssignLeadInput = z.infer<typeof assignLeadSchema>;
-
 export const replyToLeadSchema = z.object({
   body: z.string().trim().min(1, "Текст ответа не может быть пустым").max(8000),
 });

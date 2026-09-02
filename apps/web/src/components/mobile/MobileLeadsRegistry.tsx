@@ -21,6 +21,16 @@ const STATUS_COLOR: Record<LeadStatus, string> = {
   STOP_LISTED: "#C20F1A",
 };
 
+/** SLA — не поле в БД, вычисляется из firstResponseDueAt/firstRespondedAt (leadService),
+ * тот же расчёт, что и isOverdue() в LeadsPage.tsx (десктоп). Раньше на мобиле это
+ * поле вообще не читалось — просроченный лид выглядел как обычный "Новая", хотя
+ * роль «Продажи» по брифу работает преимущественно с телефона (прогон impeccable). */
+function isOverdue(lead: LeadDTO): boolean {
+  if (lead.status !== "NEW" && lead.status !== "IN_PROGRESS") return false;
+  if (lead.firstRespondedAt) return false;
+  return new Date(lead.firstResponseDueAt).getTime() < Date.now();
+}
+
 /** Плитки статистики за выбранный период — тот же 2×2 паттерн, что и у
  * MobileDashboard.tsx (крупная цифра + подпись), без графика по дням: recharts на
  * телефоне не нужен, тот же принцип, что и у MobileDashboard (см. его комментарий). */
@@ -114,42 +124,56 @@ export function MobileLeadsRegistry({
         {!isError && !isLoading && !leads.length && (
           <p className="py-8 text-center text-ui text-text-3">Заявок не найдено.</p>
         )}
-        {!isError && leads.map((lead) => (
-          <button
-            key={lead.id}
-            onClick={() => navigate(`/leads/${lead.id}`)}
-            className="relative rounded-lg border border-rule bg-surface p-3.5 text-left active:bg-surface-sunk"
-          >
-            {lead.aiIsRelevant !== null && (
-              <span className="absolute right-3.5 top-3.5">
-                {lead.aiIsRelevant ? (
-                  <CheckCircle2 className="size-4 text-status-closed" aria-label="ИИ считает релевантным" />
-                ) : (
-                  <AlertTriangle className="size-4 text-status-review" aria-label="ИИ считает нерелевантным" />
-                )}
-              </span>
-            )}
-            <span className="block pr-6 text-ui font-medium leading-snug text-text-1">
-              {lead.fromName ?? lead.fromEmail}
-            </span>
-            {/* line-clamp-1 — та же логика, что и у MobileRegistry.tsx (обращения):
-                одна высота карточки независимо от длины темы письма. БЕЗ block рядом
-                — конфликтует с display, который сам объявляет line-clamp (реальный
-                баг, из-за которого текст вообще не обрезался — см. MobileRegistry.tsx). */}
-            <span className="mt-0.5 line-clamp-1 break-words text-meta leading-snug text-text-3">
-              {lead.subject}
-            </span>
-            <span className="mt-1.5 block font-mono text-meta text-text-3">
-              {lead.publicNumber} · {new Date(lead.createdAt).toLocaleDateString("ru-RU")}
-            </span>
-            <span
-              className="mt-3 inline-block rounded-full px-2.5 py-1 text-label font-semibold text-white"
-              style={{ background: STATUS_COLOR[lead.status] }}
+        {!isError && leads.map((lead) => {
+          const overdue = isOverdue(lead);
+          return (
+            <button
+              key={lead.id}
+              onClick={() => navigate(`/leads/${lead.id}`)}
+              className="relative rounded-lg border border-rule bg-surface p-3.5 text-left active:bg-surface-sunk"
             >
-              {LEAD_STATUS_LABELS[lead.status]}
-            </span>
-          </button>
-        ))}
+              {lead.aiIsRelevant !== null && (
+                <span className="absolute right-3.5 top-3.5">
+                  {lead.aiIsRelevant ? (
+                    <CheckCircle2 className="size-4 text-status-closed" aria-label="ИИ считает релевантным" />
+                  ) : (
+                    <AlertTriangle className="size-4 text-status-review" aria-label="ИИ считает нерелевантным" />
+                  )}
+                </span>
+              )}
+              <span className="block pr-6 text-ui font-medium leading-snug text-text-1">
+                {lead.fromName ?? lead.fromEmail}
+              </span>
+              {/* line-clamp-1 — та же логика, что и у MobileRegistry.tsx (обращения):
+                  одна высота карточки независимо от длины темы письма. БЕЗ block рядом
+                  — конфликтует с display, который сам объявляет line-clamp (реальный
+                  баг, из-за которого текст вообще не обрезался — см. MobileRegistry.tsx). */}
+              <span className="mt-0.5 line-clamp-1 break-words text-meta leading-snug text-text-3">
+                {lead.subject}
+              </span>
+              <span className="mt-1.5 block font-mono text-meta text-text-3">
+                {lead.publicNumber} · {new Date(lead.createdAt).toLocaleDateString("ru-RU")}
+              </span>
+              <div className="mt-3 flex items-center gap-2">
+                {overdue ? (
+                  <span className="inline-block rounded-full bg-status-overdue px-2.5 py-1 text-label font-semibold text-white">
+                    Просрочена
+                  </span>
+                ) : (
+                  <span
+                    className="inline-block rounded-full px-2.5 py-1 text-label font-semibold text-white"
+                    style={{ background: STATUS_COLOR[lead.status] }}
+                  >
+                    {LEAD_STATUS_LABELS[lead.status]}
+                  </span>
+                )}
+                {lead.bitrixAssignee && (
+                  <span className="truncate text-meta text-text-3">{lead.bitrixAssignee.name}</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

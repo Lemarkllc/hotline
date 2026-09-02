@@ -7,7 +7,6 @@ import { nextSequence } from "@/utils/sequence.js";
 const OPEN_STATUSES: LeadStatus[] = ["NEW", "IN_PROGRESS"];
 
 export const LEAD_DETAIL_INCLUDE = {
-  assignee: true,
   messages: {
     orderBy: { receivedAt: "asc" as const },
     include: { attachments: true, sentBy: true },
@@ -140,18 +139,24 @@ export class EmailLeadRepository {
     });
   }
 
-  markConverted(id: string, userId: string, bitrixLeadId: string): Promise<EmailLead> {
+  markConverted(
+    id: string,
+    userId: string,
+    bitrixLeadId: string,
+    bitrixAssignee: { id: string; fullName: string; email: string | null } | null,
+  ): Promise<EmailLead> {
     return prisma.emailLead.update({
       where: { id },
-      data: { status: "CONVERTED", convertedByUserId: userId, convertedAt: new Date(), bitrixLeadId },
+      data: {
+        status: "CONVERTED",
+        convertedByUserId: userId,
+        convertedAt: new Date(),
+        bitrixLeadId,
+        bitrixAssigneeId: bitrixAssignee?.id,
+        bitrixAssigneeName: bitrixAssignee?.fullName,
+        bitrixAssigneeEmail: bitrixAssignee?.email,
+      },
     });
-  }
-
-  /** userId: null снимает назначение — та же семантика, что и у appealRepository.assign
-   * не имеющая аналога здесь: "Заявки" не поддерживают несколько исполнителей одновременно
-   * (в отличие от AppealAssignment), поэтому простое поле, а не отдельная таблица. */
-  assign(id: string, userId: string | null): Promise<EmailLead> {
-    return prisma.emailLead.update({ where: { id }, data: { assigneeId: userId } });
   }
 
   /** Ответ сотрудника с sales@ (leadService.reply) — та же таблица, что и входящие письма

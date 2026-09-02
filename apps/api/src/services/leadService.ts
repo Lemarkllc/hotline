@@ -2,14 +2,11 @@ import { config } from "@/config/unifiedConfig.js";
 import { downloadObject, getPresignedDownloadUrl } from "@/lib/storage.js";
 import { bitrixService, type BitrixUserDTO } from "@/services/bitrixService.js";
 import { emailSendService } from "@/services/emailSendService.js";
-import { notificationService } from "@/services/notificationService.js";
-import { userRepository } from "@/repositories/UserRepository.js";
 import { emailLeadRepository, type EmailLeadWithMessages } from "@/repositories/EmailLeadRepository.js";
 import { emailBlocklistRepository } from "@/repositories/EmailBlocklistRepository.js";
 import type { AuthenticatedUser } from "@/types/index.js";
 import { ConflictError, NotFoundError, ValidationError } from "@/types/index.js";
 import { logger } from "@/lib/logger.js";
-import { sanitizeUser } from "@/utils/serializers.js";
 
 /** Часов на первый ответ клиенту (design_handoff_lemark_one/README.md "SLA 4 ч") —
  * фиксированная политика, не настройка: как и остальные SLA-подобные величины в этой
@@ -32,7 +29,9 @@ export interface LeadDTO {
   extractedEmail: string | null;
   subject: string;
   status: string;
-  assignee: { id: string; fullName: string } | null;
+  /** Ответственный — только снимок Bitrix24-пользователя с момента конвертации
+   * (leadService.convertToCrm), не внутреннее назначение (см. схему EmailLead). */
+  bitrixAssignee: { name: string; email: string | null } | null;
   bitrixLeadId: string | null;
   stopListReason: string | null;
   aiIsRelevant: boolean | null;
@@ -68,7 +67,9 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
     extractedEmail: lead.extractedEmail,
     subject: lead.subject,
     status: lead.status,
-    assignee: lead.assignee ? { id: lead.assignee.id, fullName: lead.assignee.fullName } : null,
+    bitrixAssignee: lead.bitrixAssigneeName
+      ? { name: lead.bitrixAssigneeName, email: lead.bitrixAssigneeEmail }
+      : null,
     bitrixLeadId: lead.bitrixLeadId,
     stopListReason: lead.stopListReason,
     aiIsRelevant: lead.aiIsRelevant,
@@ -154,24 +155,6 @@ export class LeadService {
     return this.getById(id);
   }
 
-  /** Кому можно назначить заявку — вся роль SALES (lead.manage не канало-скоуплен,
-   * см. notificationService.salesRecipients() — тот же источник). */
-  async listAssignable(): Promise<ReturnType<typeof sanitizeUser>[]> {
-    const users = await userRepository.findByRole("SALES");
-    return users.map(sanitizeUser);
-  }
-
-  /** Назначение не меняет статус — "Взять в работу" (takeInProgress) остаётся отдельным
-   * явным действием, назначить и отвечать можно параллельно с ним. userId: null снимает
-   * назначение. */
-  async assign(id: string, userId: string | null): Promise<LeadDTO> {
-    const lead = await emailLeadRepository.findById(id);
-    if (!lead) throw new NotFoundError("Заявка не найдена");
-    await emailLeadRepository.assign(id, userId);
-    if (userId) await notificationService.notifyLeadAssigned(lead, userId);
-    return this.getById(id);
-  }
-
   /** Ответ сотрудника клиенту прямо из карточки лида — best-effort: если SMTP-креды не
    * выданы (см. emailSendService.sendLeadReply), запись в тред всё равно добавляется
    * (тот же принцип "заявка не должна оставаться без следа из-за вторичной инфраструктуры",
@@ -254,7 +237,15 @@ export class LeadService {
     // "дела" выше: ошибка тут не должна откатывать уже успешную передачу лида).
     await this.forwardAttachmentsToBitrix(lead, bitrixLeadId);
 
-    await emailLeadRepository.markConverted(id, user.id, bitrixLeadId);
+    // Снимок имени/email ответственного для отображения на карточке (см. схему
+    // EmailLead) — best-effort: сам лид в Bitrix уже корректно назначен через
+    // ASSIGNED_BY_ID выше вне зависимости от того, найдётся ли здесь резолв.
+    const bitrixAssignee = await bitrixService.findUserById(bitrixUserId).catch((error: unknown) => {
+      logger.error({ err: error, leadId: id, bitrixUserId }, "leadService: не удалось резолвить имя ответственного Bitrix24");
+      return null;
+    });
+
+    await emailLeadRepository.markConverted(id, user.id, bitrixLeadId, bitrixAssignee);
     return this.getById(id);
   }
 

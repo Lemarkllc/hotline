@@ -1,16 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  FilePlus2,
-  Percent,
-  Search,
-  ShieldOff,
-  Sparkles,
-  Target,
-  UserCheck,
-} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { AlertTriangle, CheckCircle2, FilePlus2, Percent, Search, ShieldOff, Sparkles, Target } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@hotline/shared";
 import { Button } from "@/components/ui/button";
@@ -20,17 +10,13 @@ import { Input } from "@/components/ui/input";
 import { DesktopDateRangePicker } from "@/components/ui/date-range-picker/DesktopDateRangePicker";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
-  useBulkAssignLeads,
   useBulkStopListLeads,
-  useBulkTakeInProgressLeads,
-  useLeadAssignableUsers,
   useLeadConversionStats,
   useLeadDailyStats,
   useLeads,
   type LeadDTO,
   type LeadsView,
 } from "@/hooks/api";
-import { useAuthStore } from "@/lib/authStore";
 import { useLeadsRealtime } from "@/lib/realtimeLeads";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileLeadsRegistry } from "@/components/mobile/MobileLeadsRegistry";
@@ -72,11 +58,9 @@ function isOverdue(lead: LeadDTO): boolean {
   return new Date(lead.firstResponseDueAt).getTime() < Date.now();
 }
 
-type ChipFilter = "all" | "mine" | "unassigned" | "overdue";
+type ChipFilter = "all" | "overdue";
 const CHIP_LABELS: Record<ChipFilter, string> = {
   all: "Все",
-  mine: "Мои",
-  unassigned: "Без ответственного",
   overdue: "Просроченные",
 };
 
@@ -84,13 +68,12 @@ const CHIP_LABELS: Record<ChipFilter, string> = {
  * канала раздел (см. PLAN.md "«Заявки» — email-лиды..."). */
 export function LeadsPage() {
   useLeadsRealtime();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const currentUserId = useAuthStore((s) => s.user?.id);
   const [view, setView] = useState<LeadsView>("active");
   const [chip, setChip] = useState<ChipFilter>("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [assignTargetId, setAssignTargetId] = useState("");
 
   // Дефолт "последние 30 дней" — единственный источник для обеих версий (десктоп/PWA)
   // и для "Сбросить" у DateRangePicker (см. resetRange ниже) — компонент сам этого
@@ -106,21 +89,14 @@ export function LeadsPage() {
   // График "по дням" только на десктопе (см. MobileLeadsRegistry) — на телефоне
   // запрос не нужен, не гоняем его зря.
   const { data: dailyStats } = useLeadDailyStats(from, to, !isMobile);
-  const { data: assignableUsers } = useLeadAssignableUsers(view === "active");
   const bulkStopList = useBulkStopListLeads();
-  const bulkTakeInProgress = useBulkTakeInProgressLeads();
-  const bulkAssign = useBulkAssignLeads();
 
   const maxDaily = Math.max(1, ...(dailyStats ?? []).map((d) => d.aiRelevant));
   const yTicks = useMemo(() => Array.from({ length: maxDaily + 1 }, (_, i) => i), [maxDaily]);
 
   const filteredLeads = useMemo(() => {
     let rows = leads ?? [];
-    if (view === "active") {
-      if (chip === "mine") rows = rows.filter((l) => l.assignee?.id === currentUserId);
-      else if (chip === "unassigned") rows = rows.filter((l) => !l.assignee);
-      else if (chip === "overdue") rows = rows.filter(isOverdue);
-    }
+    if (view === "active" && chip === "overdue") rows = rows.filter(isOverdue);
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter(
@@ -132,10 +108,9 @@ export function LeadsPage() {
       );
     }
     return rows;
-  }, [leads, view, chip, search, currentUserId]);
+  }, [leads, view, chip, search]);
 
   const overdueCount = (leads ?? []).filter(isOverdue).length;
-  const unassignedCount = (leads ?? []).filter((l) => !l.assignee).length;
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -150,18 +125,6 @@ export function LeadsPage() {
     const reason = window.prompt("Причина (спам / нецелевое обращение):") ?? undefined;
     await bulkStopList.mutateAsync({ ids: [...selectedIds], reason });
     setSelectedIds(new Set());
-  }
-
-  async function handleBulkTakeInProgress() {
-    await bulkTakeInProgress.mutateAsync([...selectedIds]);
-    setSelectedIds(new Set());
-  }
-
-  async function handleBulkAssign() {
-    if (!assignTargetId) return;
-    await bulkAssign.mutateAsync({ ids: [...selectedIds], userId: assignTargetId });
-    setSelectedIds(new Set());
-    setAssignTargetId("");
   }
 
   if (isMobile) {
@@ -188,7 +151,7 @@ export function LeadsPage() {
         <div>
           <h1 className="text-title font-bold text-text-1">Заявки</h1>
           <p className="mt-0.5 font-mono text-meta text-text-3">
-            {leads?.length ?? 0} активных · {unassignedCount} без ответственного · {overdueCount} просрочено
+            {leads?.length ?? 0} активных · {overdueCount} просрочено
           </p>
         </div>
         <DesktopDateRangePicker
@@ -344,16 +307,26 @@ export function LeadsPage() {
             {filteredLeads.map((lead) => {
               const overdue = isOverdue(lead);
               return (
+                // Вся строка кликабельна (не только номер/тема), тем же принципом,
+                // что и в реестре обращений и мобильной карточке — раньше только две
+                // из семи колонок вели на карточку лида (прогон impeccable). Чекбокс
+                // останавливает всплытие клика, чтобы выбор строки не открывал карточку.
                 <div
                   key={lead.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/leads/${lead.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") navigate(`/leads/${lead.id}`);
+                  }}
                   className={cn(
-                    "grid h-row min-w-[900px] items-center",
+                    "grid h-row min-w-[900px] cursor-pointer items-center transition-colors duration-1 hover:bg-surface-sunk/60",
                     selectedIds.has(lead.id) && "bg-surface-sunk",
                   )}
                   style={{ gridTemplateColumns: `40px 92px minmax(0,1fr) 116px 150px 132px 96px` }}
                 >
                   {view === "active" && (
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         aria-label={`Выбрать ${lead.publicNumber}`}
@@ -362,15 +335,9 @@ export function LeadsPage() {
                       />
                     </div>
                   )}
-                  <div className="px-3 font-mono text-ui tabular-nums text-text-2">
-                    <Link to={`/leads/${lead.id}`} className="hover:text-text-1 hover:underline">
-                      {lead.publicNumber}
-                    </Link>
-                  </div>
+                  <div className="px-3 font-mono text-ui tabular-nums text-text-2">{lead.publicNumber}</div>
                   <div className="flex min-w-0 items-center gap-2 px-3">
-                    <Link to={`/leads/${lead.id}`} className="truncate text-ui font-medium text-text-1 hover:underline">
-                      {lead.subject}
-                    </Link>
+                    <span className="truncate text-ui font-medium text-text-1">{lead.subject}</span>
                     {lead.aiIsRelevant === true && (
                       <span title={lead.aiReasoning ?? "ИИ считает релевантным"}>
                         <CheckCircle2 className="size-3.5 shrink-0 text-status-closed" />
@@ -386,10 +353,10 @@ export function LeadsPage() {
                     <span className="size-1.5 rounded-full bg-text-3" /> Почта
                   </div>
                   <div className="truncate px-3 text-ui">
-                    {lead.assignee ? (
-                      <span className="text-text-1">{lead.assignee.fullName}</span>
+                    {lead.bitrixAssignee ? (
+                      <span className="text-text-1">{lead.bitrixAssignee.name}</span>
                     ) : (
-                      <span className="font-medium text-status-review">Не назначен</span>
+                      <span className="text-text-3">—</span>
                     )}
                   </div>
                   <div className="px-3">
@@ -410,26 +377,8 @@ export function LeadsPage() {
       {view === "active" && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-rule bg-surface px-3 py-2 shadow-3">
           <span className="px-2 font-mono text-meta tabular-nums text-text-2">Выбрано: {selectedIds.size}</span>
-          <select
-            value={assignTargetId}
-            onChange={(e) => setAssignTargetId(e.target.value)}
-            className="h-8 rounded-full border border-rule-strong bg-surface px-2 text-meta text-text-1"
-          >
-            <option value="">Назначить…</option>
-            {assignableUsers?.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.fullName}
-              </option>
-            ))}
-          </select>
-          <Button size="sm" variant="outline" className="rounded-full" disabled={!assignTargetId || bulkAssign.isPending} onClick={handleBulkAssign}>
-            <UserCheck className="size-3.5" /> Назначить
-          </Button>
           <Button size="sm" variant="outline" className="rounded-full" disabled={bulkStopList.isPending} onClick={handleBulkStopList}>
             <ShieldOff className="size-3.5" /> В стоп-лист
-          </Button>
-          <Button size="sm" className="rounded-full" disabled={bulkTakeInProgress.isPending} onClick={handleBulkTakeInProgress}>
-            Взять в работу
           </Button>
         </div>
       )}

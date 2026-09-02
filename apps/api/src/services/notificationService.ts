@@ -237,17 +237,6 @@ export class NotificationService {
     );
   }
 
-  /** Аналог notifyAssigned (Appeal), но для «Заявок» — точечно конкретному
-   * ответственному, не всей роли SALES (в отличие от notifySalesNewLead выше). */
-  async notifyLeadAssigned(lead: { id: string; publicNumber: string }, assigneeUserId: string): Promise<void> {
-    await this.createLeadWebNotification(
-      assigneeUserId,
-      lead.id,
-      { type: "lead_assigned", publicNumber: lead.publicNumber },
-      { title: "Вам назначена заявка", body: `Заявка ${lead.publicNumber}` },
-    );
-  }
-
   /** NPS-style — низкая любая из двух оценок (порог ≤2, по аналогии с notifyLowRating). */
   async notifyLowCustomerRating(
     appealId: string,

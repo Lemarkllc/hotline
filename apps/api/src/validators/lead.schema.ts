@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { assignLeadSchema, convertLeadToCrmSchema, replyToLeadSchema, stopListLeadSchema } from "@hotline/shared";
+import { convertLeadToCrmSchema, replyToLeadSchema, stopListLeadSchema } from "@hotline/shared";
 
-export { assignLeadSchema, convertLeadToCrmSchema, replyToLeadSchema, stopListLeadSchema };
+export { convertLeadToCrmSchema, replyToLeadSchema, stopListLeadSchema };
 
 /** Фронт шлёт "to" как чистую дату ("YYYY-MM-DD"), z.coerce.date() парсит её как
  * начало дня по UTC (00:00:00.000) — со сравнением "createdAt <= to" это молча

@@ -4,7 +4,6 @@ import { BaseController } from "@/controllers/BaseController.js";
 import { leadService } from "@/services/leadService.js";
 import { pathParam } from "@/utils/params.js";
 import type {
-  assignLeadSchema,
   convertLeadToCrmSchema,
   leadDateRangeQuerySchema,
   listLeadsQuerySchema,
@@ -58,25 +57,6 @@ export class LeadController extends BaseController {
       this.handleSuccess(res, lead);
     } catch (error) {
       this.handleError(error, res, "restore");
-    }
-  }
-
-  async listAssignable(req: Request, res: Response): Promise<void> {
-    try {
-      const users = await leadService.listAssignable();
-      this.handleSuccess(res, users);
-    } catch (error) {
-      this.handleError(error, res, "listAssignable");
-    }
-  }
-
-  async assign(req: Request, res: Response): Promise<void> {
-    try {
-      const { userId } = req.body as z.infer<typeof assignLeadSchema>;
-      const lead = await leadService.assign(pathParam(req, "id"), userId);
-      this.handleSuccess(res, lead);
-    } catch (error) {
-      this.handleError(error, res, "assign");
     }
   }
 

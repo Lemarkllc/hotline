@@ -91,6 +91,11 @@ export default {
       // не theme.height), верстка тихо теряла и ширину, и высоту одновременно.
       width: { control: "var(--lm-control)", touch: "var(--lm-touch)" },
       size: { control: "var(--lm-control)", touch: "var(--lm-touch)" },
+      // minHeight — отдельный ключ от height: Tailwind min-h-* читает theme.minHeight,
+      // не theme.height. Без этого min-h-touch молча не резолвился в CSS вообще
+      // (реальный баг, найден impeccable-аудитом: у textarea ответа клиенту высота
+      // была ~19px вместо заявленных 48px тач-цели).
+      minHeight: { touch: "var(--lm-touch)" },
     },
   },
   plugins: [require("tailwindcss-animate")],

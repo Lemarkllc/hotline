@@ -49,17 +49,29 @@ export class BitrixService {
    * фильтруем по подстроке на стороне API — надёжнее, чем полагаться на синтаксис
    * LIKE-фильтров Bitrix (%FIELD), который не проверялся вживую.
    */
-  async searchUsers(query: string): Promise<BitrixUserDTO[]> {
+  private async fetchActiveUsers(): Promise<BitrixUserDTO[]> {
     const users = await this.call<BitrixRawUser[]>("user.search", { FILTER: { ACTIVE: true } });
+    return users.map((u) => ({
+      id: u.ID,
+      fullName: [u.LAST_NAME, u.NAME, u.SECOND_NAME].filter(Boolean).join(" ") || u.EMAIL || u.ID,
+      email: u.EMAIL ?? null,
+    }));
+  }
+
+  async searchUsers(query: string): Promise<BitrixUserDTO[]> {
+    const users = await this.fetchActiveUsers();
     const needle = query.trim().toLowerCase();
     return users
-      .map((u) => ({
-        id: u.ID,
-        fullName: [u.LAST_NAME, u.NAME, u.SECOND_NAME].filter(Boolean).join(" ") || u.EMAIL || u.ID,
-        email: u.EMAIL ?? null,
-      }))
       .filter((u) => !needle || u.fullName.toLowerCase().includes(needle) || u.email?.toLowerCase().includes(needle))
       .slice(0, 20);
+  }
+
+  /** Резолв канонического имени/email выбранного ответственного в момент конвертации
+   * (leadService.convertToCrm) — не через searchUsers(""), у того слайс в 20 результатов
+   * может не включать нужного при большом штате; здесь фильтр по точному id без среза. */
+  async findUserById(id: string): Promise<BitrixUserDTO | null> {
+    const users = await this.fetchActiveUsers();
+    return users.find((u) => u.id === id) ?? null;
   }
 
   /** SOURCE_ID: "EMAIL" — встроенное системное значение Bitrix ("Электронная почта",
