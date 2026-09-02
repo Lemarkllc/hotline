@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ReasonDialog } from "@/components/ui/reason-dialog";
 import { Label } from "@/components/ui/label";
 import { ModeBadge, StatusBadge, TypeLabel } from "@/components/appeals/badges";
 import { MentionTextarea } from "@/components/appeals/MentionTextarea";
@@ -63,6 +64,8 @@ export function AppealDetailPage() {
   const activeChannel = useAuthStore((s) => s.activeChannel);
 
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+  const [reopenToStatus, setReopenToStatus] = useState<AppealStatus | null>(null);
   const [finalAnswer, setFinalAnswer] = useState("");
   const [resignationOutcome, setResignationOutcome] = useState<ResignationOutcome | "">("");
   const [requestRating, setRequestRating] = useState(true);
@@ -142,10 +145,12 @@ export function AppealDetailPage() {
       setCloseDialogOpen(true);
       return;
     }
-    const reason =
-      appeal!.status === "CLOSED" ? window.prompt("Причина повторного открытия (обязательно):") ?? "" : undefined;
-    if (appeal!.status === "CLOSED" && !reason?.trim()) return;
-    await changeStatus.mutateAsync({ toStatus, reason });
+    if (appeal!.status === "CLOSED") {
+      setReopenToStatus(toStatus);
+      setReopenDialogOpen(true);
+      return;
+    }
+    await changeStatus.mutateAsync({ toStatus, reason: undefined });
   }
 
   function openComposer(mode: "author" | "internal") {
@@ -300,6 +305,25 @@ export function AppealDetailPage() {
     </Dialog>
   );
 
+  const reopenDialogEl = (
+    <ReasonDialog
+      open={reopenDialogOpen}
+      onClose={() => setReopenDialogOpen(false)}
+      title="Переоткрытие обращения"
+      description="Причина обязательна (FR-WF-006) — попадёт в тред отдельным событием."
+      placeholder="Почему обращение нужно переоткрыть…"
+      confirmLabel="Переоткрыть"
+      required
+      pending={changeStatus.isPending}
+      onConfirm={async (reason) => {
+        if (!reopenToStatus || !reason) return;
+        await changeStatus.mutateAsync({ toStatus: reopenToStatus, reason });
+        setReopenDialogOpen(false);
+        setReopenToStatus(null);
+      }}
+    />
+  );
+
   if (isMobile) {
     return (
       <>
@@ -347,6 +371,7 @@ export function AppealDetailPage() {
         />
         {revealDialogEl}
         {closeDialogEl}
+        {reopenDialogEl}
       </>
     );
   }
@@ -742,6 +767,7 @@ export function AppealDetailPage() {
 
       {revealDialogEl}
       {closeDialogEl}
+      {reopenDialogEl}
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AccessRequestsCard } from "@/components/users/AccessRequestsCard";
+import { ReasonDialog } from "@/components/ui/reason-dialog";
 import {
   useBlockUser,
   useCreateWebAccount,
@@ -195,6 +196,7 @@ export function UsersPage() {
   const block = useBlockUser();
   const unblock = useUnblockUser();
   const resetPassword = useResetPassword();
+  const [blockTarget, setBlockTarget] = useState<UserDTO | null>(null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -245,14 +247,7 @@ export function UsersPage() {
                     </Button>
                   )}
                   {u.status === "ACTIVE" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        const reason = window.prompt("Причина блокировки:");
-                        if (reason) block.mutate({ id: u.id, reason });
-                      }}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => setBlockTarget(u)}>
                       Заблокировать
                     </Button>
                   )}
@@ -274,6 +269,22 @@ export function UsersPage() {
           ))}
         </TableBody>
       </Table>
+
+      <ReasonDialog
+        open={blockTarget !== null}
+        onClose={() => setBlockTarget(null)}
+        title={blockTarget ? `Заблокировать ${blockTarget.fullName}` : "Заблокировать"}
+        description="Причина обязательна и будет видна в истории аудита."
+        placeholder="Причина блокировки…"
+        confirmLabel="Заблокировать"
+        required
+        pending={block.isPending}
+        onConfirm={async (reason) => {
+          if (!blockTarget || !reason) return;
+          await block.mutateAsync({ id: blockTarget.id, reason });
+          setBlockTarget(null);
+        }}
+      />
     </div>
   );
 }

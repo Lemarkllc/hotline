@@ -2,11 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { APPEAL_TYPE_LABELS, statusColor } from "@/components/appeals/badges";
 import type { AppealDTO, ReportSummary } from "@/hooks/api";
-
-function initials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
-}
+import { initials } from "@/lib/utils";
 
 function greeting(): string {
   const hour = new Date().getHours();

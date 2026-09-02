@@ -8,6 +8,7 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ReasonDialog } from "@/components/ui/reason-dialog";
 import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
 import { MobileLeadDetail } from "@/components/mobile/MobileLeadDetail";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -51,6 +52,7 @@ function ConvertToCrmDialog({ leadId, open, onClose }: { leadId: string; open: b
         <DialogDescription>Найдите ответственного в Bitrix24 — источником лида будет указана почта.</DialogDescription>
         <Input
           className="mt-4"
+          aria-label="Поиск сотрудника Bitrix24"
           placeholder="Имя или email сотрудника Bitrix24..."
           value={query}
           onChange={(e) => {
@@ -160,13 +162,27 @@ export function LeadDetailPage() {
   const restore = useRestoreLead(id);
   const reply = useReplyToLead(id);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [stopListDialogOpen, setStopListDialogOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
 
   if (isLoading || !lead) {
     return (
-      <div className="flex flex-col gap-3">
-        <div className="h-4 w-24 animate-pulse rounded bg-surface-sunk" />
-        <div className="h-24 w-full animate-pulse rounded-lg bg-surface-sunk" />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="size-9 shrink-0 animate-pulse rounded-md bg-surface-sunk" />
+          <div className="h-6 w-28 animate-pulse rounded bg-surface-sunk" />
+        </div>
+        <div className="h-7 w-2/3 animate-pulse rounded bg-surface-sunk" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+          <div className="flex min-h-[420px] flex-col gap-3">
+            <div className="h-24 w-3/4 animate-pulse rounded-lg bg-surface-sunk" />
+            <div className="ml-auto h-16 w-1/2 animate-pulse rounded-lg bg-surface-sunk" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="h-24 animate-pulse rounded-lg bg-surface-sunk" />
+            <div className="h-32 animate-pulse rounded-lg bg-surface-sunk" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -183,10 +199,7 @@ export function LeadDetailPage() {
         <MobileLeadDetail
           lead={lead}
           onBack={() => navigate("/leads")}
-          onStopList={() => {
-            const reason = window.prompt("Причина (спам / нецелевое обращение):") ?? undefined;
-            stopList.mutate(reason);
-          }}
+          onStopList={() => setStopListDialogOpen(true)}
           stopListPending={stopList.isPending}
           onConvertClick={() => setConvertDialogOpen(true)}
           onRestore={() => restore.mutate()}
@@ -199,6 +212,19 @@ export function LeadDetailPage() {
           fetchAttachmentUrl={(attachmentId, download) => fetchLeadAttachmentUrl(id, attachmentId, download)}
         />
         <ConvertToCrmDialog leadId={id} open={convertDialogOpen} onClose={() => setConvertDialogOpen(false)} />
+        <ReasonDialog
+          open={stopListDialogOpen}
+          onClose={() => setStopListDialogOpen(false)}
+          title="В стоп-лист"
+          description="Причина необязательна — спам / нецелевое обращение."
+          placeholder="Причина…"
+          confirmLabel="В стоп-лист"
+          pending={stopList.isPending}
+          onConfirm={async (reason) => {
+            await stopList.mutateAsync(reason);
+            setStopListDialogOpen(false);
+          }}
+        />
       </>
     );
   }
@@ -228,14 +254,7 @@ export function LeadDetailPage() {
         <div className="flex gap-2">
           {(lead.status === "NEW" || lead.status === "IN_PROGRESS") && (
             <>
-              <Button
-                variant="outline"
-                disabled={stopList.isPending}
-                onClick={() => {
-                  const reason = window.prompt("Причина (спам / нецелевое обращение):") ?? undefined;
-                  stopList.mutate(reason);
-                }}
-              >
+              <Button variant="outline" disabled={stopList.isPending} onClick={() => setStopListDialogOpen(true)}>
                 В стоп-лист
               </Button>
               <Button onClick={() => setConvertDialogOpen(true)}>Передать в CRM</Button>
@@ -370,6 +389,19 @@ export function LeadDetailPage() {
       </div>
 
       <ConvertToCrmDialog leadId={id} open={convertDialogOpen} onClose={() => setConvertDialogOpen(false)} />
+      <ReasonDialog
+        open={stopListDialogOpen}
+        onClose={() => setStopListDialogOpen(false)}
+        title="В стоп-лист"
+        description="Причина необязательна — спам / нецелевое обращение."
+        placeholder="Причина…"
+        confirmLabel="В стоп-лист"
+        pending={stopList.isPending}
+        onConfirm={async (reason) => {
+          await stopList.mutateAsync(reason);
+          setStopListDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -2,17 +2,17 @@ import { NavLink } from "react-router-dom";
 import {
   BarChart3,
   BookOpen,
+  History,
   LayoutDashboard,
   LogOut,
   Mail,
   ScrollText,
-  Settings,
   UserCheck,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import type { Permission } from "@hotline/shared";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { useAuthStore } from "@/lib/authStore";
 import { useAccessRequests } from "@/hooks/api";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/users", label: "Пользователи", icon: Users, permissions: ["user.manage"] },
       { to: "/directories", label: "Справочники", icon: BookOpen, permissions: ["user.manage"] },
-      { to: "/audit", label: "Аудит", icon: Settings, permissions: ["audit.read"] },
+      { to: "/audit", label: "Аудит", icon: History, permissions: ["audit.read"] },
     ],
   },
 ];
@@ -167,7 +167,7 @@ export function Sidebar() {
 
       <div className="flex items-center gap-2.5 border-t border-rule px-3 py-3">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-sunk font-mono text-meta font-medium text-text-2">
-          {user?.fullName?.[0]?.toUpperCase() ?? "?"}
+          {user ? initials(user.fullName) : "?"}
         </div>
         <span className="flex-1 truncate text-ui font-medium text-text-1">{user?.fullName}</span>
         <button

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, Lock, Send, ShieldAlert } from "lucide-react";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { statusColor, APPEAL_TYPE_LABELS } from "@/components/appeals/badges";
 import { MentionTextarea } from "@/components/appeals/MentionTextarea";
 import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
@@ -19,10 +19,6 @@ const TAB_LABELS: Record<DetailTab, string> = {
   attachments: "Вложения",
 };
 
-function initials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
-}
 
 export function AppealDetailMobile({
   appeal,

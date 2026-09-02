@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ReasonDialog } from "@/components/ui/reason-dialog";
 import { DesktopDateRangePicker } from "@/components/ui/date-range-picker/DesktopDateRangePicker";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
@@ -74,6 +75,7 @@ export function LeadsPage() {
   const [chip, setChip] = useState<ChipFilter>("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [stopListDialogOpen, setStopListDialogOpen] = useState(false);
 
   // Дефолт "последние 30 дней" — единственный источник для обеих версий (десктоп/PWA)
   // и для "Сбросить" у DateRangePicker (см. resetRange ниже) — компонент сам этого
@@ -121,10 +123,10 @@ export function LeadsPage() {
     });
   }
 
-  async function handleBulkStopList() {
-    const reason = window.prompt("Причина (спам / нецелевое обращение):") ?? undefined;
+  async function handleBulkStopList(reason: string | undefined) {
     await bulkStopList.mutateAsync({ ids: [...selectedIds], reason });
     setSelectedIds(new Set());
+    setStopListDialogOpen(false);
   }
 
   if (isMobile) {
@@ -377,11 +379,28 @@ export function LeadsPage() {
       {view === "active" && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-rule bg-surface px-3 py-2 shadow-3">
           <span className="px-2 font-mono text-meta tabular-nums text-text-2">Выбрано: {selectedIds.size}</span>
-          <Button size="sm" variant="outline" className="rounded-full" disabled={bulkStopList.isPending} onClick={handleBulkStopList}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-full"
+            disabled={bulkStopList.isPending}
+            onClick={() => setStopListDialogOpen(true)}
+          >
             <ShieldOff className="size-3.5" /> В стоп-лист
           </Button>
         </div>
       )}
+
+      <ReasonDialog
+        open={stopListDialogOpen}
+        onClose={() => setStopListDialogOpen(false)}
+        title={`В стоп-лист (${selectedIds.size})`}
+        description="Причина необязательна — спам / нецелевое обращение."
+        placeholder="Причина…"
+        confirmLabel="В стоп-лист"
+        pending={bulkStopList.isPending}
+        onConfirm={handleBulkStopList}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
 import { setupWebPush } from "@/lib/webPush";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { initials } from "@/lib/utils";
 
 const ROLE_LABELS: Record<string, string> = {
   EMPLOYEE: "Сотрудник",
@@ -12,11 +13,6 @@ const ROLE_LABELS: Record<string, string> = {
   HRD: "HRD",
   SALES: "Продажи",
 };
-
-function initials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
-}
 
 /** Мобильный экран "Профиль" (design_handoff_mobile_pwa) — у десктопной панели нет
  * прямого аналога, вход в свой аккаунт там через Topbar (имя+выход). Здесь отдельная
