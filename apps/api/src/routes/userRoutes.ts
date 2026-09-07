@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { userController } from "@/controllers/UserController.js";
 import { requireBotService, requireWebAuth } from "@/middleware/auth.js";
-import { requirePermission } from "@/middleware/rbac.js";
+import { requirePlainPermission } from "@/middleware/rbac.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
 import { validate } from "@/middleware/validate.js";
 import {
@@ -34,7 +34,7 @@ userRoutes.post(
 userRoutes.get(
   "/",
   requireWebAuth,
-  requirePermission("user.manage"),
+  requirePlainPermission("user.manage"),
   asyncErrorWrapper((req, res) => userController.list(req, res)),
 );
 
@@ -59,46 +59,46 @@ userRoutes.post(
 userRoutes.patch(
   "/:id",
   requireWebAuth,
-  requirePermission("user.manage"),
+  requirePlainPermission("user.manage"),
   validate(updateUserSchema),
   asyncErrorWrapper((req, res) => userController.update(req, res)),
 );
 userRoutes.patch(
   "/:id/channels",
   requireWebAuth,
-  requirePermission("user.manage"),
+  requirePlainPermission("user.manage"),
   validate(updateChannelAccessSchema),
   asyncErrorWrapper((req, res) => userController.updateChannels(req, res)),
 );
 userRoutes.post(
   "/:id/reset-password",
   requireWebAuth,
-  requirePermission("user.manage"),
+  requirePlainPermission("user.manage"),
   asyncErrorWrapper((req, res) => userController.resetPassword(req, res)),
 );
 userRoutes.post(
   "/:id/block",
   requireWebAuth,
-  requirePermission("user.manage"),
+  requirePlainPermission("user.manage"),
   validate(blockUserSchema),
   asyncErrorWrapper((req, res) => userController.block(req, res)),
 );
 userRoutes.post(
   "/:id/unblock",
   requireWebAuth,
-  requirePermission("user.manage"),
+  requirePlainPermission("user.manage"),
   asyncErrorWrapper((req, res) => userController.unblock(req, res)),
 );
 userRoutes.post(
   "/:id/archive",
   requireWebAuth,
-  requirePermission("user.manage"),
+  requirePlainPermission("user.manage"),
   asyncErrorWrapper((req, res) => userController.archive(req, res)),
 );
 userRoutes.post(
   "/",
   requireWebAuth,
-  requirePermission("user.manage"),
+  requirePlainPermission("user.manage"),
   validate(createWebAccountSchema),
   asyncErrorWrapper((req, res) => userController.createWebAccount(req, res)),
 );

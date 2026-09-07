@@ -140,11 +140,18 @@ export class UserService {
     });
   }
 
-  /** FR-USR-006/007: блокировка не удаляет историю — только статус + причина. */
+  /** FR-USR-006/007: блокировка не удаляет историю — только статус + причина.
+   * Удаление из общего/производственного Telegram-чата — здесь, а не только при
+   * увольнении через заявление (appealService.changeStatus раньше дублировал этот
+   * вызов только для исхода "Уволить"): если сотрудника уволили без формальной
+   * процедуры и просто заблокировали через эту кнопку, он раньше оставался в
+   * группах — найдено пользователем вживую. Теперь срабатывает для любой блокировки,
+   * откуда бы она ни была вызвана. */
   async blockUser(admin: AuthenticatedUser, userId: string, reason: string): Promise<void> {
     const user = await userRepository.findById(userId);
     if (!user) throw new NotFoundError("Пользователь не найден");
     await userRepository.blockUser(userId, reason);
+    await notificationService.notifyEmployeeTerminated(userId);
     await auditService.record({
       actorId: admin.id,
       action: "user.blocked",

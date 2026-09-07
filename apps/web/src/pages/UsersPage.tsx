@@ -275,9 +275,18 @@ function EditUserDialog({ user }: { user: UserDTO }) {
                 {CHANNEL_LABELS[c]}
               </label>
             ))}
+            {/* Полная замена набора при сохранении (см. updateChannelAccess) — без
+             * этой защиты снятая по ошибке последняя галочка молча стирает ВЕСЬ доступ
+             * к обращениям без предупреждения (ровно так один раз пострадал собственный
+             * аккаунт Администратора на проде, найдено вживую). */}
+            {channels.length === 0 && (
+              <p className="text-meta text-status-overdue">
+                Нужно оставить хотя бы один канал — иначе пользователь не увидит ни одного обращения.
+              </p>
+            )}
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={update.isPending || updateChannels.isPending}>
+            <Button type="submit" disabled={update.isPending || updateChannels.isPending || channels.length === 0}>
               Сохранить
             </Button>
           </DialogFooter>

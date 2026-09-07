@@ -29,8 +29,13 @@ export const updateUserSchema = z.object({
   roleNames: z.array(z.enum(ROLE_NAMES)).min(1).optional(),
 });
 
+/** min(1) — намеренно: полная замена набора (см. updateChannelAccess в userService),
+ * пустой массив молча стирает ВЕСЬ доступ к обращениям без предупреждения — ровно
+ * так один раз лишился доступа собственный Администратор (найдено вживую на проде,
+ * см. audit_log user.channels_updated). Полностью отрезать пользователя от каналов
+ * можно через блокировку аккаунта — не через оставление списка каналов пустым. */
 export const updateChannelAccessSchema = z.object({
-  channels: z.array(z.enum(CHANNELS)),
+  channels: z.array(z.enum(CHANNELS)).min(1, "Нужно выбрать хотя бы один канал"),
 });
 
 export const botDecideAccessRequestSchema = z.object({

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Channel, Permission } from "@hotline/shared";
+import { PLAIN_PERMISSIONS, type Channel, type Permission } from "@hotline/shared";
 
 export interface AuthUser {
   id: string;
@@ -47,10 +47,18 @@ export const useAuthStore = create<AuthState>()(
       // (только CUSTOMER) проваливала бы вообще все hasPermission(...)-проверки без
       // явного channel-аргумента — Sidebar/RequirePermission/AppealDetailPage и т.п.
       // Явный channel-аргумент (когда он передан) по-прежнему в приоритете.
+      //
+      // PLAIN_PERMISSIONS (user.manage/audit.read/lead.manage/vacation.manage) — без
+      // канальной проверки вообще, зеркалит requirePlainPermission на бэкенде. Раньше
+      // ЛЮБОЕ право требовало совпадения канала без исключений — потеря последнего
+      // user_channel_access молча гасила весь раздел "Администрирование" даже тем,
+      // чьи права системные и канала не касаются (найдено вживую на проде).
       hasPermission: (permission, channel) => {
         const user = get().user;
         if (!user) return false;
-        return user.permissions.includes(permission) && user.channels.includes(channel ?? get().activeChannel);
+        if (!user.permissions.includes(permission)) return false;
+        if (PLAIN_PERMISSIONS.includes(permission)) return true;
+        return user.channels.includes(channel ?? get().activeChannel);
       },
     }),
     { name: "hotline-auth" },

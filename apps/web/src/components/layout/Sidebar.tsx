@@ -15,7 +15,7 @@ import {
 import type { Permission } from "@hotline/shared";
 import { cn, initials } from "@/lib/utils";
 import { useAuthStore } from "@/lib/authStore";
-import { useAccessRequests } from "@/hooks/api";
+import { useAbsenceRequests, useAccessRequests, useBusinessTripRequests, useVacationRequests } from "@/hooks/api";
 import { Button } from "@/components/ui/button";
 
 interface NavItem {
@@ -114,6 +114,16 @@ export function Sidebar() {
   const { data: accessRequests } = useAccessRequests(canManageUsers || showAccessRequests);
   const pendingCount = accessRequests?.length ?? 0;
 
+  // Суммарный бейдж на пункте меню "Отсутствие" — PENDING по всем трём сущностям
+  // раздела (PLAN.md §10), не только по вкладке "Отсутствия" одноимённой с пунктом
+  // меню (совпадение названий, не одно и то же — см. комментарий у NAV_GROUPS).
+  const canManageVacations = hasPermission("vacation.manage");
+  const { data: pendingVacations } = useVacationRequests("PENDING", canManageVacations);
+  const { data: pendingAbsences } = useAbsenceRequests("PENDING", canManageVacations);
+  const { data: pendingBusinessTrips } = useBusinessTripRequests("PENDING", canManageVacations);
+  const vacationsPendingCount =
+    (pendingVacations?.length ?? 0) + (pendingAbsences?.length ?? 0) + (pendingBusinessTrips?.length ?? 0);
+
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-rule bg-surface">
       <div className="flex h-14 items-center gap-1.5 px-4 text-ui font-semibold text-text-1">
@@ -162,7 +172,9 @@ export function Sidebar() {
                   to={item.to}
                   icon={item.icon}
                   label={item.label}
-                  badge={item.to === "/users" ? pendingCount : undefined}
+                  badge={
+                    item.to === "/users" ? pendingCount : item.to === "/vacations" ? vacationsPendingCount : undefined
+                  }
                 />
               ))}
               {group.label === "Администрирование" && showAccessRequests && (

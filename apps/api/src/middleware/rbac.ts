@@ -23,11 +23,16 @@ export function requirePermission(permission: Permission) {
 }
 
 /**
- * Требует permission БЕЗ канальной проверки — два исключения сейчас: "lead.manage"
- * («Заявки», email-лиды, PLAN.md) и "vacation.manage" («Отпуска», VacationRequest).
- * Ни EmailLead, ни VacationRequest не имеют поля channel вообще, это не Appeal —
- * requirePermission() здесь семантически не подходит (дефолтит на канал EMPLOYEE,
- * к которому у роли SALES обычно нет доступа).
+ * Требует permission БЕЗ канальной проверки — см. PLAIN_PERMISSIONS (packages/shared/
+ * permissions.ts) для полного и единственного актуального списка: "lead.manage"
+ * («Заявки», email-лиды), "vacation.manage" («Отпуска»), "user.manage" (управление
+ * пользователями — системное, не привязано к появлению обращений в конкретном
+ * канале), "audit.read" (аудит-лог общий на всё приложение). requirePermission()
+ * здесь семантически не подходит: он дефолтит на канал EMPLOYEE, а значит потеря
+ * последнего user_channel_access молча гасила бы весь раздел "Администрирование" —
+ * ровно так один раз лишился доступа к /users собственный аккаунт Администратора
+ * на проде (найдено вживую; ту же ошибку раньше избежали для lead.manage/
+ * vacation.manage, но не для user.manage — до этого исправления).
  */
 export function requirePlainPermission(permission: Permission) {
   return (req: Request, _res: Response, next: NextFunction): void => {

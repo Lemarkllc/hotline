@@ -24,6 +24,21 @@ export const PERMISSIONS = [
 export type Permission = (typeof PERMISSIONS)[number];
 
 /**
+ * Права, НЕ завязанные на канал — единый источник правды для requirePlainPermission
+ * (backend, middleware/rbac.ts) и hasPermission (frontend, lib/authStore.ts). Раньше
+ * этот список знал только backend (requirePlainPermission применялся точечно, по
+ * роутам), а фронтенд-hasPermission требовал совпадения канала для АБСОЛЮТНО любого
+ * права без исключений — включая user.manage/audit.read, хотя это системные
+ * административные права, не имеющие отношения к appeal-каналам. Итог: потеря
+ * последнего user_channel_access у Администратора молча гасила ему весь раздел
+ * "Администрирование" (Пользователи/Справочники) и на фронте, и на бэкенде — найдено
+ * вживую на проде (см. PLAN.md §10, инцидент с обнулением channels у своего же
+ * аккаунта). report.read/report.export НЕ входят сюда намеренно — отчёты осмысленно
+ * фильтруются по каналу (HRD видит EMPLOYEE-метрики, "Продажи" — CUSTOMER).
+ */
+export const PLAIN_PERMISSIONS: Permission[] = ["user.manage", "audit.read", "lead.manage", "vacation.manage"];
+
+/**
  * Дефолтная матрица роль → permissions (SRS §4.5). Используется при сидировании БД.
  * Роль EMPLOYEE не получает ни одного permission из этого списка — доступ сотрудника
  * к собственным обращениям реализуется отдельной проверкой "я автор", а не RBAC-правом.

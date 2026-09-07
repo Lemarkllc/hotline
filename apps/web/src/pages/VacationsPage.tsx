@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ReasonDialog } from "@/components/ui/reason-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useAbsenceRequests,
@@ -92,8 +93,31 @@ function DetailActions({
   );
 }
 
+/** Фильтр статуса — общий для всех трёх реестров раздела (Отпуска/Отсутствия/
+ * Командировки). Дефолт "PENDING", не "Все" — тот же принцип, что у "Активные" в
+ * реестре обращений: список без фильтра быстро заполняется завершёнными заявками
+ * и хоронит те, что реально ждут решения (найдено пользователем вживую — сказано
+ * заранее, до того как это стало проблемой на практике). */
+function StatusFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-48">
+        <SelectValue placeholder="Статус" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="PENDING">На рассмотрении</SelectItem>
+        <SelectItem value="all">Все статусы</SelectItem>
+        <SelectItem value="APPROVED">Одобрено</SelectItem>
+        <SelectItem value="REJECTED">Отклонено</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
 function VacationsTab() {
-  const { data: requests } = useVacationRequests();
+  const [statusFilter, setStatusFilter] = useState("PENDING");
+  const status = statusFilter === "all" ? undefined : (statusFilter as HrStatus);
+  const { data: requests } = useVacationRequests(status);
   const approve = useApproveVacationRequest();
   const reject = useRejectVacationRequest();
   const [selected, setSelected] = useState<VacationRequestDTO | null>(null);
@@ -101,6 +125,7 @@ function VacationsTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <StatusFilter value={statusFilter} onChange={setStatusFilter} />
       <Table>
         <TableHeader>
           <TableRow>
@@ -142,7 +167,11 @@ function VacationsTab() {
           ))}
         </TableBody>
       </Table>
-      {!requests?.length && <p className="text-ui text-text-3">Заявок на отпуск пока нет.</p>}
+      {!requests?.length && (
+        <p className="text-ui text-text-3">
+          {statusFilter === "all" ? "Заявок на отпуск пока нет." : "По выбранному статусу заявок нет."}
+        </p>
+      )}
 
       <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent>
@@ -196,7 +225,9 @@ function VacationsTab() {
 }
 
 function AbsencesTab() {
-  const { data: requests } = useAbsenceRequests();
+  const [statusFilter, setStatusFilter] = useState("PENDING");
+  const status = statusFilter === "all" ? undefined : (statusFilter as HrStatus);
+  const { data: requests } = useAbsenceRequests(status);
   const approve = useApproveAbsenceRequest();
   const reject = useRejectAbsenceRequest();
   const [selected, setSelected] = useState<AbsenceRequestDTO | null>(null);
@@ -204,6 +235,7 @@ function AbsencesTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <StatusFilter value={statusFilter} onChange={setStatusFilter} />
       <Table>
         <TableHeader>
           <TableRow>
@@ -245,7 +277,11 @@ function AbsencesTab() {
           ))}
         </TableBody>
       </Table>
-      {!requests?.length && <p className="text-ui text-text-3">Заявок на отсутствие пока нет.</p>}
+      {!requests?.length && (
+        <p className="text-ui text-text-3">
+          {statusFilter === "all" ? "Заявок на отсутствие пока нет." : "По выбранному статусу заявок нет."}
+        </p>
+      )}
 
       <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent>
@@ -299,7 +335,9 @@ function AbsencesTab() {
 }
 
 function BusinessTripsTab() {
-  const { data: requests } = useBusinessTripRequests();
+  const [statusFilter, setStatusFilter] = useState("PENDING");
+  const status = statusFilter === "all" ? undefined : (statusFilter as HrStatus);
+  const { data: requests } = useBusinessTripRequests(status);
   const approve = useApproveBusinessTripRequest();
   const reject = useRejectBusinessTripRequest();
   const [selected, setSelected] = useState<BusinessTripRequestDTO | null>(null);
@@ -311,6 +349,7 @@ function BusinessTripsTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <StatusFilter value={statusFilter} onChange={setStatusFilter} />
       <Table>
         <TableHeader>
           <TableRow>
@@ -354,7 +393,11 @@ function BusinessTripsTab() {
           ))}
         </TableBody>
       </Table>
-      {!requests?.length && <p className="text-ui text-text-3">Заявок на командировку пока нет.</p>}
+      {!requests?.length && (
+        <p className="text-ui text-text-3">
+          {statusFilter === "all" ? "Заявок на командировку пока нет." : "По выбранному статусу заявок нет."}
+        </p>
+      )}
 
       <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent>
@@ -532,6 +575,17 @@ function EmployeeBalancesTab() {
   );
 }
 
+/** Бейдж количества PENDING-заявок прямо на вкладке — тот же визуальный язык, что и
+ * бейдж в Sidebar (bg-status-overdue-tint), только меньше, под текст вкладки. */
+function TabBadge({ count }: { count: number }) {
+  if (!count) return null;
+  return (
+    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-status-overdue-tint px-1 font-mono text-[10px] font-semibold text-status-overdue">
+      {count}
+    </span>
+  );
+}
+
 /** Раздел «Отпуска» (PLAN.md §10) — три независимые сущности (VacationRequest/
  * AbsenceRequest/BusinessTripRequest) под одной вкладочной страницей: один смысловой
  * процесс кадрового согласования для HRD, тот же паттерн, что и вкладки карточки
@@ -541,15 +595,31 @@ function EmployeeBalancesTab() {
  * карточку деталей — иначе длинный комментарий/цель обрезаются в ячейке таблицы truncate
  * без способа увидеть их целиком (баг, найденный пользователем вживую). */
 export function VacationsPage() {
+  // Бейджи PENDING на самих вкладках — отдельные лёгкие запросы, не завязаны на
+  // состояние конкретной вкладки-таба (та грузит список без фильтра по статусу
+  // отдельным хуком внутри своего компонента, см. VacationsTab/AbsencesTab/...).
+  const { data: pendingVacations } = useVacationRequests("PENDING");
+  const { data: pendingAbsences } = useAbsenceRequests("PENDING");
+  const { data: pendingBusinessTrips } = useBusinessTripRequests("PENDING");
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-title font-bold text-text-1">Отсутствие</h1>
 
       <Tabs defaultValue="vacations">
         <TabsList>
-          <TabsTrigger value="vacations">Отпуска</TabsTrigger>
-          <TabsTrigger value="absences">Отсутствия</TabsTrigger>
-          <TabsTrigger value="business-trips">Командировки</TabsTrigger>
+          <TabsTrigger value="vacations">
+            Отпуска
+            <TabBadge count={pendingVacations?.length ?? 0} />
+          </TabsTrigger>
+          <TabsTrigger value="absences">
+            Отсутствия
+            <TabBadge count={pendingAbsences?.length ?? 0} />
+          </TabsTrigger>
+          <TabsTrigger value="business-trips">
+            Командировки
+            <TabBadge count={pendingBusinessTrips?.length ?? 0} />
+          </TabsTrigger>
           <TabsTrigger value="balances">Остатки отпуска</TabsTrigger>
         </TabsList>
         <TabsContent value="vacations">

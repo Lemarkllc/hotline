@@ -670,10 +670,14 @@ export interface VacationRequestDTO {
   createdAt: string;
 }
 
-export function useVacationRequests(status?: "PENDING" | "APPROVED" | "REJECTED") {
+export function useVacationRequests(status?: "PENDING" | "APPROVED" | "REJECTED", enabled = true) {
   return useQuery({
     queryKey: ["vacation-requests", status],
     queryFn: () => apiRequest<VacationRequestDTO[]>("/vacation-requests", { query: { status } }),
+    enabled,
+    // Живой счётчик в Sidebar/на вкладке (PENDING-бейджи) — тот же каданс, что и у
+    // useAccessRequests, не отдельный опрос.
+    refetchInterval: 15000,
   });
 }
 
@@ -711,10 +715,12 @@ export interface AbsenceRequestDTO {
   createdAt: string;
 }
 
-export function useAbsenceRequests(status?: "PENDING" | "APPROVED" | "REJECTED") {
+export function useAbsenceRequests(status?: "PENDING" | "APPROVED" | "REJECTED", enabled = true) {
   return useQuery({
     queryKey: ["absence-requests", status],
     queryFn: () => apiRequest<AbsenceRequestDTO[]>("/absence-requests", { query: { status } }),
+    enabled,
+    refetchInterval: 15000,
   });
 }
 
@@ -753,10 +759,12 @@ export interface BusinessTripRequestDTO {
   createdAt: string;
 }
 
-export function useBusinessTripRequests(status?: "PENDING" | "APPROVED" | "REJECTED") {
+export function useBusinessTripRequests(status?: "PENDING" | "APPROVED" | "REJECTED", enabled = true) {
   return useQuery({
     queryKey: ["business-trip-requests", status],
     queryFn: () => apiRequest<BusinessTripRequestDTO[]>("/business-trip-requests", { query: { status } }),
+    enabled,
+    refetchInterval: 15000,
   });
 }
 
