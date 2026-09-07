@@ -16,6 +16,10 @@ export const PERMISSIONS = [
   // "«Заявки» — email-лиды..."). Проверяется как user.permissions.includes(...)
   // напрямую, а не через hasChannelPermission().
   "lead.manage",
+  // «Отпуска» (VacationRequest) — тоже не канало-скоуплен, та же причина, что у
+  // lead.manage: своя независимая от Appeal подсистема, согласование только HRD
+  // (прямое решение пользователя, не из SRS).
+  "vacation.manage",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -44,6 +48,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     "report.read",
     "report.export",
     "audit.read",
+    "vacation.manage",
   ],
   // Фаза 7 (PLAN.md §6, решено 30.07.2026): «Продажи» ведёт канал CUSTOMER целиком —
   // ровно набор HRD, но применяется только там, где есть user_channel_access(CUSTOMER)

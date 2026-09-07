@@ -96,40 +96,66 @@ model RolePermission {
 /// (SRS §4.1: "для Web панели регистрация отдельная") — телефон/пароль просто
 /// не заполнены у обычного сотрудника, который есть только в боте.
 model User {
-  id           String     @id @default(uuid())
-  telegramId   BigInt?    @unique
-  fullName     String
-  status       UserStatus @default(PENDING)
+  id         String     @id @default(uuid())
+  telegramId BigInt?    @unique
+  fullName   String
+  status     UserStatus @default(PENDING)
 
-  email               String?   @unique
-  passwordHash        String?
-  mustChangePassword  Boolean   @default(false)
-  totpSecret          String?
-  totpEnabled         Boolean   @default(false)
-  privacyAcceptedAt   DateTime?
-  blockReason         String?
+  email              String?   @unique
+  passwordHash       String?
+  mustChangePassword Boolean   @default(false)
+  totpSecret         String?
+  totpEnabled        Boolean   @default(false)
+  privacyAcceptedAt  DateTime?
+  blockReason        String?
+
+  /// Дата приёма на работу — источник для формулы остатка отпуска (PLAN.md §10,
+  /// 2.33 дня/месяц с даты приёма). Nullable — не заведена для всех сразу, вводится
+  /// вручную HRD/Администратором (UsersPage) до появления полноценного бот-онбординга.
+  hireDate DateTime?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  userRoles             UserRole[]
-  channelAccess         UserChannelAccess[]
-  createdAppeals        Appeal[]              @relation("AppealAuthor")
-  assignments           AppealAssignment[]    @relation("AssignedUser")
-  comments              AppealComment[]
-  sentMessages          AppealMessage[]        @relation("MessageAuthor")
-  statusChanges         AppealStatusHistory[] @relation("ChangedBy")
-  ratings               Rating[]
-  notifications         Notification[]
-  auditLogs             AuditLog[]
-  accessRequest         AccessRequest?
-  decidedAccessRequests AccessRequest[]       @relation("DecidedBy")
-  pushSubscriptions     PushSubscription[]
-  sentLeadMessages      EmailLeadMessage[]    @relation("LeadMessageSentBy")
+  userRoles                   UserRole[]
+  channelAccess               UserChannelAccess[]
+  createdAppeals              Appeal[]              @relation("AppealAuthor")
+  assignments                 AppealAssignment[]    @relation("AssignedUser")
+  comments                    AppealComment[]
+  sentMessages                AppealMessage[]       @relation("MessageAuthor")
+  statusChanges               AppealStatusHistory[] @relation("ChangedBy")
+  ratings                     Rating[]
+  notifications               Notification[]
+  auditLogs                   AuditLog[]
+  accessRequest               AccessRequest?
+  decidedAccessRequests       AccessRequest[]       @relation("DecidedBy")
+  pushSubscriptions           PushSubscription[]
+  sentLeadMessages            EmailLeadMessage[]    @relation("LeadMessageSentBy")
+  vacationRequests            VacationRequest[]     @relation("VacationAuthor")
+  decidedVacationRequests     VacationRequest[]     @relation("VacationDecidedBy")
+  absenceRequests             AbsenceRequest[]      @relation("AbsenceAuthor")
+  decidedAbsenceRequests      AbsenceRequest[]      @relation("AbsenceDecidedBy")
+  businessTripRequests        BusinessTripRequest[] @relation("BusinessTripAuthor")
+  decidedBusinessTripRequests BusinessTripRequest[] @relation("BusinessTripDecidedBy")
+  vacationBalance             VacationBalance?
 
   @@index([status])
   @@map("users")
+}
+
+/// Стартовый остаток отпуска на конкретную дату (PLAN.md §10) — разовый снепшот из
+/// кадровых данных заказчика, не поле, которое кто-то регулярно правит построчно.
+/// Баланс "на сегодня" считается формулой (User.hireDate + это + одобренные отпуска
+/// после asOfDate), а не хранится готовым числом — см. utils/vacationBalance.ts.
+model VacationBalance {
+  userId          String   @id
+  startingBalance Float
+  asOfDate        DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("vacation_balances")
 }
 
 /// Веб-push подписка браузера (Web Push API). Один пользователь может иметь несколько
@@ -230,9 +256,9 @@ model Epic {
 }
 
 model Appeal {
-  id           String       @id @default(uuid())
-  publicNumber String       @unique
-  channel      Channel      @default(EMPLOYEE)
+  id           String  @id @default(uuid())
+  publicNumber String  @unique
+  channel      Channel @default(EMPLOYEE)
 
   /// Строка, а не Postgres enum — намеренно: канал CUSTOMER получит свой
   /// набор типов отдельным справочником (PLAN.md §6), без миграции колонки.
@@ -342,16 +368,16 @@ model AppealMessage {
 /// при отправке (FR-DRF-006: вложения черновика удаляются по истечении срока,
 /// поэтому uploadedByUserId/draftExpiresAt нужны независимо от appealId).
 model AppealAttachment {
-  id                String         @id @default(uuid())
-  appealId          String?
-  uploadedByUserId  String?
-  storageKey        String
-  mimeType          String
-  fileSize          Int
-  kind              AttachmentKind
-  createdAt         DateTime       @default(now())
-  draftExpiresAt    DateTime?
-  deletedAt         DateTime?
+  id               String         @id @default(uuid())
+  appealId         String?
+  uploadedByUserId String?
+  storageKey       String
+  mimeType         String
+  fileSize         Int
+  kind             AttachmentKind
+  createdAt        DateTime       @default(now())
+  draftExpiresAt   DateTime?
+  deletedAt        DateTime?
 
   appeal Appeal? @relation(fields: [appealId], references: [id], onDelete: Cascade)
 
@@ -408,23 +434,23 @@ model Rating {
 }
 
 model Notification {
-  id        String              @id @default(uuid())
-  userId    String?
+  id                String              @id @default(uuid())
+  userId            String?
   /// Получатель в канале CUSTOMER — эквивалент userId для ExternalContact (Фаза 7,
   /// PLAN.md §6): бот клиентов резолвит telegramId через эту связь, не через user.
   externalContactId String?
-  appealId  String?
+  appealId          String?
   /// «Заявки» (EmailLead) — независимая от Appeal подсистема (см. PLAN.md), поэтому
   /// отдельная колонка, а не переиспользование appealId. Ровно одно из appealId/
   /// emailLeadId заполнено на строку, либо оба пусты (см. notifyEmployeeTerminated).
-  emailLeadId String?
-  channel   NotificationChannel
-  status    NotificationStatus  @default(PENDING)
-  payload   Json
-  attempts  Int                 @default(0)
-  lastError String?
-  createdAt DateTime            @default(now())
-  sentAt    DateTime?
+  emailLeadId       String?
+  channel           NotificationChannel
+  status            NotificationStatus  @default(PENDING)
+  payload           Json
+  attempts          Int                 @default(0)
+  lastError         String?
+  createdAt         DateTime            @default(now())
+  sentAt            DateTime?
 
   user            User?            @relation(fields: [userId], references: [id])
   externalContact ExternalContact? @relation(fields: [externalContactId], references: [id])
@@ -567,11 +593,11 @@ model EmailLeadMessage {
   body       String
   receivedAt DateTime
 
-  direction   EmailLeadMessageDirection @default(INBOUND)
+  direction    EmailLeadMessageDirection @default(INBOUND)
   /// Заполнен только у OUTBOUND (кто ответил с sales@) — для подписи в треде
   /// («имя · время · доставлено», design_handoff_lemark_one/Leads.dc.html).
   sentByUserId String?
-  sentBy       User?   @relation("LeadMessageSentBy", fields: [sentByUserId], references: [id])
+  sentBy       User?                     @relation("LeadMessageSentBy", fields: [sentByUserId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -608,4 +634,111 @@ model EmailBlocklistEntry {
   createdAt       DateTime @default(now())
 
   @@map("email_blocklist_entries")
+}
+
+enum VacationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// «Отпуска» — самостоятельная сущность, не Appeal: сотрудник подаёт через бота,
+/// согласовывает только HRD (прямое решение пользователя, не из SRS — см.
+/// design_handoff_lemark_one/README.md "Отсутствия", модуль был явно отложен до
+/// этого решения). userId НЕ unique (в отличие от AccessRequest) — у сотрудника
+/// может быть много заявок за разное время.
+model VacationRequest {
+  id           String         @id @default(uuid())
+  publicNumber String         @unique
+  userId       String
+  /// Продублирован с User.telegramId — тот же приём, что и у AccessRequest, бот
+  /// может показать/подтвердить заявку без join.
+  telegramId   BigInt
+  dateFrom     DateTime
+  dateTo       DateTime
+  comment      String?
+  /// true — оплачиваемый (списывается с баланса, PLAN.md §10), false — за свой счёт
+  /// (без ограничения в коде). Добавлено вместе с формулой остатка отпуска.
+  paid         Boolean        @default(true)
+  status       VacationStatus @default(PENDING)
+
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User  @relation("VacationAuthor", fields: [userId], references: [id])
+  decidedBy User? @relation("VacationDecidedBy", fields: [decidedById], references: [id])
+
+  @@index([userId, status])
+  @@map("vacation_requests")
+}
+
+/// «Отсутствие» (PLAN.md §10) — было типом обращения TIME_OFF ("Отпроситься"),
+/// перенесено сюда после разговора с HRD: тот же формальный workflow
+/// PENDING→APPROVED/REJECTED, что у VacationRequest/BusinessTripRequest, а не
+/// статус-флоу обращений. fullDay=true — timeFrom/timeTo не заданы.
+model AbsenceRequest {
+  id           String         @id @default(uuid())
+  publicNumber String         @unique
+  userId       String
+  telegramId   BigInt
+  date         DateTime
+  fullDay      Boolean
+  timeFrom     String?
+  timeTo       String?
+  reason       String?
+  status       VacationStatus @default(PENDING)
+
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User  @relation("AbsenceAuthor", fields: [userId], references: [id])
+  decidedBy User? @relation("AbsenceDecidedBy", fields: [decidedById], references: [id])
+
+  @@index([userId, status])
+  @@map("absence_requests")
+}
+
+enum BusinessTripTransport {
+  CAR
+  PLANE
+  TRAIN
+  OTHER
+}
+
+/// «Командировка» (PLAN.md §10) — новая сущность, тот же workflow, что у Vacation/
+/// Absence. purpose обязателен (HRD не может согласовывать вслепую), transportOther
+/// заполняется только при transport=OTHER (валидируется в Zod, не в схеме БД).
+model BusinessTripRequest {
+  id             String                @id @default(uuid())
+  publicNumber   String                @unique
+  userId         String
+  telegramId     BigInt
+  dateFrom       DateTime
+  dateTo         DateTime
+  purpose        String
+  transport      BusinessTripTransport
+  transportOther String?
+  hotelNeeded    Boolean
+  status         VacationStatus        @default(PENDING)
+
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User  @relation("BusinessTripAuthor", fields: [userId], references: [id])
+  decidedBy User? @relation("BusinessTripDecidedBy", fields: [decidedById], references: [id])
+
+  @@index([userId, status])
+  @@map("business_trip_requests")
 }

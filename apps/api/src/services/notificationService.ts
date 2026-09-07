@@ -314,6 +314,83 @@ export class NotificationService {
     });
   }
 
+  /** «Отпуска» (VacationRequest) — та же пара, что notifyHrdNewAccessRequest/
+   * notifyAccessDecision выше, тем же принципом (broadcast всем HRD канала EMPLOYEE
+   * с привязанным telegramId + точечное уведомление сотруднику об исходе). Без
+   * inline-кнопок решения в боте, в отличие от access_request_pending — решение
+   * принимается только на вебе (решение пользователя), уведомление HRD — просто пинг. */
+  async notifyHrdNewVacationRequest(requestId: string, fullName: string): Promise<void> {
+    const recipients = (await userRepository.findByRoleAndChannel("HRD", "EMPLOYEE")).filter(
+      (r) => r.telegramId !== null,
+    );
+    await Promise.all(
+      recipients.map((r) =>
+        notificationRepository.create({
+          userId: r.id,
+          channel: "TELEGRAM",
+          payload: { type: "vacation_request_pending", requestId, fullName },
+        }),
+      ),
+    );
+  }
+
+  async notifyVacationDecision(userId: string, approved: boolean): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: approved ? "vacation_approved" : "vacation_rejected" },
+    });
+  }
+
+  /** «Отсутствие» (PLAN.md §10) — тот же паттерн, что и у «Отпуска» выше, отдельные
+   * notification-типы (без текста про бумагу в HR — тот только у vacation_approved). */
+  async notifyHrdNewAbsenceRequest(requestId: string, fullName: string): Promise<void> {
+    const recipients = (await userRepository.findByRoleAndChannel("HRD", "EMPLOYEE")).filter(
+      (r) => r.telegramId !== null,
+    );
+    await Promise.all(
+      recipients.map((r) =>
+        notificationRepository.create({
+          userId: r.id,
+          channel: "TELEGRAM",
+          payload: { type: "absence_request_pending", requestId, fullName },
+        }),
+      ),
+    );
+  }
+
+  async notifyAbsenceDecision(userId: string, approved: boolean): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: approved ? "absence_approved" : "absence_rejected" },
+    });
+  }
+
+  /** «Командировка» (PLAN.md §10) — тот же паттерн. */
+  async notifyHrdNewBusinessTripRequest(requestId: string, fullName: string): Promise<void> {
+    const recipients = (await userRepository.findByRoleAndChannel("HRD", "EMPLOYEE")).filter(
+      (r) => r.telegramId !== null,
+    );
+    await Promise.all(
+      recipients.map((r) =>
+        notificationRepository.create({
+          userId: r.id,
+          channel: "TELEGRAM",
+          payload: { type: "business_trip_request_pending", requestId, fullName },
+        }),
+      ),
+    );
+  }
+
+  async notifyBusinessTripDecision(userId: string, approved: boolean): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: approved ? "business_trip_approved" : "business_trip_rejected" },
+    });
+  }
+
   unreadCountsByAppeal(userId: string, appealIds: string[]): Promise<Map<string, number>> {
     return notificationRepository.countPendingByAppeal(userId, appealIds);
   }

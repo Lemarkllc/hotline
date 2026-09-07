@@ -297,6 +297,9 @@ export interface UserDTO {
   channels?: Channel[];
   email: string | null;
   createdAt: string;
+  /** Для формулы остатка отпуска (PLAN.md §10) — null, пока не заведено вручную. */
+  hireDate: string | null;
+  vacationBalance: { startingBalance: number; asOfDate: string } | null;
 }
 
 export function useUsers(status?: string) {
@@ -379,6 +382,9 @@ export function useUpdateUser() {
       fullName?: string;
       telegramId?: string | null;
       roleNames?: string[];
+      hireDate?: string | null;
+      startingBalance?: number;
+      balanceAsOfDate?: string;
     }) => apiRequest<UserDTO>(`/users/${id}`, { method: "PATCH", body: input }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
   });
@@ -647,6 +653,132 @@ export function fetchLeadAttachmentUrl(leadId: string, attachmentId: string, dow
   return apiRequest<{ url: string }>(`/leads/${leadId}/attachments/${attachmentId}/url`, {
     query: { download: download ? "true" : undefined },
   }).then((r) => r.url);
+}
+
+// --- Раздел «Отпуска» (PLAN.md §10) — три независимые от Appeal подсистемы,
+// согласовывает только HRD: VacationRequest, AbsenceRequest, BusinessTripRequest ---
+
+export interface VacationRequestDTO {
+  id: string;
+  publicNumber: string;
+  user: { id: string; fullName: string };
+  dateFrom: string;
+  dateTo: string;
+  comment: string | null;
+  paid: boolean;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  decidedBy: { id: string; fullName: string } | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  createdAt: string;
+}
+
+export function useVacationRequests(status?: "PENDING" | "APPROVED" | "REJECTED") {
+  return useQuery({
+    queryKey: ["vacation-requests", status],
+    queryFn: () => apiRequest<VacationRequestDTO[]>("/vacation-requests", { query: { status } }),
+  });
+}
+
+export function useApproveVacationRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiRequest<VacationRequestDTO>(`/vacation-requests/${id}/approve`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["vacation-requests"] }),
+  });
+}
+
+export function useRejectVacationRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiRequest<VacationRequestDTO>(`/vacation-requests/${id}/reject`, { method: "POST", body: { reason } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["vacation-requests"] }),
+  });
+}
+
+/** «Отсутствие» — было TIME_OFF внутри Appeal, перенесено сюда после разговора с HRD. */
+export interface AbsenceRequestDTO {
+  id: string;
+  publicNumber: string;
+  user: { id: string; fullName: string };
+  date: string;
+  fullDay: boolean;
+  timeFrom: string | null;
+  timeTo: string | null;
+  reason: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  decidedBy: { id: string; fullName: string } | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  createdAt: string;
+}
+
+export function useAbsenceRequests(status?: "PENDING" | "APPROVED" | "REJECTED") {
+  return useQuery({
+    queryKey: ["absence-requests", status],
+    queryFn: () => apiRequest<AbsenceRequestDTO[]>("/absence-requests", { query: { status } }),
+  });
+}
+
+export function useApproveAbsenceRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiRequest<AbsenceRequestDTO>(`/absence-requests/${id}/approve`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["absence-requests"] }),
+  });
+}
+
+export function useRejectAbsenceRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiRequest<AbsenceRequestDTO>(`/absence-requests/${id}/reject`, { method: "POST", body: { reason } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["absence-requests"] }),
+  });
+}
+
+/** «Командировка» — новая сущность (PLAN.md §10). */
+export interface BusinessTripRequestDTO {
+  id: string;
+  publicNumber: string;
+  user: { id: string; fullName: string };
+  dateFrom: string;
+  dateTo: string;
+  purpose: string;
+  transport: "CAR" | "PLANE" | "TRAIN" | "OTHER";
+  transportOther: string | null;
+  hotelNeeded: boolean;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  decidedBy: { id: string; fullName: string } | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  createdAt: string;
+}
+
+export function useBusinessTripRequests(status?: "PENDING" | "APPROVED" | "REJECTED") {
+  return useQuery({
+    queryKey: ["business-trip-requests", status],
+    queryFn: () => apiRequest<BusinessTripRequestDTO[]>("/business-trip-requests", { query: { status } }),
+  });
+}
+
+export function useApproveBusinessTripRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiRequest<BusinessTripRequestDTO>(`/business-trip-requests/${id}/approve`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["business-trip-requests"] }),
+  });
+}
+
+export function useRejectBusinessTripRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiRequest<BusinessTripRequestDTO>(`/business-trip-requests/${id}/reject`, { method: "POST", body: { reason } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["business-trip-requests"] }),
+  });
 }
 
 // --- Notifications ---

@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Мутационные тесты (PLAN.md §10) — намеренно узкий охват: только модуль формулы остатка отпуска. Это единственное место в модуле «Отпуска», где тонкая ошибка на границе (>= вместо >, порог 15 дней или 0.6) даёт правдоподобную, но неверную цифру, которую не поймает ни код-ревью, ни обычное юнит-покрытие по строкам.",
+  "packageManager": "pnpm",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "testRunner": "vitest",
+  "reporters": ["clear-text", "progress"],
+  "mutate": ["src/utils/vacationBalance.ts"],
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "thresholds": { "high": 90, "low": 70, "break": 70 }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertCircle, EyeOff, MessageSquare, ShieldAlert } from "lucide-react";
+import { AlertCircle, CalendarClock, EyeOff, MessageSquare, ShieldAlert } from "lucide-react";
 import {
   APPEAL_STATUS_LABELS,
   APPEAL_STATUS_TRANSITIONS,
@@ -53,6 +53,17 @@ function dayLabel(iso: string): string {
   const today = new Date();
   if (d.toDateString() === today.toDateString()) return "СЕГОДНЯ";
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }).toUpperCase();
+}
+
+/** Обращения типа TIME_OFF («Отпроситься») не имеют структурных полей даты/времени —
+ * originalText приходит от бота уже в фиксированном формате "Дата: .../Время: .../
+ * [Причина: ...]" (conversations/timeOff.ts) и неизменяем после подачи (FR-APP-008),
+ * поэтому парсинг регуляркой безопасен, а не хрупкий хак. Возвращает null для обращений,
+ * созданных до этого формата или в обход бота — тогда просто не показываем блок. */
+function parseTimeOffSummary(originalText: string): { date: string; time: string; reason?: string } | null {
+  const match = originalText.match(/^Дата:\s*(.+?)\nВремя:\s*(.+?)(?:\nПричина:\s*([\s\S]+))?$/);
+  if (!match?.[1] || !match[2]) return null;
+  return { date: match[1], time: match[2], reason: match[3] };
 }
 
 export function AppealDetailPage() {
@@ -451,37 +462,61 @@ export function AppealDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {canClassify && (
-          <Select value={appeal.epic?.id ?? "none"} onValueChange={(v) => setEpicMutation.mutate(v === "none" ? null : v)}>
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Эпик" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Без эпика</SelectItem>
-              {epics?.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {canAssign && (
-          <Select onValueChange={(v) => assignMutation.mutate(v)}>
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder={appeal.assignees[0]?.fullName ?? "Назначить менеджера"} />
-            </SelectTrigger>
-            <SelectContent>
-              {managers?.map((u) => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.fullName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
+      {appeal.type === "TIME_OFF" &&
+        (() => {
+          const timeOff = parseTimeOffSummary(appeal.originalText);
+          if (!timeOff) return null;
+          return (
+            <Card>
+              <CardContent className="flex items-center gap-3 p-4">
+                <CalendarClock className="size-5 text-text-3" />
+                <div>
+                  <p className="text-ui font-medium text-text-1">
+                    {timeOff.date} · {timeOff.time}
+                  </p>
+                  <p className="text-meta text-text-3">{timeOff.reason ?? "Причина не указана"}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+      {/* «Отпроситься» решается статус-переходами (Открыто → На проверке → ...), без
+       * классификации по эпикам и без назначения менеджера — согласовывает тот, кто
+       * увидел заявку (обычно HRD), выделенного исполнителя тут не бывает. */}
+      {appeal.type !== "TIME_OFF" && (
+        <div className="flex flex-wrap items-center gap-3">
+          {canClassify && (
+            <Select value={appeal.epic?.id ?? "none"} onValueChange={(v) => setEpicMutation.mutate(v === "none" ? null : v)}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Эпик" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Без эпика</SelectItem>
+                {epics?.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {canAssign && (
+            <Select onValueChange={(v) => assignMutation.mutate(v)}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder={appeal.assignees[0]?.fullName ?? "Назначить менеджера"} />
+              </SelectTrigger>
+              <SelectContent>
+                {managers?.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
 
       <Tabs
         value={activeTab}
@@ -504,6 +539,17 @@ export function AppealDetailPage() {
         </TabsList>
 
         <TabsContent value="thread" className="flex flex-col gap-4">
+          {/* Краткая цитата текста обращения прямо в треде — раньше текст был виден
+           * только на вкладке "Обращение", и HRD приходилось переключаться туда, чтобы
+           * увидеть суть заявки при открытии карточки (найдено вживую пользователем). */}
+          <button
+            type="button"
+            onClick={() => setActiveTab("appeal")}
+            className="rounded-lg border border-rule bg-surface-sunk p-3 text-left transition-colors duration-1 hover:bg-surface-sunk/70"
+          >
+            <p className="line-clamp-2 whitespace-pre-line text-ui text-text-2">{appeal.originalText}</p>
+          </button>
+
           <div className="flex flex-wrap gap-2">
             {(
               [

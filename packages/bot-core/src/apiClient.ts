@@ -71,6 +71,47 @@ export class ApiClient {
     return this.request<{ id: string; publicNumber: string }>("POST", "/appeals", input);
   }
 
+  /** «Отпуска» — отдельная от Appeal подсистема, только сотрудник → HRD (см. PLAN,
+   * VacationRequest). dateFrom/dateTo — Date, сериализуются в JSON как ISO-строка,
+   * apps/api/src/validators/vacation.schema.ts коэрсит их обратно через z.coerce.date(). */
+  createVacationRequest(input: { telegramId: string; dateFrom: Date; dateTo: Date; comment?: string; paid: boolean }) {
+    return this.request<{ id: string; publicNumber: string }>("POST", "/vacation-requests", input);
+  }
+
+  /** Кнопка «Узнать количество дней отпуска» внутри диалога (PLAN.md §10) — null,
+   * если баланс ещё не настроен для этого сотрудника (не 0, см. vacationBalanceService). */
+  getVacationBalance(telegramId: string) {
+    return this.request<{ availableDays: number | null }>(
+      "GET",
+      `/vacation-requests/balance?telegramId=${telegramId}`,
+    );
+  }
+
+  /** «Отсутствие» (было TIME_OFF внутри Appeal, PLAN.md §10). */
+  createAbsenceRequest(input: {
+    telegramId: string;
+    date: Date;
+    fullDay: boolean;
+    timeFrom?: string;
+    timeTo?: string;
+    reason?: string;
+  }) {
+    return this.request<{ id: string; publicNumber: string }>("POST", "/absence-requests", input);
+  }
+
+  /** «Командировка» (PLAN.md §10). */
+  createBusinessTripRequest(input: {
+    telegramId: string;
+    dateFrom: Date;
+    dateTo: Date;
+    purpose: string;
+    transport: "CAR" | "PLANE" | "TRAIN" | "OTHER";
+    transportOther?: string;
+    hotelNeeded: boolean;
+  }) {
+    return this.request<{ id: string; publicNumber: string }>("POST", "/business-trip-requests", input);
+  }
+
   listMyAppeals(telegramId: string, page = 1, pageSize = 5, bucket: "OPEN" | "CLOSED" = "OPEN") {
     return this.request<{ items: unknown[]; total: number }>(
       "GET",

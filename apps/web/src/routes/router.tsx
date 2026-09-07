@@ -15,6 +15,7 @@ import { LeadDetailPage } from "@/pages/LeadDetailPage";
 import { AccessRequestsPage } from "@/pages/AccessRequestsPage";
 import { DirectoriesPage } from "@/pages/DirectoriesPage";
 import { AuditPage } from "@/pages/AuditPage";
+import { VacationsPage } from "@/pages/VacationsPage";
 import { ComponentLibraryPage } from "@/pages/ComponentLibraryPage";
 import { RequireAuth } from "./RequireAuth";
 import { RequirePermission } from "./RequirePermission";
@@ -60,6 +61,10 @@ export const router = createBrowserRouter([
               { path: "/leads", element: <LeadsPage /> },
               { path: "/leads/:id", element: <LeadDetailPage /> },
             ],
+          },
+          {
+            element: <RequirePermission permission="vacation.manage" />,
+            children: [{ path: "/vacations", element: <VacationsPage /> }],
           },
         ],
       },

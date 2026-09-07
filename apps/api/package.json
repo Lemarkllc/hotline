@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "echo 'no lint configured for api'",
     "test": "vitest run",
+    "test:mutation": "stryker run stryker.vacationBalance.conf.json",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -47,6 +48,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/html-to-text": "^9.0.4",

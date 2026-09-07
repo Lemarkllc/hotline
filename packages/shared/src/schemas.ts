@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { APPEAL_MODES, CUSTOMER_APPEAL_TYPES, EMPLOYEE_APPEAL_TYPES } from "./enums.js";
+import { APPEAL_MODES, BUSINESS_TRIP_TRANSPORTS, CUSTOMER_APPEAL_TYPES, EMPLOYEE_APPEAL_TYPES } from "./enums.js";
 
 /** Используется и ботом (перед отправкой в API), и API (как источник валидации на сервере).
  * Намеренно ОСТАЁТСЯ голым ZodObject (не .superRefine()) — apps/api/src/validators/
@@ -122,3 +122,85 @@ export const paginationSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type PaginationInput = z.infer<typeof paginationSchema>;
+
+/** «Отпуска» (VacationRequest) — голый ZodObject без telegramId и без .refine(),
+ * тем же принципом, что и createEmployeeAppealSchema: apps/api/src/validators/
+ * vacation.schema.ts делает .extend({ telegramId }) поверх него для бот-эндпоинта —
+ * .extend() недоступен на ZodEffects, поэтому проверка dateTo>=dateFrom вынесена в
+ * refineVacationDateRange() и навешивается через .superRefine() ПОСЛЕ .extend(). */
+export const createVacationRequestSchema = z.object({
+  dateFrom: z.coerce.date(),
+  dateTo: z.coerce.date(),
+  comment: z.string().trim().max(1000).optional(),
+  /** true — оплачиваемый (проверяется против баланса, PLAN.md §10), false — за свой
+   * счёт (без ограничения в коде — HRD решает при одобрении). */
+  paid: z.boolean(),
+});
+export type CreateVacationRequestInput = z.infer<typeof createVacationRequestSchema>;
+
+export function refineVacationDateRange<T extends { dateFrom: Date; dateTo: Date }>(
+  data: T,
+  ctx: z.RefinementCtx,
+): void {
+  if (data.dateTo < data.dateFrom) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["dateTo"], message: "Дата окончания раньше даты начала" });
+  }
+}
+
+/** Причина отказа обязательна (прямое решение пользователя) — общая схема для всех
+ * трёх сущностей раздела «Отпуска» (Vacation/Absence/BusinessTrip), в отличие от
+ * stopListLeadSchema/decideAccessRequestSchema, где причина опциональна. */
+export const rejectHrRequestSchema = z.object({
+  reason: z.string().trim().min(1, "Причина отказа обязательна").max(500),
+});
+export type RejectHrRequestInput = z.infer<typeof rejectHrRequestSchema>;
+
+/** «Отсутствие» (AbsenceRequest, было TIME_OFF внутри Appeal, PLAN.md §10) — дата,
+ * время (диапазон) ИЛИ весь день, необязательная причина. Голый ZodObject без
+ * .refine() — тем же принципом, что и createVacationRequestSchema (см. её комментарий):
+ * .extend({telegramId}) в apps/api/src/validators/absence.schema.ts требует этого. */
+export const createAbsenceRequestSchema = z.object({
+  date: z.coerce.date(),
+  fullDay: z.boolean(),
+  timeFrom: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+  timeTo: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+  reason: z.string().trim().max(1000).optional(),
+});
+export type CreateAbsenceRequestInput = z.infer<typeof createAbsenceRequestSchema>;
+
+export function refineAbsenceTimeRange<T extends { fullDay: boolean; timeFrom?: string; timeTo?: string }>(
+  data: T,
+  ctx: z.RefinementCtx,
+): void {
+  if (data.fullDay) return;
+  if (!data.timeFrom || !data.timeTo) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["timeFrom"], message: "Укажите время начала и окончания" });
+    return;
+  }
+  if (data.timeTo <= data.timeFrom) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["timeTo"], message: "Время окончания раньше времени начала" });
+  }
+}
+
+/** «Командировка» (BusinessTripRequest, PLAN.md §10) — цель обязательна (без неё HRD
+ * согласовывает вслепую, решение пользователя), транспорт из фиксированного списка,
+ * уточнение текстом обязательно только при transport="OTHER" (см. refineBusinessTripRules). */
+export const createBusinessTripRequestSchema = z.object({
+  dateFrom: z.coerce.date(),
+  dateTo: z.coerce.date(),
+  purpose: z.string().trim().min(1, "Цель командировки обязательна").max(1000),
+  transport: z.enum(BUSINESS_TRIP_TRANSPORTS),
+  transportOther: z.string().trim().max(200).optional(),
+  hotelNeeded: z.boolean(),
+});
+export type CreateBusinessTripRequestInput = z.infer<typeof createBusinessTripRequestSchema>;
+
+export function refineBusinessTripRules<T extends { dateFrom: Date; dateTo: Date; transport: string; transportOther?: string }>(
+  data: T,
+  ctx: z.RefinementCtx,
+): void {
+  refineVacationDateRange(data, ctx);
+  if (data.transport === "OTHER" && !data.transportOther) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["transportOther"], message: "Уточните способ добраться" });
+  }
+}

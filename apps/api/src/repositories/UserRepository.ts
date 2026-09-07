@@ -10,7 +10,7 @@ export class UserRepository {
   findByIdWithRoles(id: string) {
     return prisma.user.findFirst({
       where: { id, deletedAt: null },
-      include: { userRoles: { include: { role: true } }, channelAccess: true },
+      include: { userRoles: { include: { role: true } }, channelAccess: true, vacationBalance: true },
     });
   }
 
@@ -96,8 +96,25 @@ export class UserRepository {
     });
   }
 
-  updateProfile(id: string, data: { fullName?: string; telegramId?: bigint | null }): Promise<User> {
+  updateProfile(id: string, data: { fullName?: string; telegramId?: bigint | null; hireDate?: Date | null }): Promise<User> {
     return prisma.user.update({ where: { id }, data });
+  }
+
+  /** Стартовый остаток отпуска на дату снимка (PLAN.md §10) — upsert, не update:
+   * при первом вводе для пользователя строки в vacation_balances ещё нет. */
+  upsertVacationBalance(userId: string, data: { startingBalance: number; asOfDate: Date }): Promise<unknown> {
+    return prisma.vacationBalance.upsert({
+      where: { userId },
+      create: { userId, ...data },
+      update: data,
+    });
+  }
+
+  findVacationBalance(userId: string): Promise<{ startingBalance: number; asOfDate: Date } | null> {
+    return prisma.vacationBalance.findUnique({
+      where: { userId },
+      select: { startingBalance: true, asOfDate: true },
+    });
   }
 
   /** Полная замена набора ролей (SRS §4.5 "Управлять ролями"). */
@@ -157,7 +174,7 @@ export class UserRepository {
   list(status?: string) {
     return prisma.user.findMany({
       where: { deletedAt: null, ...(status ? { status: status as never } : {}) },
-      include: { userRoles: { include: { role: true } }, channelAccess: true },
+      include: { userRoles: { include: { role: true } }, channelAccess: true, vacationBalance: true },
       orderBy: { createdAt: "desc" },
     });
   }

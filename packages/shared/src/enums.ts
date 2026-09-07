@@ -54,6 +54,9 @@ export type RoleName = (typeof ROLE_NAMES)[number];
 
 /**
  * Типы обращений сотрудников — фиксированный список из SRS §6.1 для MVP.
+ * TIME_OFF ("Отпроситься") здесь был как временное решение, затем вынесен в
+ * отдельную сущность AbsenceRequest ("Отсутствие", раздел «Отпуска» в вебе,
+ * PLAN.md §10) — не тип обращения, никогда больше не добавляйте его сюда.
  * Канал CUSTOMER получит свой набор типов отдельным справочником (Фаза 7, PLAN.md §6) —
  * поэтому поле `type` в Prisma хранится как String, а не Postgres enum, и валидируется
  * Zod-схемой, зависящей от канала (см. schemas.ts).
@@ -162,3 +165,30 @@ export const DEFAULT_CUSTOMER_EPICS = [
   "Возврат/обмен",
   "Другое",
 ] as const;
+
+/**
+ * Раздел «Отпуска» (PLAN.md §10) — три самостоятельные сущности, не Appeal:
+ * VacationRequest (отпуск, с балансом дней), AbsenceRequest ("Отсутствие" — было
+ * TIME_OFF, перенесено сюда после разговора с HRD), BusinessTripRequest (командировка).
+ * Все три согласовывает только HRD, все три используют один и тот же набор статусов —
+ * отсюда общий VACATION_STATUSES/VacationStatus вместо трёх идентичных enum'ов.
+ */
+export const VACATION_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
+export type VacationStatus = (typeof VACATION_STATUSES)[number];
+
+export const VACATION_STATUS_LABELS: Record<VacationStatus, string> = {
+  PENDING: "На рассмотрении",
+  APPROVED: "Одобрено",
+  REJECTED: "Отклонено",
+};
+
+/** Способ добраться в командировке — влияет на то, что оплачивается (топливо vs билеты). */
+export const BUSINESS_TRIP_TRANSPORTS = ["CAR", "PLANE", "TRAIN", "OTHER"] as const;
+export type BusinessTripTransport = (typeof BUSINESS_TRIP_TRANSPORTS)[number];
+
+export const BUSINESS_TRIP_TRANSPORT_LABELS: Record<BusinessTripTransport, string> = {
+  CAR: "Автомобиль",
+  PLANE: "Самолёт",
+  TRAIN: "Поезд",
+  OTHER: "Другое",
+};

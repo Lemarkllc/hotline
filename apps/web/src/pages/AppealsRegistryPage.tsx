@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 const PAGE_SIZE = 20;
 type View = "list" | "kanban";
 
-const GRID_COLS = "92px minmax(0,1fr) 152px 210px 116px minmax(0,160px) 88px";
+const GRID_COLS = "168px minmax(0,1fr) 152px 210px 116px minmax(0,96px) 88px";
 
 function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   return (
@@ -220,7 +220,7 @@ export function AppealsRegistryPage() {
                     className="grid h-row min-w-[900px] items-center transition-colors duration-1 hover:bg-surface-sunk/60"
                     style={{ gridTemplateColumns: GRID_COLS }}
                   >
-                    <div className="flex items-center gap-1.5 px-3 font-mono text-ui tabular-nums text-text-2">
+                    <div className="flex items-center gap-2.5 whitespace-nowrap px-3 font-mono text-ui tabular-nums text-text-2">
                       {appeal.publicNumber}
                       {appeal.unreadCount > 0 && (
                         <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-status-overdue-tint px-1 font-mono text-[10px] font-semibold text-status-overdue">

@@ -68,6 +68,52 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         );
         break;
       }
+      // «Отпуска» — решение принимается только на вебе (не в боте, в отличие от
+      // access_request_pending выше), поэтому здесь просто текст-пинг без кнопок.
+      case "vacation_request_pending": {
+        const fullName = typeof payload.fullName === "string" ? payload.fullName : "Сотрудник";
+        await bot.api.sendMessage(telegramId, `Новая заявка на отпуск: ${fullName}. Рассмотрите её в веб-панели.`);
+        break;
+      }
+      case "vacation_approved": {
+        // Только у отпуска — требование ТК РФ про письменное заявление (PLAN.md §10,
+        // прямое решение пользователя: у "Отсутствия"/"Командировки" бумага не нужна).
+        await bot.api.sendMessage(
+          telegramId,
+          "Ваша заявка на отпуск одобрена HRD. Принесите копию заявления в отдел HR.",
+        );
+        break;
+      }
+      case "vacation_rejected": {
+        await bot.api.sendMessage(telegramId, "Ваша заявка на отпуск отклонена HRD.");
+        break;
+      }
+      case "absence_request_pending": {
+        const fullName = typeof payload.fullName === "string" ? payload.fullName : "Сотрудник";
+        await bot.api.sendMessage(telegramId, `Новая заявка на отсутствие: ${fullName}. Рассмотрите её в веб-панели.`);
+        break;
+      }
+      case "absence_approved": {
+        await bot.api.sendMessage(telegramId, "Ваша заявка на отсутствие одобрена HRD.");
+        break;
+      }
+      case "absence_rejected": {
+        await bot.api.sendMessage(telegramId, "Ваша заявка на отсутствие отклонена HRD.");
+        break;
+      }
+      case "business_trip_request_pending": {
+        const fullName = typeof payload.fullName === "string" ? payload.fullName : "Сотрудник";
+        await bot.api.sendMessage(telegramId, `Новая заявка на командировку: ${fullName}. Рассмотрите её в веб-панели.`);
+        break;
+      }
+      case "business_trip_approved": {
+        await bot.api.sendMessage(telegramId, "Ваша заявка на командировку одобрена HRD.");
+        break;
+      }
+      case "business_trip_rejected": {
+        await bot.api.sendMessage(telegramId, "Ваша заявка на командировку отклонена HRD.");
+        break;
+      }
       case "employee_terminated": {
         // Best-effort: ошибка в одном чате (бот не добавлен/не админ) не должна
         // блокировать ack всего уведомления и уводить его в бесконечный ретрай раз

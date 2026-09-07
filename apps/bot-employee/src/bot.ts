@@ -6,6 +6,9 @@ import { apiClient } from "./api.js";
 import { config } from "./config.js";
 import { registration } from "./conversations/registration.js";
 import { newAppeal } from "./conversations/newAppeal.js";
+import { vacation } from "./conversations/vacation.js";
+import { absence } from "./conversations/absence.js";
+import { businessTrip } from "./conversations/businessTrip.js";
 import { attachmentsKeyboard, MAIN_MENU_KEYBOARD, MAX_ATTACHMENTS } from "./keyboards.js";
 import { renderAppealDetail, renderMyAppealsMenu, renderMyAppealsPage } from "./myAppeals.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
@@ -111,6 +114,9 @@ export function createBot(): Bot<BotContext> {
   bot.use(conversations());
   bot.use(createConversation(registration));
   bot.use(createConversation(newAppeal));
+  bot.use(createConversation(vacation));
+  bot.use(createConversation(absence));
+  bot.use(createConversation(businessTrip));
 
   async function handleStart(ctx: BotContext): Promise<void> {
     const telegramId = String(ctx.from!.id);
@@ -168,6 +174,24 @@ export function createBot(): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     if (!(await requireActiveUser(ctx))) return;
     await ctx.conversation.enter("newAppeal");
+  });
+
+  bot.callbackQuery("menu:vacation", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
+    await ctx.conversation.enter("vacation");
+  });
+
+  bot.callbackQuery("menu:absence", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
+    await ctx.conversation.enter("absence");
+  });
+
+  bot.callbackQuery("menu:business_trip", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
+    await ctx.conversation.enter("businessTrip");
   });
 
   bot.command("my", async (ctx) => {

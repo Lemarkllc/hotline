@@ -23,10 +23,11 @@ export function requirePermission(permission: Permission) {
 }
 
 /**
- * Требует permission БЕЗ канальной проверки — единственное исключение сейчас:
- * "lead.manage" («Заявки», email-лиды, PLAN.md). EmailLead не имеет поля channel
- * вообще, это не Appeal — requirePermission() здесь семантически не подходит
- * (дефолтит на канал EMPLOYEE, к которому у роли SALES обычно нет доступа).
+ * Требует permission БЕЗ канальной проверки — два исключения сейчас: "lead.manage"
+ * («Заявки», email-лиды, PLAN.md) и "vacation.manage" («Отпуска», VacationRequest).
+ * Ни EmailLead, ни VacationRequest не имеют поля channel вообще, это не Appeal —
+ * requirePermission() здесь семантически не подходит (дефолтит на канал EMPLOYEE,
+ * к которому у роли SALES обычно нет доступа).
  */
 export function requirePlainPermission(permission: Permission) {
   return (req: Request, _res: Response, next: NextFunction): void => {

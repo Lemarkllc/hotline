@@ -190,7 +190,14 @@ export class UserService {
   async updateUser(
     admin: AuthenticatedUser,
     userId: string,
-    data: { fullName?: string; telegramId?: string | null; roleNames?: string[] },
+    data: {
+      fullName?: string;
+      telegramId?: string | null;
+      roleNames?: string[];
+      hireDate?: Date | null;
+      startingBalance?: number;
+      balanceAsOfDate?: Date;
+    },
   ) {
     const user = await userRepository.findById(userId);
     if (!user) throw new NotFoundError("Пользователь не найден");
@@ -205,9 +212,18 @@ export class UserService {
     await userRepository.updateProfile(userId, {
       fullName: data.fullName,
       telegramId: data.telegramId === undefined ? undefined : data.telegramId === null ? null : BigInt(data.telegramId),
+      hireDate: data.hireDate,
     });
     if (data.roleNames) {
       await userRepository.setRoles(userId, data.roleNames);
+    }
+    // Оба поля обязательны вместе на форме (см. UsersPage) — стартовый остаток без
+    // даты снимка бессмысленен для формулы (utils/vacationBalance.ts).
+    if (data.startingBalance !== undefined && data.balanceAsOfDate !== undefined) {
+      await userRepository.upsertVacationBalance(userId, {
+        startingBalance: data.startingBalance,
+        asOfDate: data.balanceAsOfDate,
+      });
     }
     await auditService.record({
       actorId: admin.id,

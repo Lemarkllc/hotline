@@ -12,3 +12,5 @@ generated/
 .pnpm-store/
 *.tsbuildinfo
 .claude/
+.stryker-tmp/
+reports/

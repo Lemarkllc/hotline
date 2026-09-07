@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   BarChart3,
   BookOpen,
+  CalendarDays,
   History,
   LayoutDashboard,
   LogOut,
@@ -25,9 +26,11 @@ interface NavItem {
 }
 
 /** Три группы вместо плоского списка (design_handoff_lemark_one/README.md "Навигация").
- * "Отсутствия"/"Доступ и СКУД" из хендоффа сюда не включены — этих модулей ещё нет в
- * коде (см. UI_REWORK_BRIEF.md "Что осталось нарисовать"), пункт меню в никуда хуже
- * отсутствующего пункта. */
+ * "Доступ и СКУД" из хендоффа сюда не включён — этого модуля ещё нет в коде (см.
+ * UI_REWORK_BRIEF.md "Что осталось нарисовать"), пункт меню в никуда хуже отсутствующего
+ * пункта. "Отсутствия" из того же списка реализован как раздел "Отпуска" (PLAN.md §10) —
+ * одна страница с тремя вкладками (VacationRequest/AbsenceRequest/BusinessTripRequest),
+ * без календаря пересечений по подразделению (отложен, см. план реализации). */
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Работа",
@@ -44,6 +47,11 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       // «Заявки» — email-лиды с sales@, независимая от «Обращения» подсистема
       // (PLAN.md "«Заявки» — email-лиды..."), поэтому отдельный permission, не appeal.*.
       { to: "/leads", label: "Заявки", icon: Mail, permissions: ["lead.manage"] },
+      // Раздел (не только VacationRequest — внутри три вкладки, PLAN.md §10),
+      // согласовывает только HRD — тот же принцип, что и у "Заявок". Название пункта
+      // меню "Отсутствие" (решение пользователя) — сама вкладка "Отпуска" внутри
+      // раздела называется иначе, путаницы с этим не считали проблемой.
+      { to: "/vacations", label: "Отсутствие", icon: CalendarDays, permissions: ["vacation.manage"] },
     ],
   },
   {

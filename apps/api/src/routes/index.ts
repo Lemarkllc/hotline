@@ -11,6 +11,9 @@ import { notificationRoutes } from "@/routes/notificationRoutes.js";
 import { pushRoutes } from "@/routes/pushRoutes.js";
 import { reportRoutes } from "@/routes/reportRoutes.js";
 import { userRoutes } from "@/routes/userRoutes.js";
+import { vacationRoutes } from "@/routes/vacationRoutes.js";
+import { absenceRoutes } from "@/routes/absenceRoutes.js";
+import { businessTripRoutes } from "@/routes/businessTripRoutes.js";
 
 export const apiV1Router = Router();
 
@@ -26,3 +29,6 @@ apiV1Router.use("/customer/notifications", customerNotificationRoutes);
 apiV1Router.use("/push", pushRoutes);
 apiV1Router.use("/audit", auditRoutes);
 apiV1Router.use("/leads", leadRoutes);
+apiV1Router.use("/vacation-requests", vacationRoutes);
+apiV1Router.use("/absence-requests", absenceRoutes);
+apiV1Router.use("/business-trip-requests", businessTripRoutes);
