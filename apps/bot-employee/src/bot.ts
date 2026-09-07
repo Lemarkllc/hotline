@@ -9,7 +9,7 @@ import { newAppeal } from "./conversations/newAppeal.js";
 import { vacation } from "./conversations/vacation.js";
 import { absence } from "./conversations/absence.js";
 import { businessTrip } from "./conversations/businessTrip.js";
-import { attachmentsKeyboard, MAIN_MENU_KEYBOARD, MAX_ATTACHMENTS } from "./keyboards.js";
+import { attachmentsKeyboard, hrMenuKeyboard, MAIN_MENU_KEYBOARD, MAX_ATTACHMENTS } from "./keyboards.js";
 import { renderAppealDetail, renderMyAppealsMenu, renderMyAppealsPage } from "./myAppeals.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
 import { downloadTelegramMedia } from "./telegramFile.js";
@@ -174,6 +174,15 @@ export function createBot(): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     if (!(await requireActiveUser(ctx))) return;
     await ctx.conversation.enter("newAppeal");
+  });
+
+  // Точка входа для команды /absence в системном ☰-меню (index.ts) — единственное
+  // место, где нельзя обойтись существующим menu:* колбэком напрямую, потому что
+  // ☰-меню вызывает bot.command(), а не нажатие inline-кнопки под конкретным
+  // сообщением. Дальше — те же самые menu:vacation/menu:absence/menu:business_trip.
+  bot.command("absence", async (ctx) => {
+    if (!(await requireActiveUser(ctx))) return;
+    await ctx.reply("Что оформляем?", { reply_markup: hrMenuKeyboard() });
   });
 
   bot.callbackQuery("menu:vacation", async (ctx) => {

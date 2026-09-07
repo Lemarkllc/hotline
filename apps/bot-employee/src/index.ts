@@ -11,6 +11,10 @@ const stopPolling = startNotificationPolling(apiClient, createNotificationHandle
 // но в меню не отображаются.
 await bot.api.setMyCommands([
   { command: "new", description: "Создать обращение" },
+  // Единственная точка входа в раздел «Отпуска» (PLAN.md §10) из ☰-меню — без неё
+  // отпуск/отсутствие/командировку нельзя было найти иначе, кроме как случайно
+  // наткнуться на них после отмены /new (баг, найденный пользователем вживую).
+  { command: "absence", description: "Отпуск / Отсутствие / Командировка" },
   { command: "my", description: "Мои обращения" },
   { command: "privacy", description: "О конфиденциальности" },
   { command: "cancel", description: "Отменить текущее действие" },

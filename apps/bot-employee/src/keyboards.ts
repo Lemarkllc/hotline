@@ -74,6 +74,21 @@ export function accessRequestKeyboard(requestId: string): InlineKeyboard {
     .text("Отклонить", `accreq_reject:${requestId}`);
 }
 
+/** Раздел «Отпуска» (PLAN.md §10) — выбор из трёх кнопок, точка входа для команды
+ * /absence в системном ☰-меню Telegram (index.ts, setMyCommands). Без inline-кнопки
+ * до этого раздела нельзя было добраться иначе, кроме как случайно наткнувшись на
+ * него после отмены "Создать обращение" — там пересылается общее меню целиком
+ * (найдено пользователем вживую). ☰-меню — не то же самое, что MAIN_MENU_KEYBOARD
+ * ниже: это отдельный список Telegram-команд, вводимых вручную, а не inline-кнопки. */
+export function hrMenuKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Отпуск", "menu:vacation")
+    .row()
+    .text("Отсутствие", "menu:absence")
+    .row()
+    .text("Командировка", "menu:business_trip");
+}
+
 /** Раздел «Отпуска» (PLAN.md §10) — три отдельные кнопки вместо одной "Отпуск",
  * единственное число — называют действие, не список (в отличие от вкладок в вебе). */
 export const MAIN_MENU_KEYBOARD = new InlineKeyboard()
