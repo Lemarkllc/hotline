@@ -14,6 +14,7 @@ import { userRoutes } from "@/routes/userRoutes.js";
 import { vacationRoutes } from "@/routes/vacationRoutes.js";
 import { absenceRoutes } from "@/routes/absenceRoutes.js";
 import { businessTripRoutes } from "@/routes/businessTripRoutes.js";
+import { employeeBalanceRoutes } from "@/routes/employeeBalanceRoutes.js";
 
 export const apiV1Router = Router();
 
@@ -32,3 +33,4 @@ apiV1Router.use("/leads", leadRoutes);
 apiV1Router.use("/vacation-requests", vacationRoutes);
 apiV1Router.use("/absence-requests", absenceRoutes);
 apiV1Router.use("/business-trip-requests", businessTripRoutes);
+apiV1Router.use("/employees", employeeBalanceRoutes);

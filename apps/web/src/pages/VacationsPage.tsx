@@ -3,8 +3,11 @@ import { BUSINESS_TRIP_TRANSPORT_LABELS, VACATION_STATUS_LABELS } from "@hotline
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ReasonDialog } from "@/components/ui/reason-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useAbsenceRequests,
@@ -12,12 +15,15 @@ import {
   useApproveBusinessTripRequest,
   useApproveVacationRequest,
   useBusinessTripRequests,
+  useEmployeeBalances,
   useRejectAbsenceRequest,
   useRejectBusinessTripRequest,
   useRejectVacationRequest,
+  useUpdateEmployeeBalance,
   useVacationRequests,
   type AbsenceRequestDTO,
   type BusinessTripRequestDTO,
+  type EmployeeBalanceDTO,
   type VacationRequestDTO,
 } from "@/hooks/api";
 
@@ -402,6 +408,130 @@ function BusinessTripsTab() {
   );
 }
 
+function formatDateIso(iso: string): string {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/** "YYYY-MM-DDTHH:mm:ss.sssZ" -> "YYYY-MM-DD" для DatePicker (тот работает с чистой
+ * календарной датой, без времени/зоны — как и hireDate/asOfDate по смыслу). */
+function toDateOnly(iso: string | null): string | null {
+  return iso ? iso.slice(0, 10) : null;
+}
+
+function EmployeeBalanceDialog({ employee, onClose }: { employee: EmployeeBalanceDTO; onClose: () => void }) {
+  const update = useUpdateEmployeeBalance();
+  const [hireDate, setHireDate] = useState<string | null>(toDateOnly(employee.hireDate));
+  const [startingBalance, setStartingBalance] = useState(
+    employee.startingBalance !== null ? String(employee.startingBalance) : "",
+  );
+  const [balanceAsOfDate, setBalanceAsOfDate] = useState<string | null>(
+    toDateOnly(employee.balanceAsOfDate) ?? new Date().toISOString().slice(0, 10),
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await update.mutateAsync({
+      id: employee.id,
+      hireDate,
+      // Оба поля отправляются только вместе — стартовый остаток без даты снимка
+      // бессмысленен для формулы (utils/vacationBalance.ts на бэкенде).
+      ...(startingBalance.trim() && balanceAsOfDate
+        ? { startingBalance: Number(startingBalance), balanceAsOfDate }
+        : {}),
+    });
+    onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogTitle>{employee.fullName}</DialogTitle>
+        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <Label>Дата приёма на работу</Label>
+            <DatePicker value={hireDate} onChange={setHireDate} />
+            <p className="text-meta text-text-3">Источник для расчёта остатка отпуска.</p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="startingBalance">Остаток отпуска на дату (дней)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="startingBalance"
+                type="number"
+                min="0"
+                step="0.01"
+                value={startingBalance}
+                onChange={(e) => setStartingBalance(e.target.value)}
+                placeholder="не задан"
+                className="w-32"
+              />
+              <DatePicker value={balanceAsOfDate} onChange={setBalanceAsOfDate} disabled={!startingBalance.trim()} />
+            </div>
+            <p className="text-meta text-text-3">
+              Разовый снимок из кадровых данных — остаток на сегодня считается формулой от него.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={update.isPending}>
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Узкий HRD-доступ (vacation.manage) к дате приёма/остатку отпуска — отдельно от
+ * полного списка пользователей (/users, user.manage, только Администратор). HRD не
+ * видит и не может менять роли/блокировку/каналы, только эти два кадровых поля. */
+function EmployeeBalancesTab() {
+  const { data: employees } = useEmployeeBalances();
+  const [editTarget, setEditTarget] = useState<EmployeeBalanceDTO | null>(null);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Сотрудник</TableHead>
+            <TableHead>Дата приёма</TableHead>
+            <TableHead>Остаток (дней)</TableHead>
+            <TableHead>Снимок на дату</TableHead>
+            <TableHead>Действия</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {employees?.map((e) => (
+            <TableRow key={e.id}>
+              <TableCell>{e.fullName}</TableCell>
+              <TableCell className="font-mono tabular-nums">{e.hireDate ? formatDateIso(e.hireDate) : "—"}</TableCell>
+              <TableCell className="font-mono tabular-nums">
+                {e.availableDays === null ? (
+                  <span className="text-text-3">не настроен</span>
+                ) : (
+                  e.availableDays
+                )}
+              </TableCell>
+              <TableCell className="font-mono tabular-nums">
+                {e.balanceAsOfDate ? formatDateIso(e.balanceAsOfDate) : "—"}
+              </TableCell>
+              <TableCell>
+                <Button size="sm" variant="outline" onClick={() => setEditTarget(e)}>
+                  Изменить
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {!employees?.length && <p className="text-ui text-text-3">Активных сотрудников не найдено.</p>}
+
+      {editTarget && <EmployeeBalanceDialog employee={editTarget} onClose={() => setEditTarget(null)} />}
+    </div>
+  );
+}
+
 /** Раздел «Отпуска» (PLAN.md §10) — три независимые сущности (VacationRequest/
  * AbsenceRequest/BusinessTripRequest) под одной вкладочной страницей: один смысловой
  * процесс кадрового согласования для HRD, тот же паттерн, что и вкладки карточки
@@ -420,6 +550,7 @@ export function VacationsPage() {
           <TabsTrigger value="vacations">Отпуска</TabsTrigger>
           <TabsTrigger value="absences">Отсутствия</TabsTrigger>
           <TabsTrigger value="business-trips">Командировки</TabsTrigger>
+          <TabsTrigger value="balances">Остатки отпуска</TabsTrigger>
         </TabsList>
         <TabsContent value="vacations">
           <VacationsTab />
@@ -429,6 +560,9 @@ export function VacationsPage() {
         </TabsContent>
         <TabsContent value="business-trips">
           <BusinessTripsTab />
+        </TabsContent>
+        <TabsContent value="balances">
+          <EmployeeBalancesTab />
         </TabsContent>
       </Tabs>
     </div>

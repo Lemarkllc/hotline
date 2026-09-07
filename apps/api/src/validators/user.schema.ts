@@ -27,12 +27,6 @@ export const updateUserSchema = z.object({
     .nullable()
     .optional(),
   roleNames: z.array(z.enum(ROLE_NAMES)).min(1).optional(),
-  /** Для формулы остатка отпуска (PLAN.md §10) — пока не заведён полноценный
-   * бот-онбординг, HRD/Администратор вводит это вручную через UsersPage. */
-  hireDate: z.coerce.date().nullable().optional(),
-  /** Оба поля задаются только вместе — стартовый остаток без даты снимка бессмысленен. */
-  startingBalance: z.number().min(0).optional(),
-  balanceAsOfDate: z.coerce.date().optional(),
 });
 
 export const updateChannelAccessSchema = z.object({

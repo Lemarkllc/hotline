@@ -382,9 +382,6 @@ export function useUpdateUser() {
       fullName?: string;
       telegramId?: string | null;
       roleNames?: string[];
-      hireDate?: string | null;
-      startingBalance?: number;
-      balanceAsOfDate?: string;
     }) => apiRequest<UserDTO>(`/users/${id}`, { method: "PATCH", body: input }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
   });
@@ -778,6 +775,40 @@ export function useRejectBusinessTripRequest() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       apiRequest<BusinessTripRequestDTO>(`/business-trip-requests/${id}/reject`, { method: "POST", body: { reason } }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["business-trip-requests"] }),
+  });
+}
+
+/** Узкий HRD-доступ (vacation.manage) к дате приёма/остатку отпуска сотрудников —
+ * отдельно от /users (user.manage, только Администратор). См. employeeBalanceRoutes.ts. */
+export interface EmployeeBalanceDTO {
+  id: string;
+  fullName: string;
+  hireDate: string | null;
+  startingBalance: number | null;
+  balanceAsOfDate: string | null;
+  availableDays: number | null;
+}
+
+export function useEmployeeBalances() {
+  return useQuery({
+    queryKey: ["employee-balances"],
+    queryFn: () => apiRequest<EmployeeBalanceDTO[]>("/employees"),
+  });
+}
+
+export function useUpdateEmployeeBalance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...input
+    }: {
+      id: string;
+      hireDate?: string | null;
+      startingBalance?: number;
+      balanceAsOfDate?: string;
+    }) => apiRequest<EmployeeBalanceDTO>(`/employees/${id}/balance`, { method: "PATCH", body: input }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["employee-balances"] }),
   });
 }
 

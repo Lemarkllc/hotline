@@ -195,16 +195,6 @@ function EditUserDialog({ user }: { user: UserDTO }) {
   const [telegramId, setTelegramId] = useState(user.telegramId ?? "");
   const [role, setRole] = useState(user.roleNames?.[0] ?? "MANAGER");
   const [channels, setChannels] = useState<Channel[]>(user.channels ?? []);
-  // PLAN.md §10 — источник для формулы остатка отпуска, вводится вручную HRD/Админом
-  // до появления полноценного бот-онбординга. asOfDate по умолчанию — сегодня, чтобы
-  // не заставлять вводить дату для самого частого случая "остаток на сейчас".
-  const [hireDate, setHireDate] = useState(user.hireDate?.slice(0, 10) ?? "");
-  const [startingBalance, setStartingBalance] = useState(
-    user.vacationBalance ? String(user.vacationBalance.startingBalance) : "",
-  );
-  const [balanceAsOfDate, setBalanceAsOfDate] = useState(
-    user.vacationBalance?.asOfDate.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-  );
   const update = useUpdateUser();
   const updateChannels = useUpdateUserChannels();
 
@@ -219,10 +209,6 @@ function EditUserDialog({ user }: { user: UserDTO }) {
       fullName,
       telegramId: telegramId.trim() ? telegramId.trim() : null,
       roleNames: [role],
-      hireDate: hireDate ? hireDate : null,
-      // Оба поля отправляются только вместе — стартовый остаток без даты снимка
-      // бессмысленен для формулы (см. userService.updateUser на бэкенде).
-      ...(startingBalance.trim() ? { startingBalance: Number(startingBalance), balanceAsOfDate } : {}),
     });
     // Отдельный запрос от роли/ФИО намеренно — свой эндпоинт (PATCH /users/:id/channels,
     // см. PLAN.md "Найден и закрыт пробел 10.08.2026"), своя семантика "полная замена
@@ -269,40 +255,6 @@ function EditUserDialog({ user }: { user: UserDTO }) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="editHireDate">Дата приёма на работу</Label>
-            <Input
-              id="editHireDate"
-              type="date"
-              value={hireDate}
-              onChange={(e) => setHireDate(e.target.value)}
-            />
-            <p className="text-meta text-text-3">Источник для расчёта остатка отпуска.</p>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="editStartingBalance">Остаток отпуска на дату (дней)</Label>
-            <div className="flex gap-2">
-              <Input
-                id="editStartingBalance"
-                type="number"
-                min="0"
-                step="0.01"
-                value={startingBalance}
-                onChange={(e) => setStartingBalance(e.target.value)}
-                placeholder="не задан"
-                className="w-32"
-              />
-              <Input
-                type="date"
-                value={balanceAsOfDate}
-                onChange={(e) => setBalanceAsOfDate(e.target.value)}
-                disabled={!startingBalance.trim()}
-              />
-            </div>
-            <p className="text-meta text-text-3">
-              Разовый снимок из кадровых данных — остаток на сегодня считается формулой от него.
-            </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Доступ к каналам</Label>
