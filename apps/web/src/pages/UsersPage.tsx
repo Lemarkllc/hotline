@@ -125,7 +125,12 @@ function CreateWebAccountDialog() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState("MANAGER");
+  // EMPLOYEE — самый безопасный дефолт (у роли нет ни одного permission, см.
+  // DEFAULT_ROLE_PERMISSIONS в packages/shared/permissions.ts): если Администратор
+  // невнимательно проскочит выбор роли при создании аккаунта, новый пользователь
+  // просто ничего не увидит в панели, а не получит доступ к обращениям (был MANAGER —
+  // реальный риск случайно выдать лишний доступ, найдено пользователем вживую).
+  const [role, setRole] = useState("EMPLOYEE");
   const [result, setResult] = useState<TempPasswordResult | null>(null);
   const create = useCreateWebAccount();
 
@@ -193,7 +198,10 @@ function EditUserDialog({ user }: { user: UserDTO }) {
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState(user.fullName);
   const [telegramId, setTelegramId] = useState(user.telegramId ?? "");
-  const [role, setRole] = useState(user.roleNames?.[0] ?? "MANAGER");
+  // Тот же безопасный дефолт, что и в CreateWebAccountDialog — этот fallback
+  // сработает только если у существующего пользователя вообще нет роли (не должно
+  // случаться в норме), но лучше молча не подставлять MANAGER и в этом крайнем случае.
+  const [role, setRole] = useState(user.roleNames?.[0] ?? "EMPLOYEE");
   const [channels, setChannels] = useState<Channel[]>(user.channels ?? []);
   const update = useUpdateUser();
   const updateChannels = useUpdateUserChannels();
