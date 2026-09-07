@@ -11,6 +11,7 @@
     "lint": "echo 'no lint configured for api'",
     "test": "vitest run",
     "test:mutation": "stryker run stryker.vacationBalance.conf.json",
+    "test:mutation:notifications": "stryker run stryker.notificationQuery.conf.json",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

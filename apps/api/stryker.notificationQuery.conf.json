@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Мутационные тесты — второй критический узел (найден на проде 07.09.2026): построение WHERE-условия для выборки уведомлений на доставку боту. Пропавший/неверный фильтр здесь не падает и не логирует ошибку — он просто тихо возвращает не те строки, из-за чего вся Telegram-доставка сотрудникам молчала месяц. Узкий охват, тот же принцип, что у stryker.vacationBalance.conf.json.",
+  "packageManager": "pnpm",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "testRunner": "vitest",
+  "reporters": ["clear-text", "progress"],
+  "mutate": ["src/utils/notificationQuery.ts"],
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "thresholds": { "high": 90, "low": 70, "break": 70 }
+}

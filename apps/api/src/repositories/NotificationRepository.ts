@@ -1,6 +1,7 @@
 import type { Notification, NotificationChannel, Prisma } from "@prisma/client";
 import type { Channel } from "@hotline/shared";
 import { prisma } from "@/lib/prisma.js";
+import { buildPendingNotificationsWhere } from "@/utils/notificationQuery.js";
 
 // include user.telegramId и externalContact.telegramId — боту нужен именно telegramId,
 // chatId для private-чата всегда ему равен. Ровно один из двух заполнен на строку
@@ -24,21 +25,31 @@ export class NotificationRepository {
   }
 
   /**
-   * channel обязателен — bot-employee и bot-customer опрашивают ЭТОТ метод независимо
-   * друг от друга (Фаза 7), и до этой правки оба видели ВЕСЬ общий PENDING-список без
-   * фильтра: чужой бот получал notification, ловил "нет telegramId" (userId и
-   * externalContactId взаимоисключающие), тихо ничего не делал в своём handler'е — но
-   * поллер (packages/bot-core) всё равно вызывал ack() на успешно (без throw)
-   * отработавший handler. Уведомление помечалось SENT, реально не будучи доставленным,
-   * и настоящий адресат-бот на следующем тике уже не видел его в PENDING. Отсюда
-   * "иногда не доходит" — вероятностная гонка между двумя поллерами, а не постоянный сбой.
+   * channel (EMPLOYEE/CUSTOMER) обязателен — bot-employee и bot-customer опрашивают ЭТОТ
+   * метод независимо друг от друга (Фаза 7), и до этой правки оба видели ВЕСЬ общий
+   * PENDING-список без фильтра: чужой бот получал notification, ловил "нет telegramId"
+   * (userId и externalContactId взаимоисключающие), тихо ничего не делал в своём
+   * handler'е — но поллер (packages/bot-core) всё равно вызывал ack() на успешно (без
+   * throw) отработавший handler. Уведомление помечалось SENT, реально не будучи
+   * доставленным, и настоящий адресат-бот на следующем тике уже не видел его в PENDING.
+   * Отсюда "иногда не доходит" — вероятностная гонка между двумя поллерами, а не
+   * постоянный сбой.
+   *
+   * КРИТИЧНО (найдено вживую на проде, 07.09.2026): этот метод всегда вызывается только
+   * для доставки в Telegram (см. listPendingForBot), но фильтр по протоколу
+   * (NotificationChannel: TELEGRAM/WEB — НЕ путать с параметром channel выше, тот
+   * EMPLOYEE/CUSTOMER) применялся только в JS ПОСЛЕ take(limit), а не в самом запросе.
+   * WEB-уведомления (колокольчик на веб-панели) остаются PENDING, пока их не прочитают
+   * в UI — то есть их количество растёт неограниченно и не связано с доставкой боту.
+   * Когда их накопилось больше limit (в проде — свыше 1500 против 50), они целиком
+   * вытеснили ВСЕ Telegram-уведомления из выборки "50 самых старых PENDING" — бот
+   * получал пустой/почти пустой список и не отправлял ничего целый месяц, при этом ни
+   * одной ошибки нигде не логировалось (запрос отрабатывал успешно, просто над пустым/
+   * почти пустым результатом). Fix: фильтр протокола — в самом запросе, а не после take().
    */
   listPending(channel: Channel, limit = 50): Promise<PendingNotification[]> {
     return prisma.notification.findMany({
-      where: {
-        status: "PENDING",
-        ...(channel === "EMPLOYEE" ? { userId: { not: null } } : { externalContactId: { not: null } }),
-      },
+      where: buildPendingNotificationsWhere(channel),
       include: PENDING_INCLUDE,
       orderBy: { createdAt: "asc" },
       take: limit,
