@@ -91,7 +91,7 @@ export class EmailSendService {
       await transporter.sendMail({
         from: config.email.systemFromAddress,
         to: toEmail,
-        subject: "Доступ к HotLineBot",
+        subject: "Доступ к Lemark One",
         html: renderTemporaryPasswordHtml(fullName, temporaryPassword),
       });
       return true;

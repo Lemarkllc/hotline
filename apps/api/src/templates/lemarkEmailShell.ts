@@ -1,9 +1,14 @@
 /**
  * Фирменная "оболочка" письма Lemark (шапка с логотипом/навигацией, тёмно-синий
  * контактный блок, футер) — прислана пользователем как есть (html_template.html),
- * не редактируется. Плейсхолдеры {{EMAIL_TITLE}}/{{PREHEADER_TEXT}}/{{EMAIL_CONTENT}}
- * заполняются конкретными шаблонами письма (см. leadConfirmation.ts) через
- * renderInShell().
+ * не редактируется, кроме одного пункта: src логотипа в шапке был на CDN Stripo
+ * (twevjw.stripocdn.email/.../lemark.png) — конструктора писем, в котором вёрстка
+ * готовилась, ссылка нестабильна вне его кабинета и не грузилась у получателей
+ * (найдено пользователем вживую). Заменена на собственный хостинг того же файла —
+ * apps/web/public/icons/email-logo.png, отдаётся статикой по тому же домену, что
+ * панель (config.email.webAppUrl). Плейсхолдеры {{EMAIL_TITLE}}/{{PREHEADER_TEXT}}/
+ * {{EMAIL_CONTENT}} заполняются конкретными шаблонами письма (см. leadConfirmation.ts)
+ * через renderInShell().
  */
 export const LEMARK_EMAIL_SHELL = `<!doctype html>
 <html lang="ru"
@@ -185,7 +190,7 @@ export const LEMARK_EMAIL_SHELL = `<!doctype html>
                  style="display:inline-block;">
 
                 <img
-                  src="https://twevjw.stripocdn.email/content/guids/CABINET_4e7168d8fee1a19ffac01face9fb09783c851ff4bf085009e53bcd03f0ae6ee5/images/lemark.png"
+                  src="https://hot.lemarkllc.ru/icons/email-logo.png"
                   width="210"
                   alt="LEMARK"
                   style="

@@ -2,10 +2,13 @@ import { config } from "@/config/unifiedConfig.js";
 import { escapeHtml, renderInShell } from "@/templates/lemarkEmailShell.js";
 
 /**
- * Внутреннее системное письмо (создание веб-аккаунта / сброс пароля в HotLineBot) —
- * та же фирменная оболочка Lemark (шапка/футер), что и у письма-подтверждения
- * заявки, но отправитель другой ("Lemark HotLine", не "Lemark"/sales@, см.
- * config.email.systemFromAddress) и аудитория другая — сотрудник, а не клиент.
+ * Внутреннее системное письмо (создание веб-аккаунта / сброс пароля в панели
+ * Lemark One) — та же фирменная оболочка Lemark (шапка/футер), что и у письма-
+ * подтверждения заявки, но отправитель другой ("Lemark HotLine", не "Lemark"/
+ * sales@, см. config.email.systemFromAddress) и аудитория другая — сотрудник,
+ * а не клиент. Текст письма говорит именно про панель ("Lemark One" — веб-панель
+ * HRD/менеджеров), а не про бота (тот остаётся "HotLineBot" как отдельная
+ * сущность) — найдено пользователем вживую как несоответствие названия.
  */
 export function renderTemporaryPasswordHtml(fullName: string, temporaryPassword: string): string {
   const name = escapeHtml(fullName);
@@ -17,7 +20,7 @@ export function renderTemporaryPasswordHtml(fullName: string, temporaryPassword:
       <tr>
         <td style="background-color:#FDEEEF;border-radius:20px;padding:6px 14px;">
           <span style="font:700 13px/1.2 Arial,Helvetica,sans-serif;color:#C1272D;letter-spacing:0.3px;">
-            HotLineBot · доступ к панели
+            Lemark One · доступ к панели
           </span>
         </td>
       </tr>
@@ -27,7 +30,7 @@ export function renderTemporaryPasswordHtml(fullName: string, temporaryPassword:
       Здравствуйте, ${name}!
     </h1>
     <p style="margin:0 0 24px;font:17px/26px Arial,Helvetica,sans-serif;color:#41515B;">
-      Для вас создан (или обновлён) доступ к панели <strong style="color:#102A38;">HotLineBot</strong>.
+      Для вас создан (или обновлён) доступ к панели <strong style="color:#102A38;">Lemark One</strong>.
     </p>
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#102A38;background:linear-gradient(135deg,#102A38 0%,#1B4257 100%);border-radius:10px;margin-bottom:28px;">
@@ -59,8 +62,8 @@ export function renderTemporaryPasswordHtml(fullName: string, temporaryPassword:
   `;
 
   return renderInShell({
-    title: "Доступ к HotLineBot",
-    preheader: `Ваш временный пароль для входа в HotLineBot: ${temporaryPassword}`,
+    title: "Доступ к Lemark One",
+    preheader: `Ваш временный пароль для входа в Lemark One: ${temporaryPassword}`,
     content,
   });
 }
