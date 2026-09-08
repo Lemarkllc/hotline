@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { vacationController } from "@/controllers/VacationController.js";
 import { requireBotService, requireWebAuth } from "@/middleware/auth.js";
-import { requirePlainPermission } from "@/middleware/rbac.js";
+import { requireAnyPlainPermission, requirePlainPermission } from "@/middleware/rbac.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
 import { validate } from "@/middleware/validate.js";
 import {
   createVacationRequestBotSchema,
   listVacationRequestsQuerySchema,
   rejectHrRequestSchema,
+  updateVacationChecklistSchema,
   vacationBalanceQuerySchema,
 } from "@/validators/vacation.schema.js";
 
@@ -36,7 +37,7 @@ vacationRoutes.get(
 vacationRoutes.get(
   "/",
   requireWebAuth,
-  requirePlainPermission("vacation.manage"),
+  requireAnyPlainPermission("vacation.manage", "hr.process"),
   validate(listVacationRequestsQuerySchema, "query"),
   asyncErrorWrapper((req, res) => vacationController.list(req, res)),
 );
@@ -44,7 +45,7 @@ vacationRoutes.get(
 vacationRoutes.get(
   "/:id",
   requireWebAuth,
-  requirePlainPermission("vacation.manage"),
+  requireAnyPlainPermission("vacation.manage", "hr.process"),
   asyncErrorWrapper((req, res) => vacationController.getById(req, res)),
 );
 
@@ -61,4 +62,28 @@ vacationRoutes.post(
   requirePlainPermission("vacation.manage"),
   validate(rejectHrRequestSchema),
   asyncErrorWrapper((req, res) => vacationController.reject(req, res)),
+);
+
+// Стадия «Оформление» (роль HR) — доступна и HR, и HRD (надзор), в отличие от
+// approve/reject выше, которые остаются только vacation.manage (HRD).
+vacationRoutes.patch(
+  "/:id/checklist",
+  requireWebAuth,
+  requireAnyPlainPermission("hr.process", "vacation.manage"),
+  validate(updateVacationChecklistSchema),
+  asyncErrorWrapper((req, res) => vacationController.updateChecklist(req, res)),
+);
+
+vacationRoutes.post(
+  "/:id/process",
+  requireWebAuth,
+  requireAnyPlainPermission("hr.process", "vacation.manage"),
+  asyncErrorWrapper((req, res) => vacationController.process(req, res)),
+);
+
+vacationRoutes.get(
+  "/:id/attachments/:attachmentId/url",
+  requireWebAuth,
+  requireAnyPlainPermission("hr.process", "vacation.manage"),
+  asyncErrorWrapper((req, res) => vacationController.getAttachmentUrl(req, res)),
 );

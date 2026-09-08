@@ -31,6 +31,17 @@ export interface AppealDTO {
   status: AppealStatus;
   /** Только type="RESIGNATION" — исход закрытия (см. Appeal.resignationOutcome). */
   resignationOutcome: ResignationOutcome | null;
+  /** Стадия «Оформление» (роль HR) — только type="RESIGNATION" && resignationOutcome=
+   * "TERMINATED". processedAt!=null — увольнение уже оформлено (сотрудник заблокирован
+   * и удалён из чатов), см. Appeal.processedAt в schema.prisma. */
+  terminationChecklist: {
+    walkoffSheetSigned: boolean;
+    terminationOrderSigned: boolean;
+    certificatesIssued: boolean;
+    terminationApplicationSigned: boolean;
+  };
+  processedBy: { id: string; fullName: string } | null;
+  processedAt: Date | null;
   epic: { id: string; name: string } | null;
   originalText: string;
   workingEdit: string | null;
@@ -237,16 +248,91 @@ export class AppealService {
     await notificationService.notifyStatusChanged(id, toStatus, toStatus === "CLOSED" ? finalAnswer : undefined);
 
     if (toStatus === "CLOSED" && appeal.type === "RESIGNATION" && resignationOutcome === "TERMINATED") {
-      // appeal.authorUserId гарантированно есть — RESIGNATION существует только на
-      // канале EMPLOYEE, где автор всегда User (никогда ExternalContact).
-      // Удаление из общего/производственного Telegram-чата теперь встроено в
-      // userService.blockUser() (срабатывает для любой блокировки, не только этой) —
-      // отдельный notifyEmployeeTerminated() здесь больше не нужен, дублировал бы уведомление.
-      await userService.blockUser(user, appeal.authorUserId!, `Уволен(а) по заявлению ${appeal.publicNumber}`);
+      // Исполнение (блокировка + удаление из чатов, userService.blockUser) больше НЕ
+      // срабатывает сразу здесь — отложено до стадии «Оформление» (клик HR «Оформить»,
+      // см. processTermination ниже), прямое решение пользователя после grill-me-сессии.
+      // Сотрудник остаётся активным до полного оформления бумаг. Текст сотруднику про
+      // «согласовано, обратитесь в отдел персонала» отдельно не нужен — уже долетает
+      // через notifyStatusChanged выше как обязательный finalAnswer HRD.
+      const author = await userRepository.findById(appeal.authorUserId!);
+      await notificationService.notifyHrTerminationAwaitingProcessing(id, author?.fullName ?? "Сотрудник");
     }
 
     const updated = await appealRepository.findById(id);
     return this.serializeForStaff(updated!, user);
+  }
+
+  /** Стадия «Оформление» увольнения — доступна и HR (hr.process), и HRD (appeal.close,
+   * сохраняет надзор). Отдельно от requirePermission на роуте — та же схема, что у
+   * vacationService.requireProcess. */
+  private requireTerminationProcess(user: AuthenticatedUser): void {
+    if (!user.permissions.includes("hr.process") && !user.permissions.includes("appeal.close")) {
+      throw new ForbiddenError("Недостаточно прав для оформления увольнения");
+    }
+  }
+
+  private assertAwaitingTerminationProcessing(appeal: AppealWithDetails): void {
+    if (appeal.type !== "RESIGNATION" || appeal.resignationOutcome !== "TERMINATED" || appeal.status !== "CLOSED") {
+      throw new ValidationError("Оформление доступно только для закрытых заявлений с исходом «Уволен(а)»");
+    }
+    if (appeal.processedAt) throw new ValidationError("Увольнение уже оформлено");
+  }
+
+  async listAwaitingTerminationProcessing(user: AuthenticatedUser): Promise<AppealDTO[]> {
+    this.requireTerminationProcess(user);
+    const appeals = await appealRepository.listAwaitingTerminationProcessing();
+    return appeals.map((a) => this.serializeForStaff(a, user, true));
+  }
+
+  async updateTerminationChecklist(
+    user: AuthenticatedUser,
+    id: string,
+    data: {
+      walkoffSheetSigned?: boolean;
+      terminationOrderSigned?: boolean;
+      certificatesIssued?: boolean;
+      terminationApplicationSigned?: boolean;
+    },
+  ): Promise<AppealDTO> {
+    this.requireTerminationProcess(user);
+    const appeal = await appealRepository.findById(id);
+    if (!appeal) throw new NotFoundError("Обращение не найдено");
+    this.assertAwaitingTerminationProcessing(appeal);
+
+    const updated = await appealRepository.updateTerminationChecklist(id, data);
+    return this.serializeForStaff(updated, user, true);
+  }
+
+  /** Кнопка HR «Оформить» — здесь и только здесь срабатывает фактическое исполнение
+   * увольнения (см. комментарий в changeStatus выше). Необратимо: processedAt не сбрасывается. */
+  async processTermination(user: AuthenticatedUser, id: string): Promise<AppealDTO> {
+    this.requireTerminationProcess(user);
+    const appeal = await appealRepository.findById(id);
+    if (!appeal) throw new NotFoundError("Обращение не найдено");
+    this.assertAwaitingTerminationProcessing(appeal);
+    if (
+      !appeal.walkoffSheetSigned ||
+      !appeal.terminationOrderSigned ||
+      !appeal.certificatesIssued ||
+      !appeal.terminationApplicationSigned
+    ) {
+      throw new ValidationError("Отметьте все пункты чек-листа перед оформлением");
+    }
+
+    // appeal.authorUserId гарантированно есть — RESIGNATION существует только на
+    // канале EMPLOYEE, где автор всегда User (никогда ExternalContact).
+    await userService.blockUser(user, appeal.authorUserId!, `Уволен(а) по заявлению ${appeal.publicNumber}`);
+    await notificationService.notifyTerminationProcessed(appeal.authorUserId!);
+    const updated = await appealRepository.processTermination(id, user.id);
+    await auditService.record({
+      actorId: user.id,
+      action: "appeal.termination_processed",
+      objectType: "Appeal",
+      objectId: id,
+      appealId: id,
+      result: "success",
+    });
+    return this.serializeForStaff(updated, user, true);
   }
 
   async assign(user: AuthenticatedUser, id: string, assigneeUserId: string): Promise<AppealDTO> {
@@ -478,9 +564,14 @@ export class AppealService {
     const appeal = await appealRepository.findById(appealId);
     if (!appeal) throw new NotFoundError("Обращение не найдено");
     const isAssigned = appeal.assignments.some((a) => a.userId === user.id);
+    // Стадия «Оформление» увольнения — та же оговорка, что и в serializeForStaff
+    // (forceAssigned): HR не обязательно назначена, но должна видеть фото подписанного
+    // заявления, чтобы делать свою работу; доступ уже сузен типом RESIGNATION + правом.
+    const hrProcessAccess = appeal.type === "RESIGNATION" && user.permissions.includes("hr.process");
     if (
       !hasChannelPermission(user, "appeal.read_all", appeal.channel) &&
-      !(hasChannelPermission(user, "appeal.read_assigned", appeal.channel) && isAssigned)
+      !(hasChannelPermission(user, "appeal.read_assigned", appeal.channel) && isAssigned) &&
+      !hrProcessAccess
     ) {
       throw new ForbiddenError("Недостаточно прав для просмотра вложения");
     }
@@ -489,8 +580,14 @@ export class AppealService {
     return getPresignedDownloadUrl(attachment.storageKey, { forceDownload });
   }
 
-  private serializeForStaff(appeal: AppealWithDetails, user: AuthenticatedUser): AppealDTO {
-    const isAssigned = appeal.assignments.some((a) => a.userId === user.id);
+  /** forceAssigned — только для стадии «Оформление» увольнения (listAwaitingTerminationProcessing/
+   * updateTerminationChecklist/processTermination): HR не обязательно назначена на конкретное
+   * обращение (appeal.read_assigned без appeal.read_all), но доступ к самой этой узкой очереди
+   * уже проверен requireTerminationProcess (hr.process) выше по стеку — она должна видеть, кого
+   * увольняет, иначе не может делать свою работу. canSeeAuthor() (authz.ts) не меняется —
+   * подменяется только вход isAssigned, а не сама функция-источник правды. */
+  private serializeForStaff(appeal: AppealWithDetails, user: AuthenticatedUser, forceAssigned = false): AppealDTO {
+    const isAssigned = forceAssigned || appeal.assignments.some((a) => a.userId === user.id);
     const authorVisible = canSeeAuthor(appeal, user, isAssigned);
     const canSeeInternal =
       hasChannelPermission(user, "appeal.read_all", appeal.channel) ||
@@ -504,6 +601,14 @@ export class AppealService {
       mode: appeal.mode,
       status: appeal.status,
       resignationOutcome: appeal.resignationOutcome,
+      terminationChecklist: {
+        walkoffSheetSigned: appeal.walkoffSheetSigned,
+        terminationOrderSigned: appeal.terminationOrderSigned,
+        certificatesIssued: appeal.certificatesIssued,
+        terminationApplicationSigned: appeal.terminationApplicationSigned,
+      },
+      processedBy: appeal.processedBy ? { id: appeal.processedBy.id, fullName: appeal.processedBy.fullName } : null,
+      processedAt: appeal.processedAt,
       epic: appeal.epic ? { id: appeal.epic.id, name: appeal.epic.name } : null,
       originalText: appeal.originalText,
       workingEdit: appeal.workingEdit,
@@ -616,6 +721,15 @@ export class AppealService {
       mode: appeal.mode,
       status: appeal.status,
       resignationOutcome: appeal.resignationOutcome,
+      // Стадия «Оформление» — внутренний инструмент HR/HRD, автору не показывается.
+      terminationChecklist: {
+        walkoffSheetSigned: false,
+        terminationOrderSigned: false,
+        certificatesIssued: false,
+        terminationApplicationSigned: false,
+      },
+      processedBy: null,
+      processedAt: null,
       epic: appeal.epic ? { id: appeal.epic.id, name: appeal.epic.name } : null,
       originalText: appeal.originalText,
       workingEdit: null, // автору рабочая редакция не показывается — это внутренний инструмент HRD

@@ -107,7 +107,8 @@ export const MAIN_MENU_KEYBOARD = new InlineKeyboard()
   .text("Конфиденциальность", "menu:privacy");
 
 /** «Отпуска» — отдельная сущность (не Appeal), согласовывает только HRD на вебе,
- * поэтому у превью нет "Изменить режим"/вложений — только тип оплаты/даты/комментарий. */
+ * поэтому у превью нет "Изменить режим" — но фото заявления обязательно (прямое
+ * решение пользователя), см. vacationPreviewKeyboard ниже. */
 export function vacationPaidKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("Оплачиваемый", "paid:true")
@@ -139,6 +140,8 @@ export function vacationPreviewKeyboard(): InlineKeyboard {
     .text("Изменить даты", "edit_dates")
     .row()
     .text("Изменить комментарий", "edit_comment")
+    .row()
+    .text("Изменить вложения", "edit_attachments")
     .row()
     .text("Отменить", "cancel");
 }

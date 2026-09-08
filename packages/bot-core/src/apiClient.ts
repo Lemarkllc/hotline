@@ -74,7 +74,14 @@ export class ApiClient {
   /** «Отпуска» — отдельная от Appeal подсистема, только сотрудник → HRD (см. PLAN,
    * VacationRequest). dateFrom/dateTo — Date, сериализуются в JSON как ISO-строка,
    * apps/api/src/validators/vacation.schema.ts коэрсит их обратно через z.coerce.date(). */
-  createVacationRequest(input: { telegramId: string; dateFrom: Date; dateTo: Date; comment?: string; paid: boolean }) {
+  createVacationRequest(input: {
+    telegramId: string;
+    dateFrom: Date;
+    dateTo: Date;
+    comment?: string;
+    paid: boolean;
+    attachmentIds: string[];
+  }) {
     return this.request<{ id: string; publicNumber: string }>("POST", "/vacation-requests", input);
   }
 

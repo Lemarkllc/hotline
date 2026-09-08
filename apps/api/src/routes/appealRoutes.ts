@@ -3,7 +3,7 @@ import { ratingSchema } from "@hotline/shared";
 import { appealController } from "@/controllers/AppealController.js";
 import { userController } from "@/controllers/UserController.js";
 import { requireBotService, requireWebAuth } from "@/middleware/auth.js";
-import { requirePermission } from "@/middleware/rbac.js";
+import { requireAnyPlainPermission, requirePermission } from "@/middleware/rbac.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
 import { validate } from "@/middleware/validate.js";
 import {
@@ -16,6 +16,7 @@ import {
   myAppealsQuerySchema,
   revealAuthorSchema,
   setEpicSchema,
+  terminationChecklistSchema,
   workingEditSchema,
 } from "@/validators/appeal.schema.js";
 import { z } from "zod";
@@ -72,6 +73,15 @@ appealRoutes.get(
   requireWebAuth,
   requirePermission("appeal.assign"),
   asyncErrorWrapper((req, res) => userController.listAssignable(req, res)),
+);
+
+// Стадия «Оформление» (роль HR) — очередь увольнений, согласованных HRD и ещё не
+// оформленных. Должен идти раньше "/:id", иначе express примет путь за :id.
+appealRoutes.get(
+  "/awaiting-termination-processing",
+  requireWebAuth,
+  requireAnyPlainPermission("hr.process", "appeal.close"),
+  asyncErrorWrapper((req, res) => appealController.listAwaitingTerminationProcessing(req, res)),
 );
 
 appealRoutes.get(
@@ -133,4 +143,19 @@ appealRoutes.get(
   "/:id/attachments/:attachmentId/url",
   requireWebAuth,
   asyncErrorWrapper((req, res) => appealController.getAttachmentUrl(req, res)),
+);
+
+appealRoutes.patch(
+  "/:id/termination-checklist",
+  requireWebAuth,
+  requireAnyPlainPermission("hr.process", "appeal.close"),
+  validate(terminationChecklistSchema),
+  asyncErrorWrapper((req, res) => appealController.updateTerminationChecklist(req, res)),
+);
+
+appealRoutes.post(
+  "/:id/termination-process",
+  requireWebAuth,
+  requireAnyPlainPermission("hr.process", "appeal.close"),
+  asyncErrorWrapper((req, res) => appealController.processTermination(req, res)),
 );

@@ -2,6 +2,7 @@ import type { Context } from "grammy";
 import { apiClient } from "../api.js";
 import { DATE_FORMAT_HINT, formatDate, parseDate } from "../dateInput.js";
 import {
+  attachmentsKeyboard,
   MAIN_MENU_KEYBOARD,
   vacationCommentKeyboard,
   vacationDateKeyboard,
@@ -11,9 +12,10 @@ import {
 import type { BotConversation } from "../types.js";
 
 /** Заявка на отпуск (VacationRequest, не Appeal) — согласовывает только HRD на вебе
- * (решение пользователя), поэтому здесь нет режима OPEN/CONFIDENTIAL и вложений —
- * только тип оплаты, даты и необязательный комментарий. Анатомия — по образцу
- * newAppeal.ts. Баланс/валидация против него — PLAN.md §10. */
+ * (решение пользователя), поэтому здесь нет режима OPEN/CONFIDENTIAL — только тип
+ * оплаты, даты, необязательный комментарий и обязательное фото заявления (прямое
+ * решение пользователя, тот же приём, что и у RESIGNATION-обращений newAppeal.ts).
+ * Анатомия — по образцу newAppeal.ts. Баланс/валидация против него — PLAN.md §10. */
 export async function vacation(conversation: BotConversation, ctx: Context): Promise<void> {
   const telegramId = String(ctx.from!.id);
 
@@ -88,6 +90,41 @@ export async function vacation(conversation: BotConversation, ctx: Context): Pro
     return result.message!.text.trim() || undefined;
   }
 
+  // Тот же приём, что collectAttachments в newAppeal.ts (requireAtLeastOne=true для
+  // RESIGNATION) — приём фото вне conversation, через ctx.session.draftAttachmentIds
+  // (см. bot.ts, известный баг @grammyjs/conversations на повторный external() в цикле).
+  async function collectAttachments(): Promise<string[] | "cancel"> {
+    await conversation.external((c) => {
+      c.session.draftAttachmentIds = [];
+    });
+    await ctx.reply(
+      "Прикрепите фото заявления на отпуск — отправьте его сюда файлом (через скрепку). " +
+        "Когда закончите — нажмите «Перейти дальше».",
+      { reply_markup: attachmentsKeyboard(0) },
+    );
+    for (;;) {
+      const answer = await conversation.waitForCallbackQuery(["attach_done", "cancel"]);
+      await answer.answerCallbackQuery();
+      if (answer.callbackQuery.data === "cancel") {
+        await conversation.external((c) => {
+          c.session.draftAttachmentIds = undefined;
+        });
+        return "cancel";
+      }
+      const ids = await conversation.external((c) => c.session.draftAttachmentIds ?? []);
+      if (ids.length === 0) {
+        await ctx.reply("Нужно приложить хотя бы одно фото заявления, прежде чем продолжить.", {
+          reply_markup: attachmentsKeyboard(0),
+        });
+        continue;
+      }
+      await conversation.external((c) => {
+        c.session.draftAttachmentIds = undefined;
+      });
+      return ids;
+    }
+  }
+
   let paid = await pickPaid();
   if (paid === "cancel") return cancelled();
 
@@ -100,11 +137,15 @@ export async function vacation(conversation: BotConversation, ctx: Context): Pro
   let comment = await collectComment();
   if (comment === "cancel") return cancelled();
 
+  let attachmentIds = await collectAttachments();
+  if (attachmentIds === "cancel") return cancelled();
+
   for (;;) {
     await ctx.reply(
       `Тип: ${paid ? "Оплачиваемый" : "За свой счёт"}\n` +
         `С ${formatDate(dateFrom)} по ${formatDate(dateTo)}` +
         (comment ? `\nКомментарий: ${comment}` : "") +
+        `\nВложения: ${attachmentIds.length}` +
         "\n\nПроверьте данные перед отправкой.",
       { reply_markup: vacationPreviewKeyboard() },
     );
@@ -113,6 +154,7 @@ export async function vacation(conversation: BotConversation, ctx: Context): Pro
       "edit_paid",
       "edit_dates",
       "edit_comment",
+      "edit_attachments",
       "cancel",
     ]);
     await answer.answerCallbackQuery();
@@ -137,11 +179,16 @@ export async function vacation(conversation: BotConversation, ctx: Context): Pro
       if (result === "cancel") return cancelled();
       comment = result;
     }
+    if (answer.callbackQuery.data === "edit_attachments") {
+      const result = await collectAttachments();
+      if (result === "cancel") return cancelled();
+      attachmentIds = result;
+    }
   }
 
   try {
     const created = await conversation.external(() =>
-      apiClient.createVacationRequest({ telegramId, dateFrom, dateTo, comment, paid }),
+      apiClient.createVacationRequest({ telegramId, dateFrom, dateTo, comment, paid, attachmentIds }),
     );
     await ctx.reply(
       `Заявка на отпуск зарегистрирована под номером ${created.publicNumber}.\n` +

@@ -5,6 +5,8 @@ import { nextSequence } from "@/utils/sequence.js";
 export const VACATION_DETAIL_INCLUDE = {
   user: true,
   decidedBy: true,
+  processedBy: true,
+  attachments: { where: { deletedAt: null } },
 } satisfies Prisma.VacationRequestInclude;
 
 export type VacationRequestWithUsers = Prisma.VacationRequestGetPayload<{ include: typeof VACATION_DETAIL_INCLUDE }>;
@@ -23,12 +25,13 @@ export class VacationRequestRepository {
     dateTo: Date;
     comment?: string;
     paid: boolean;
+    attachmentIds?: string[];
   }): Promise<VacationRequestWithUsers> {
     const year = new Date().getUTCFullYear();
     return prisma.$transaction(async (tx) => {
       const sequence = await nextSequence(`VACATION:${year}`);
       const publicNumber = `ОТП-${year}-${String(sequence).padStart(5, "0")}`;
-      return tx.vacationRequest.create({
+      const request = await tx.vacationRequest.create({
         data: {
           publicNumber,
           userId: data.userId,
@@ -40,6 +43,20 @@ export class VacationRequestRepository {
         },
         include: VACATION_DETAIL_INCLUDE,
       });
+      // Фото заявления — обязательное вложение (прямое решение пользователя), тот же
+      // draft-then-link приём, что и у AppealAttachment.appealId (см. AppealRepository.create).
+      if (data.attachmentIds?.length) {
+        await tx.appealAttachment.updateMany({
+          where: {
+            id: { in: data.attachmentIds },
+            appealId: null,
+            vacationRequestId: null,
+            uploadedByUserId: data.userId,
+          },
+          data: { vacationRequestId: request.id, draftExpiresAt: null },
+        });
+      }
+      return request;
     });
   }
 
@@ -68,9 +85,15 @@ export class VacationRequestRepository {
     });
   }
 
-  listAll(status?: VacationStatus): Promise<VacationRequestWithUsers[]> {
+  /** processed — фильтр по стадии «Оформление» (см. VacationRequest.processedAt в
+   * schema.prisma: намеренно НЕ часть status, чтобы не задеть sumApprovedPaidDaysSince
+   * выше). true — уже оформлено, false — одобрено и ждёт HR, undefined — не фильтровать. */
+  listAll(status?: VacationStatus, processed?: boolean): Promise<VacationRequestWithUsers[]> {
     return prisma.vacationRequest.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        ...(status ? { status } : {}),
+        ...(processed === undefined ? {} : { processedAt: processed ? { not: null } : null }),
+      },
       include: VACATION_DETAIL_INCLUDE,
       orderBy: { createdAt: "desc" },
     });
@@ -88,6 +111,26 @@ export class VacationRequestRepository {
         decisionReason: data.decisionReason,
         decidedAt: new Date(),
       },
+      include: VACATION_DETAIL_INCLUDE,
+    });
+  }
+
+  /** Стадия «Оформление» (роль HR, право hr.process) — чек-лист, тоггл частичный. */
+  updateChecklist(
+    id: string,
+    data: { applicationDrafted?: boolean; applicationSigned?: boolean },
+  ): Promise<VacationRequestWithUsers> {
+    return prisma.vacationRequest.update({
+      where: { id },
+      data,
+      include: VACATION_DETAIL_INCLUDE,
+    });
+  }
+
+  process(id: string, processedById: string): Promise<VacationRequestWithUsers> {
+    return prisma.vacationRequest.update({
+      where: { id },
+      data: { processedById, processedAt: new Date() },
       include: VACATION_DETAIL_INCLUDE,
     });
   }

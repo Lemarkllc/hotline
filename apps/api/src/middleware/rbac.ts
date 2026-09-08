@@ -47,3 +47,24 @@ export function requirePlainPermission(permission: Permission) {
     next();
   };
 }
+
+/**
+ * Тот же requirePlainPermission, но проходит, если у пользователя есть ХОТЯ БЫ ОДНО
+ * из перечисленных прав — нужно для эндпоинтов стадии «Оформление» (VacationRequest/
+ * Appeal RESIGNATION), доступных одновременно и роли HR (hr.process), и HRD
+ * (vacation.manage/appeal.close — она сохраняет надзор за оформлением, а не только
+ * согласование).
+ */
+export function requireAnyPlainPermission(...permissions: Permission[]) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      next(new UnauthorizedError());
+      return;
+    }
+    if (!permissions.some((p) => req.user!.permissions.includes(p))) {
+      next(new ForbiddenError(`Недостаточно прав: требуется одно из [${permissions.join(", ")}]`));
+      return;
+    }
+    next();
+  };
+}

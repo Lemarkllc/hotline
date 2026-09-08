@@ -49,7 +49,10 @@ export const ATTACHMENT_KINDS = ["PHOTO", "VIDEO"] as const;
 export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
 
 // SALES — Фаза 7 (PLAN.md §6): ведёт канал CUSTOMER, не EMPLOYEE-роль как остальные три.
-export const ROLE_NAMES = ["EMPLOYEE", "MANAGER", "ADMINISTRATOR", "HRD", "SALES"] as const;
+// HR — кадровое оформление (не HRD): стадия «Оформление» для Отпуска/Увольнения после
+// согласования HRD (право hr.process), плюс видимость назначенных ей обращений
+// (appeal.read_assigned, как у Менеджера). Прямое решение пользователя (grill-me).
+export const ROLE_NAMES = ["EMPLOYEE", "MANAGER", "ADMINISTRATOR", "HRD", "SALES", "HR"] as const;
 export type RoleName = (typeof ROLE_NAMES)[number];
 
 /**

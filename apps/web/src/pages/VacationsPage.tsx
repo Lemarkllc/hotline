@@ -10,19 +10,29 @@ import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/u
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
+import { useAuthStore } from "@/lib/authStore";
 import {
   useAbsenceRequests,
   useApproveAbsenceRequest,
   useApproveBusinessTripRequest,
   useApproveVacationRequest,
+  useAttachmentUrl,
   useBusinessTripRequests,
   useEmployeeBalances,
+  useProcessTermination,
+  useProcessVacation,
   useRejectAbsenceRequest,
   useRejectBusinessTripRequest,
   useRejectVacationRequest,
+  useTerminationsAwaitingProcessing,
   useUpdateEmployeeBalance,
+  useUpdateTerminationChecklist,
+  useUpdateVacationChecklist,
+  useVacationAttachmentUrl,
   useVacationRequests,
   type AbsenceRequestDTO,
+  type AppealDTO,
   type BusinessTripRequestDTO,
   type EmployeeBalanceDTO,
   type VacationRequestDTO,
@@ -586,6 +596,273 @@ function TabBadge({ count }: { count: number }) {
   );
 }
 
+function ChecklistCheckbox({
+  label,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-ui text-text-1">
+      <input
+        type="checkbox"
+        className="size-4 accent-action"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
+/** Клик по строке открывает модалку — тот же паттерн, что у VacationsTab выше
+ * (Dialog/DetailField): чек-лист и «Оформить» переехали внутрь, вместе с фото
+ * заявления и комментариями сотрудника/HRD — карточка-строка сама по себе
+ * становится слишком длинной и загромождённой, если держать всё это открытым сразу. */
+function VacationProcessingRow({ request }: { request: VacationRequestDTO }) {
+  const [open, setOpen] = useState(false);
+  const updateChecklist = useUpdateVacationChecklist(request.id);
+  const process = useProcessVacation(request.id);
+  const getAttachmentUrl = useVacationAttachmentUrl();
+  const canProcess = request.applicationDrafted && request.applicationSigned;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-between gap-4 rounded-md border border-rule p-4 text-left transition-colors hover:bg-surface-sunk"
+      >
+        <div>
+          <p className="font-medium text-text-1">{request.user.fullName}</p>
+          <p className="font-mono text-meta text-text-3">
+            {request.publicNumber} · {formatDate(request.dateFrom)} – {formatDate(request.dateTo)}
+          </p>
+        </div>
+        <Badge variant={canProcess ? "success" : "warning"}>{canProcess ? "Готово к оформлению" : "Ожидает"}</Badge>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogTitle>{request.publicNumber}</DialogTitle>
+          <div className="mt-4 flex flex-col gap-3">
+            <DetailField label="Сотрудник" value={request.user.fullName} />
+            <DetailField label="Даты" value={`${formatDate(request.dateFrom)} – ${formatDate(request.dateTo)}`} />
+            <DetailField label="Комментарий сотрудника" value={request.comment ?? "—"} />
+            {request.decisionReason && <DetailField label="Комментарий HRD" value={request.decisionReason} />}
+            <DetailField
+              label="Заявление (фото)"
+              value={
+                <AttachmentGallery
+                  attachments={request.attachments.map((a) => ({
+                    id: a.id,
+                    mimeType: a.mimeType,
+                    fileSize: a.fileSize,
+                    label: a.kind === "PHOTO" ? "Фото" : "Видео",
+                  }))}
+                  getQueryKey={(attachmentId) => ["vacation-attachment-url", request.id, attachmentId]}
+                  fetchUrl={(attachmentId, download) =>
+                    getAttachmentUrl
+                      .mutateAsync({ vacationRequestId: request.id, attachmentId, download })
+                      .then((r) => r.url)
+                  }
+                />
+              }
+            />
+            <DetailField
+              label="Чек-лист"
+              value={
+                <div className="flex flex-col gap-1">
+                  <ChecklistCheckbox
+                    label="Заявление оформлено"
+                    checked={request.applicationDrafted}
+                    disabled={updateChecklist.isPending}
+                    onChange={(v) => updateChecklist.mutate({ applicationDrafted: v })}
+                  />
+                  <ChecklistCheckbox
+                    label="Заявление подписано"
+                    checked={request.applicationSigned}
+                    disabled={updateChecklist.isPending}
+                    onChange={(v) => updateChecklist.mutate({ applicationSigned: v })}
+                  />
+                </div>
+              }
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={!canProcess || process.isPending}
+              onClick={() => {
+                process.mutate();
+                setOpen(false);
+              }}
+            >
+              Оформить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function VacationProcessingList({ requests }: { requests: VacationRequestDTO[] | undefined }) {
+  if (!requests?.length) return <p className="text-ui text-text-3">Нет отпусков, ожидающих оформления.</p>;
+  return (
+    <div className="flex flex-col gap-3">
+      {requests.map((r) => (
+        <VacationProcessingRow key={r.id} request={r} />
+      ))}
+    </div>
+  );
+}
+
+function TerminationProcessingRow({ appeal }: { appeal: AppealDTO }) {
+  const [open, setOpen] = useState(false);
+  const updateChecklist = useUpdateTerminationChecklist(appeal.id);
+  const process = useProcessTermination(appeal.id);
+  const getAttachmentUrl = useAttachmentUrl();
+  const c = appeal.terminationChecklist;
+  const canProcess =
+    c.walkoffSheetSigned && c.terminationOrderSigned && c.certificatesIssued && c.terminationApplicationSigned;
+  // Финальный ответ HRD при закрытии обращения — обычный комментарий с isFinalAnswer,
+  // не отдельное поле (см. appealService.changeStatus, addComment({isFinalAnswer: true})).
+  const hrdComment = appeal.comments.find((c2) => c2.isFinalAnswer)?.text;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-between gap-4 rounded-md border border-rule p-4 text-left transition-colors hover:bg-surface-sunk"
+      >
+        <div>
+          <p className="font-medium text-text-1">{appeal.author?.fullName ?? "Сотрудник"}</p>
+          <p className="font-mono text-meta text-text-3">{appeal.publicNumber}</p>
+        </div>
+        <Badge variant={canProcess ? "success" : "warning"}>{canProcess ? "Готово к оформлению" : "Ожидает"}</Badge>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogTitle>{appeal.publicNumber}</DialogTitle>
+          <div className="mt-4 flex flex-col gap-3">
+            <DetailField label="Сотрудник" value={appeal.author?.fullName ?? "—"} />
+            <DetailField label="Заявление сотрудника" value={appeal.originalText} />
+            {hrdComment && <DetailField label="Комментарий HRD" value={hrdComment} />}
+            <DetailField
+              label="Вложения"
+              value={
+                <AttachmentGallery
+                  attachments={appeal.attachments.map((a) => ({
+                    id: a.id,
+                    mimeType: a.mimeType,
+                    fileSize: a.fileSize,
+                    label: a.kind === "PHOTO" ? "Фото" : "Видео",
+                  }))}
+                  getQueryKey={(attachmentId) => ["appeal-attachment-url", appeal.id, attachmentId]}
+                  fetchUrl={(attachmentId, download) =>
+                    getAttachmentUrl.mutateAsync({ appealId: appeal.id, attachmentId, download }).then((r) => r.url)
+                  }
+                />
+              }
+            />
+            <DetailField
+              label="Чек-лист"
+              value={
+                <div className="flex flex-col gap-1">
+                  <ChecklistCheckbox
+                    label="Обходной лист подписан"
+                    checked={c.walkoffSheetSigned}
+                    disabled={updateChecklist.isPending}
+                    onChange={(v) => updateChecklist.mutate({ walkoffSheetSigned: v })}
+                  />
+                  <ChecklistCheckbox
+                    label="Приказ подписан"
+                    checked={c.terminationOrderSigned}
+                    disabled={updateChecklist.isPending}
+                    onChange={(v) => updateChecklist.mutate({ terminationOrderSigned: v })}
+                  />
+                  <ChecklistCheckbox
+                    label="Справки выданы"
+                    checked={c.certificatesIssued}
+                    disabled={updateChecklist.isPending}
+                    onChange={(v) => updateChecklist.mutate({ certificatesIssued: v })}
+                  />
+                  <ChecklistCheckbox
+                    label="Заявление подписано"
+                    checked={c.terminationApplicationSigned}
+                    disabled={updateChecklist.isPending}
+                    onChange={(v) => updateChecklist.mutate({ terminationApplicationSigned: v })}
+                  />
+                </div>
+              }
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={!canProcess || process.isPending}
+              onClick={() => {
+                process.mutate();
+                setOpen(false);
+              }}
+            >
+              Оформить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function TerminationProcessingList({ appeals }: { appeals: AppealDTO[] | undefined }) {
+  if (!appeals?.length) return <p className="text-ui text-text-3">Нет увольнений, ожидающих оформления.</p>;
+  return (
+    <div className="flex flex-col gap-3">
+      {appeals.map((a) => (
+        <TerminationProcessingRow key={a.id} appeal={a} />
+      ))}
+    </div>
+  );
+}
+
+/** Стадия «Оформление» (роль HR, право hr.process) — отдельно от approve/reject:
+ * HR не решает судьбу заявки, только оформляет бумаги после решения HRD. Отпуска/
+ * Увольнения — вложенные вкладки с собственными бейджами, тот же паттерн, что у
+ * верхнеуровневых Отпуска/Отсутствия/Командировки (см. VacationsPage ниже). */
+function ProcessingTab() {
+  const { data: vacations } = useVacationRequests("APPROVED", true, false);
+  const { data: terminations } = useTerminationsAwaitingProcessing();
+
+  return (
+    <Tabs defaultValue="vacations">
+      <TabsList>
+        <TabsTrigger value="vacations">
+          Отпуска
+          <TabBadge count={vacations?.length ?? 0} />
+        </TabsTrigger>
+        <TabsTrigger value="terminations">
+          Увольнения
+          <TabBadge count={terminations?.length ?? 0} />
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="vacations">
+        <VacationProcessingList requests={vacations} />
+      </TabsContent>
+      <TabsContent value="terminations">
+        <TerminationProcessingList appeals={terminations} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
 /** Раздел «Отпуска» (PLAN.md §10) — три независимые сущности (VacationRequest/
  * AbsenceRequest/BusinessTripRequest) под одной вкладочной страницей: один смысловой
  * процесс кадрового согласования для HRD, тот же паттерн, что и вкладки карточки
@@ -595,12 +872,38 @@ function TabBadge({ count }: { count: number }) {
  * карточку деталей — иначе длинный комментарий/цель обрезаются в ячейке таблицы truncate
  * без способа увидеть их целиком (баг, найденный пользователем вживую). */
 export function VacationsPage() {
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canManageVacations = hasPermission("vacation.manage");
+  // Бэкенд разрешает вызывать эндпоинты «Оформления» и HR (hr.process), и HRD
+  // (vacation.manage — сохраняет надзор/бэкап-доступ, requireAnyPlainPermission на
+  // роуте). Вкладка должна быть видна по тому же ИЛИ, иначе HRD не сможет
+  // воспользоваться правом, которое у неё формально есть.
+  const canSeeProcessingTab = hasPermission("hr.process") || canManageVacations;
+
   // Бейджи PENDING на самих вкладках — отдельные лёгкие запросы, не завязаны на
   // состояние конкретной вкладки-таба (та грузит список без фильтра по статусу
   // отдельным хуком внутри своего компонента, см. VacationsTab/AbsencesTab/...).
-  const { data: pendingVacations } = useVacationRequests("PENDING");
-  const { data: pendingAbsences } = useAbsenceRequests("PENDING");
-  const { data: pendingBusinessTrips } = useBusinessTripRequests("PENDING");
+  const { data: pendingVacations } = useVacationRequests("PENDING", canManageVacations);
+  const { data: pendingAbsences } = useAbsenceRequests("PENDING", canManageVacations);
+  const { data: pendingBusinessTrips } = useBusinessTripRequests("PENDING", canManageVacations);
+  const { data: awaitingVacations } = useVacationRequests("APPROVED", canSeeProcessingTab, false);
+  const { data: awaitingTerminations } = useTerminationsAwaitingProcessing(canSeeProcessingTab);
+  const awaitingProcessingCount = (awaitingVacations?.length ?? 0) + (awaitingTerminations?.length ?? 0);
+
+  // Роль HR (hr.process, без vacation.manage) не решает судьбу заявок — у неё в этом
+  // разделе есть ровно один экран, «Оформление». Оборачивать единственный пункт в
+  // Tabs/TabsList рисовало бы бесполезную полоску с одной вкладкой (найдено вживую) —
+  // для чистого HR рендерим ProcessingTab напрямую, без внешнего таб-бара. У HRD
+  // вкладок несколько (включая «Оформление» как одну из них — она тоже им пользуется),
+  // там внешний Tabs остаётся оправданным.
+  if (!canManageVacations) {
+    return (
+      <div className="flex flex-col gap-6">
+        <h1 className="text-title font-bold text-text-1">Отсутствие</h1>
+        <ProcessingTab />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -620,6 +923,10 @@ export function VacationsPage() {
             Командировки
             <TabBadge count={pendingBusinessTrips?.length ?? 0} />
           </TabsTrigger>
+          <TabsTrigger value="processing">
+            Оформление
+            <TabBadge count={awaitingProcessingCount} />
+          </TabsTrigger>
           <TabsTrigger value="balances">Остатки отпуска</TabsTrigger>
         </TabsList>
         <TabsContent value="vacations">
@@ -630,6 +937,9 @@ export function VacationsPage() {
         </TabsContent>
         <TabsContent value="business-trips">
           <BusinessTripsTab />
+        </TabsContent>
+        <TabsContent value="processing">
+          <ProcessingTab />
         </TabsContent>
         <TabsContent value="balances">
           <EmployeeBalancesTab />

@@ -342,6 +342,63 @@ export class NotificationService {
     });
   }
 
+  /** Стадия «Оформление» (роль HR, право hr.process) — та же пара пинг+решение, что
+   * у notifyHrdNewVacationRequest/notifyVacationDecision выше, но получатель роль HR,
+   * не HRD: HRD только согласовывает, а бумажным оформлением занимается HR (прямое
+   * решение пользователя — «чтобы она не бегала с бумагами»). */
+  async notifyHrVacationAwaitingProcessing(requestId: string, fullName: string): Promise<void> {
+    const recipients = (await userRepository.findByRoleAndChannel("HR", "EMPLOYEE")).filter(
+      (r) => r.telegramId !== null,
+    );
+    await Promise.all(
+      recipients.map((r) =>
+        notificationRepository.create({
+          userId: r.id,
+          channel: "TELEGRAM",
+          payload: { type: "vacation_awaiting_processing", requestId, fullName },
+        }),
+      ),
+    );
+  }
+
+  /** Кнопка HR «Оформить» — финальное уведомление сотруднику. */
+  async notifyVacationProcessed(userId: string): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: "vacation_processed" },
+    });
+  }
+
+  /** Увольнение (Appeal type=RESIGNATION) согласовано HRD — тот же пинг HR, что у
+   * отпуска выше. Без появления сотрудника HR в переписке HRD не пришлось бы вручную
+   * сообщать ей о каждом согласованном увольнении. */
+  async notifyHrTerminationAwaitingProcessing(appealId: string, fullName: string): Promise<void> {
+    const recipients = (await userRepository.findByRoleAndChannel("HR", "EMPLOYEE")).filter(
+      (r) => r.telegramId !== null,
+    );
+    await Promise.all(
+      recipients.map((r) =>
+        notificationRepository.create({
+          userId: r.id,
+          channel: "TELEGRAM",
+          payload: { type: "termination_awaiting_processing", appealId, fullName },
+        }),
+      ),
+    );
+  }
+
+  /** Кнопка HR «Оформить» на увольнении — отдельно от employee_terminated (та молча
+   * чистит чаты): это финальное текстовое прощание сотруднику (прямое решение
+   * пользователя), не должно прилетать при обычной ручной блокировке не по увольнению. */
+  async notifyTerminationProcessed(userId: string): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: "termination_processed" },
+    });
+  }
+
   /** «Отсутствие» (PLAN.md §10) — тот же паттерн, что и у «Отпуска» выше, отдельные
    * notification-типы (без текста про бумагу в HR — тот только у vacation_approved). */
   async notifyHrdNewAbsenceRequest(requestId: string, fullName: string): Promise<void> {

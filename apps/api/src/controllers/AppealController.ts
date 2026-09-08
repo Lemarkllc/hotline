@@ -8,6 +8,7 @@ import type {
   createAppealBotSchema,
   listAppealsQuerySchema,
   myAppealsQuerySchema,
+  terminationChecklistSchema,
 } from "@/validators/appeal.schema.js";
 
 export class AppealController extends BaseController {
@@ -104,6 +105,35 @@ export class AppealController extends BaseController {
       this.handleSuccess(res, dto);
     } catch (error) {
       this.handleError(error, res, "changeStatus");
+    }
+  }
+
+  /** Очередь HR — увольнения, согласованные HRD и ожидающие оформления. */
+  async listAwaitingTerminationProcessing(req: Request, res: Response): Promise<void> {
+    try {
+      const appeals = await appealService.listAwaitingTerminationProcessing(req.user!);
+      this.handleSuccess(res, appeals);
+    } catch (error) {
+      this.handleError(error, res, "listAwaitingTerminationProcessing");
+    }
+  }
+
+  async updateTerminationChecklist(req: Request, res: Response): Promise<void> {
+    try {
+      const data = req.body as z.infer<typeof terminationChecklistSchema>;
+      const dto = await appealService.updateTerminationChecklist(req.user!, pathParam(req, "id"), data);
+      this.handleSuccess(res, dto);
+    } catch (error) {
+      this.handleError(error, res, "updateTerminationChecklist");
+    }
+  }
+
+  async processTermination(req: Request, res: Response): Promise<void> {
+    try {
+      const dto = await appealService.processTermination(req.user!, pathParam(req, "id"));
+      this.handleSuccess(res, dto);
+    } catch (error) {
+      this.handleError(error, res, "processTermination");
     }
   }
 

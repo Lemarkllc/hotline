@@ -135,6 +135,9 @@ export const createVacationRequestSchema = z.object({
   /** true — оплачиваемый (проверяется против баланса, PLAN.md §10), false — за свой
    * счёт (без ограничения в коде — HRD решает при одобрении). */
   paid: z.boolean(),
+  /** Фото заявления — обязательное вложение (прямое решение пользователя, тот же
+   * min(1), что у RESIGNATION-обращений — см. refineEmployeeAppealRules). */
+  attachmentIds: z.array(z.string().uuid()).min(1, "Нужно приложить фото заявления").max(10),
 });
 export type CreateVacationRequestInput = z.infer<typeof createVacationRequestSchema>;
 

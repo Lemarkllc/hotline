@@ -89,3 +89,11 @@ export const createMessageSchema = z.object({
 export const botCreateMessageSchema = createMessageSchema.extend({
   telegramId: telegramIdField,
 });
+
+/** Стадия «Оформление» увольнения (роль HR, право hr.process). */
+export const terminationChecklistSchema = z.object({
+  walkoffSheetSigned: z.boolean().optional(),
+  terminationOrderSigned: z.boolean().optional(),
+  certificatesIssued: z.boolean().optional(),
+  terminationApplicationSigned: z.boolean().optional(),
+});

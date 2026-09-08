@@ -63,7 +63,7 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <RequirePermission permission="vacation.manage" />,
+            element: <RequirePermission anyOf={["vacation.manage", "hr.process"]} />,
             children: [{ path: "/vacations", element: <VacationsPage /> }],
           },
         ],

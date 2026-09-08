@@ -134,10 +134,12 @@ model User {
   sentLeadMessages            EmailLeadMessage[]    @relation("LeadMessageSentBy")
   vacationRequests            VacationRequest[]     @relation("VacationAuthor")
   decidedVacationRequests     VacationRequest[]     @relation("VacationDecidedBy")
+  processedVacationRequests   VacationRequest[]     @relation("VacationProcessedBy")
   absenceRequests             AbsenceRequest[]      @relation("AbsenceAuthor")
   decidedAbsenceRequests      AbsenceRequest[]      @relation("AbsenceDecidedBy")
   businessTripRequests        BusinessTripRequest[] @relation("BusinessTripAuthor")
   decidedBusinessTripRequests BusinessTripRequest[] @relation("BusinessTripDecidedBy")
+  processedAppeals            Appeal[]              @relation("AppealProcessedBy")
   vacationBalance             VacationBalance?
 
   @@index([status])
@@ -280,6 +282,19 @@ model Appeal {
   /// больше не финальный.
   resignationOutcome ResignationOutcome?
 
+  /// Стадия «Оформление» (только type="RESIGNATION", resignationOutcome="TERMINATED") —
+  /// чек-лист HR перед фактическим исполнением увольнения. Осознанно НЕ завязано на
+  /// status/resignationOutcome (см. VacationRequest.processedAt — тот же принцип):
+  /// исполнение (блокировка + удаление из чатов, userService.blockUser) теперь
+  /// срабатывает не сразу при закрытии обращения, а отложено до processedAt — клика
+  /// HR «Оформить», когда отмечены все четыре пункта ниже (прямое решение пользователя).
+  walkoffSheetSigned           Boolean   @default(false)
+  terminationOrderSigned       Boolean   @default(false)
+  certificatesIssued           Boolean   @default(false)
+  terminationApplicationSigned Boolean   @default(false)
+  processedById                String?
+  processedAt                  DateTime?
+
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   closedAt         DateTime?
@@ -289,6 +304,7 @@ model Appeal {
   author          User?            @relation("AppealAuthor", fields: [authorUserId], references: [id])
   externalContact ExternalContact? @relation(fields: [externalContactId], references: [id])
   epic            Epic?            @relation(fields: [epicId], references: [id])
+  processedBy     User?            @relation("AppealProcessedBy", fields: [processedById], references: [id])
 
   assignments   AppealAssignment[]
   comments      AppealComment[]
@@ -370,6 +386,11 @@ model AppealMessage {
 model AppealAttachment {
   id               String         @id @default(uuid())
   appealId         String?
+  /// Параллельно appealId — то же самое nullable-FK-после-драфта решение, но для
+  /// заявки на отпуск (фото заявления, обязательное вложение — прямое решение
+  /// пользователя). Ровно одно из двух (appealId/vacationRequestId) заполнено на
+  /// строку, никогда оба сразу.
+  vacationRequestId String?
   uploadedByUserId String?
   storageKey       String
   mimeType         String
@@ -379,9 +400,11 @@ model AppealAttachment {
   draftExpiresAt   DateTime?
   deletedAt        DateTime?
 
-  appeal Appeal? @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  appeal          Appeal?          @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  vacationRequest VacationRequest? @relation(fields: [vacationRequestId], references: [id], onDelete: Cascade)
 
   @@index([appealId])
+  @@index([vacationRequestId])
   @@index([uploadedByUserId])
   @@index([draftExpiresAt])
   @@map("appeal_attachments")
@@ -666,11 +689,21 @@ model VacationRequest {
   decidedAt      DateTime?
   decisionReason String?
 
+  /// Стадия «Оформление» (роль HR, право hr.process) — независимые от status поля:
+  /// APPROVED уже участвует в расчёте остатка отпуска (sumApprovedPaidDaysSince), менять
+  /// его при оформлении бумаг нельзя, поэтому прогресс — отдельно, а не новый статус.
+  applicationDrafted Boolean   @default(false)
+  applicationSigned  Boolean   @default(false)
+  processedById      String?
+  processedAt        DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User  @relation("VacationAuthor", fields: [userId], references: [id])
-  decidedBy User? @relation("VacationDecidedBy", fields: [decidedById], references: [id])
+  user        User               @relation("VacationAuthor", fields: [userId], references: [id])
+  decidedBy   User?              @relation("VacationDecidedBy", fields: [decidedById], references: [id])
+  processedBy User?              @relation("VacationProcessedBy", fields: [processedById], references: [id])
+  attachments AppealAttachment[]
 
   @@index([userId, status])
   @@map("vacation_requests")

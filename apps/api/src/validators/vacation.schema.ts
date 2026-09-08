@@ -20,8 +20,16 @@ export const createVacationRequestBotSchema = createVacationRequestSchema
 
 export const listVacationRequestsQuerySchema = z.object({
   status: z.enum(VACATION_STATUSES).optional(),
+  /** Стадия «Оформление» (роль HR) — фильтр по VacationRequest.processedAt, намеренно
+   * отдельный от status (см. её комментарий в schema.prisma). */
+  processed: z.enum(["true", "false"]).optional(),
 });
 
 export const vacationBalanceQuerySchema = z.object({
   telegramId: telegramIdField,
+});
+
+export const updateVacationChecklistSchema = z.object({
+  applicationDrafted: z.boolean().optional(),
+  applicationSigned: z.boolean().optional(),
 });

@@ -20,6 +20,12 @@ export const PERMISSIONS = [
   // lead.manage: своя независимая от Appeal подсистема, согласование только HRD
   // (прямое решение пользователя, не из SRS).
   "vacation.manage",
+  // Стадия «Оформление» (роль HR, отдельная от HRD) — пост-согласовательный чек-лист
+  // и кнопка «Оформить» для Отпуска (VacationRequest) и Увольнения (Appeal
+  // type=RESIGNATION). Одно право покрывает обе сущности: тот же человек/роль,
+  // тот же workflow, approve/reject самих заявок остаётся только у vacation.manage/
+  // appeal.close (HRD) — прямое решение пользователя после grill-me-сессии.
+  "hr.process",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -36,7 +42,13 @@ export type Permission = (typeof PERMISSIONS)[number];
  * аккаунта). report.read/report.export НЕ входят сюда намеренно — отчёты осмысленно
  * фильтруются по каналу (HRD видит EMPLOYEE-метрики, "Продажи" — CUSTOMER).
  */
-export const PLAIN_PERMISSIONS: Permission[] = ["user.manage", "audit.read", "lead.manage", "vacation.manage"];
+export const PLAIN_PERMISSIONS: Permission[] = [
+  "user.manage",
+  "audit.read",
+  "lead.manage",
+  "vacation.manage",
+  "hr.process",
+];
 
 /**
  * Дефолтная матрица роль → permissions (SRS §4.5). Используется при сидировании БД.
@@ -82,6 +94,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     // без отдельного тира прав для РОП (стартовое решение, PLAN.md).
     "lead.manage",
   ],
+  // Кадровое оформление (не HRD) — стадия «Оформление» для Отпуска/Увольнения после
+  // согласования HRD (прямое решение пользователя, grill-me-сессия PLAN.md §10).
+  // appeal.read_assigned — та же видимость назначенных обращений, что у Менеджера,
+  // без нового кода (canSeeAuthor() в utils/authz.ts уже это умеет).
+  HR: ["appeal.read_assigned", "hr.process"],
 };
 
 /**

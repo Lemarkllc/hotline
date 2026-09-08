@@ -7,14 +7,23 @@ import type {
   createVacationRequestBotSchema,
   listVacationRequestsQuerySchema,
   rejectHrRequestSchema,
+  updateVacationChecklistSchema,
   vacationBalanceQuerySchema,
 } from "@/validators/vacation.schema.js";
 
 export class VacationController extends BaseController {
   async createFromBot(req: Request, res: Response): Promise<void> {
     try {
-      const { telegramId, dateFrom, dateTo, comment, paid } = req.body as z.infer<typeof createVacationRequestBotSchema>;
-      const request = await vacationService.createFromBot(BigInt(telegramId), { dateFrom, dateTo, comment, paid });
+      const { telegramId, dateFrom, dateTo, comment, paid, attachmentIds } = req.body as z.infer<
+        typeof createVacationRequestBotSchema
+      >;
+      const request = await vacationService.createFromBot(BigInt(telegramId), {
+        dateFrom,
+        dateTo,
+        comment,
+        paid,
+        attachmentIds,
+      });
       this.handleSuccess(res, request, 201);
     } catch (error) {
       this.handleError(error, res, "vacation.createFromBot");
@@ -34,8 +43,12 @@ export class VacationController extends BaseController {
 
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const { status } = req.query as unknown as z.infer<typeof listVacationRequestsQuerySchema>;
-      const requests = await vacationService.list(req.user!, status);
+      const { status, processed } = req.query as unknown as z.infer<typeof listVacationRequestsQuerySchema>;
+      const requests = await vacationService.list(
+        req.user!,
+        status,
+        processed === undefined ? undefined : processed === "true",
+      );
       this.handleSuccess(res, requests);
     } catch (error) {
       this.handleError(error, res, "vacation.list");
@@ -67,6 +80,39 @@ export class VacationController extends BaseController {
       this.handleSuccess(res, request);
     } catch (error) {
       this.handleError(error, res, "vacation.reject");
+    }
+  }
+
+  async updateChecklist(req: Request, res: Response): Promise<void> {
+    try {
+      const data = req.body as z.infer<typeof updateVacationChecklistSchema>;
+      const request = await vacationService.updateChecklist(req.user!, pathParam(req, "id"), data);
+      this.handleSuccess(res, request);
+    } catch (error) {
+      this.handleError(error, res, "vacation.updateChecklist");
+    }
+  }
+
+  async process(req: Request, res: Response): Promise<void> {
+    try {
+      const request = await vacationService.process(req.user!, pathParam(req, "id"));
+      this.handleSuccess(res, request);
+    } catch (error) {
+      this.handleError(error, res, "vacation.process");
+    }
+  }
+
+  async getAttachmentUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const url = await vacationService.getAttachmentUrl(
+        req.user!,
+        pathParam(req, "id"),
+        pathParam(req, "attachmentId"),
+        req.query.download === "true",
+      );
+      this.handleSuccess(res, { url });
+    } catch (error) {
+      this.handleError(error, res, "vacation.getAttachmentUrl");
     }
   }
 }

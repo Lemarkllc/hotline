@@ -80,12 +80,41 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         // прямое решение пользователя: у "Отсутствия"/"Командировки" бумага не нужна).
         await bot.api.sendMessage(
           telegramId,
-          "Ваша заявка на отпуск одобрена HRD. Принесите копию заявления в отдел HR.",
+          "Ваш отпуск согласован, подойдите в отдел персонала — подписать документы.",
         );
         break;
       }
       case "vacation_rejected": {
-        await bot.api.sendMessage(telegramId, "Ваша заявка на отпуск отклонена HRD.");
+        await bot.api.sendMessage(
+          telegramId,
+          "Ваш отпуск отклонён — уточните у вашего руководителя или директора по персоналу.",
+        );
+        break;
+      }
+      // Стадия «Оформление» (роль HR) — пинг без кнопок, тем же принципом, что
+      // vacation_request_pending выше: решение/действие только на вебе.
+      case "vacation_awaiting_processing": {
+        const fullName = typeof payload.fullName === "string" ? payload.fullName : "Сотрудник";
+        await bot.api.sendMessage(
+          telegramId,
+          `Отпуск согласован: ${fullName}. Ожидает оформления — посмотрите в веб-панели.`,
+        );
+        break;
+      }
+      case "vacation_processed": {
+        await bot.api.sendMessage(telegramId, "Ваш отпуск оформлен.");
+        break;
+      }
+      case "termination_awaiting_processing": {
+        const fullName = typeof payload.fullName === "string" ? payload.fullName : "Сотрудник";
+        await bot.api.sendMessage(
+          telegramId,
+          `Увольнение согласовано: ${fullName}. Ожидает оформления — посмотрите в веб-панели.`,
+        );
+        break;
+      }
+      case "termination_processed": {
+        await bot.api.sendMessage(telegramId, "Процесс увольнения завершён. Всего доброго.");
         break;
       }
       case "absence_request_pending": {

@@ -114,6 +114,15 @@ export interface AppealDTO {
   status: "OPEN" | "UNDER_REVIEW" | "IN_PROGRESS" | "CLOSED";
   /** Только type="RESIGNATION" — исход закрытия. */
   resignationOutcome: "TERMINATED" | "WITHDRAWN" | null;
+  /** Стадия «Оформление» (роль HR) — только type="RESIGNATION" && resignationOutcome="TERMINATED". */
+  terminationChecklist: {
+    walkoffSheetSigned: boolean;
+    terminationOrderSigned: boolean;
+    certificatesIssued: boolean;
+    terminationApplicationSigned: boolean;
+  };
+  processedBy: { id: string; fullName: string } | null;
+  processedAt: string | null;
   epic: { id: string; name: string } | null;
   originalText: string;
   workingEdit: string | null;
@@ -190,6 +199,46 @@ export function useChangeStatusAny() {
   });
 }
 
+/** Стадия «Оформление» увольнения (роль HR) — очередь: обращения type=RESIGNATION,
+ * resignationOutcome=TERMINATED, согласованные HRD и ещё не оформленные. */
+export function useTerminationsAwaitingProcessing(enabled = true) {
+  return useQuery({
+    queryKey: ["appeals-awaiting-termination-processing"],
+    queryFn: () => apiRequest<AppealDTO[]>("/appeals/awaiting-termination-processing"),
+    enabled,
+    refetchInterval: 15000,
+  });
+}
+
+export function useUpdateTerminationChecklist(id: string) {
+  const invalidate = useInvalidateAppeal(id);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      walkoffSheetSigned?: boolean;
+      terminationOrderSigned?: boolean;
+      certificatesIssued?: boolean;
+      terminationApplicationSigned?: boolean;
+    }) => apiRequest<AppealDTO>(`/appeals/${id}/termination-checklist`, { method: "PATCH", body: data }),
+    onSuccess: () => {
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ["appeals-awaiting-termination-processing"] });
+    },
+  });
+}
+
+export function useProcessTermination(id: string) {
+  const invalidate = useInvalidateAppeal(id);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest<AppealDTO>(`/appeals/${id}/termination-process`, { method: "POST" }),
+    onSuccess: () => {
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ["appeals-awaiting-termination-processing"] });
+    },
+  });
+}
+
 export function useAssignAppeal(id: string) {
   const invalidate = useInvalidateAppeal(id);
   return useMutation({
@@ -241,6 +290,24 @@ export function useAttachmentUrl() {
   return useMutation({
     mutationFn: ({ appealId, attachmentId, download }: { appealId: string; attachmentId: string; download?: boolean }) =>
       apiRequest<{ url: string }>(`/appeals/${appealId}/attachments/${attachmentId}/url`, {
+        query: { download: download ? "true" : undefined },
+      }),
+  });
+}
+
+/** Фото заявления на отпуск — та же схема, что useAttachmentUrl выше, для VacationRequest. */
+export function useVacationAttachmentUrl() {
+  return useMutation({
+    mutationFn: ({
+      vacationRequestId,
+      attachmentId,
+      download,
+    }: {
+      vacationRequestId: string;
+      attachmentId: string;
+      download?: boolean;
+    }) =>
+      apiRequest<{ url: string }>(`/vacation-requests/${vacationRequestId}/attachments/${attachmentId}/url`, {
         query: { download: download ? "true" : undefined },
       }),
   });
@@ -667,17 +734,47 @@ export interface VacationRequestDTO {
   decidedBy: { id: string; fullName: string } | null;
   decidedAt: string | null;
   decisionReason: string | null;
+  /** Стадия «Оформление» (роль HR) — независимо от status, см. её комментарий в schema.prisma. */
+  applicationDrafted: boolean;
+  applicationSigned: boolean;
+  processedBy: { id: string; fullName: string } | null;
+  processedAt: string | null;
+  attachments: { id: string; kind: string; mimeType: string; fileSize: number; createdAt: string }[];
   createdAt: string;
 }
 
-export function useVacationRequests(status?: "PENDING" | "APPROVED" | "REJECTED", enabled = true) {
+export function useVacationRequests(
+  status?: "PENDING" | "APPROVED" | "REJECTED",
+  enabled = true,
+  processed?: boolean,
+) {
   return useQuery({
-    queryKey: ["vacation-requests", status],
-    queryFn: () => apiRequest<VacationRequestDTO[]>("/vacation-requests", { query: { status } }),
+    queryKey: ["vacation-requests", status, processed],
+    queryFn: () =>
+      apiRequest<VacationRequestDTO[]>("/vacation-requests", {
+        query: { status, processed: processed === undefined ? undefined : String(processed) },
+      }),
     enabled,
     // Живой счётчик в Sidebar/на вкладке (PENDING-бейджи) — тот же каданс, что и у
     // useAccessRequests, не отдельный опрос.
     refetchInterval: 15000,
+  });
+}
+
+export function useUpdateVacationChecklist(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { applicationDrafted?: boolean; applicationSigned?: boolean }) =>
+      apiRequest<VacationRequestDTO>(`/vacation-requests/${id}/checklist`, { method: "PATCH", body: data }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["vacation-requests"] }),
+  });
+}
+
+export function useProcessVacation(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest<VacationRequestDTO>(`/vacation-requests/${id}/process`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["vacation-requests"] }),
   });
 }
 

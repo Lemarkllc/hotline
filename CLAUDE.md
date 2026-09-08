@@ -94,6 +94,8 @@ One deliberate exception to permission-based gating: `epicService`'s dictionary 
 
 There's also a "who can this appeal be assigned to" endpoint (`GET /appeals/assignable-users`, gated by `appeal.assign`) that's deliberately separate from `GET /users` (gated by `user.manage`) — HRD holds `appeal.assign` but not `user.manage`, and originally reused `GET /users` for the assignee dropdown, which 403'd for HRD. Don't collapse these back into one endpoint.
 
+**`HR` role** (added alongside HRD, direct product decision — not in SRS): does the post-approval paperwork ("Оформление" stage) for Vacation (`VacationRequest`) and Termination (`Appeal` type=RESIGNATION), after HRD has already approved/closed. Gets `appeal.read_assigned` (same appeal visibility as Manager) + `hr.process` (gates the checklist/"Оформить" endpoints on both entities — `middleware/rbac.ts`'s `requireAnyPlainPermission("hr.process", "vacation.manage" | "appeal.close")`, so HRD keeps backup access too). Route-level gates and frontend tab visibility must use the same "either permission" check — a route or tab gated on `vacation.manage`/`appeal.close` alone silently locks HRD out of the exact endpoints she's supposed to have backup access to (found live while building this).
+
 ## Auth
 
 - **Web** (`apps/api/src/services/authService.ts`): email+Argon2id password, JWT access+refresh, mandatory TOTP for HRD/Administrator. First login for a 2FA-required account without `totpEnabled` returns `403` with `code: "TWO_FACTOR_SETUP_REQUIRED"` — the frontend's `LoginPage` handles this by calling `/auth/2fa/setup` then `/auth/2fa/confirm` inline. `mustChangePassword` (set on admin-created accounts) is a separate soft-gate: login succeeds, frontend redirects to `/change-password`, nothing server-side blocks other routes if skipped.
@@ -102,6 +104,8 @@ There's also a "who can this appeal be assigned to" endpoint (`GET /appeals/assi
 ## Appeal lifecycle
 
 `OPEN → UNDER_REVIEW → IN_PROGRESS → CLOSED`, with `CLOSED → IN_PROGRESS` as the only reopen transition. Source of truth for allowed transitions: `APPEAL_STATUS_TRANSITIONS` in `packages/shared/src/enums.ts`, enforced server-side in `appealService.changeStatus` (never trust a client-sent transition). Closing requires a non-empty `finalAnswer` (FR-WF-005); reopening requires a non-empty `reason` (FR-WF-006). `AppealStatusHistory` rows are append-only — there is no update/delete path, by design.
+
+**Termination execution is deferred, not immediate.** Closing a `RESIGNATION` appeal with `resignationOutcome: "TERMINATED"` no longer calls `userService.blockUser()` right away — it only pings the `HR` role (`notifyHrTerminationAwaitingProcessing`). The actual block + Telegram-group removal fires from `appealService.processTermination()`, which requires all four checklist booleans on `Appeal` (`walkoffSheetSigned`/`terminationOrderSigned`/`certificatesIssued`/`terminationApplicationSigned`) to be true first (HR's "Оформить" click). Same shape on the Vacation side: `VacationRequest.processedAt`/`applicationDrafted`/`applicationSigned` are deliberately separate from `status` (still `APPROVED`) because `VacationRequestRepository.sumApprovedPaidDaysSince()` — the vacation-balance calculation — filters on `status === "APPROVED"`; folding the processing stage into `status` would have silently broken the balance for every processed vacation.
 
 ## Notifications
 

@@ -21,6 +21,7 @@ export const APPEAL_DETAIL_INCLUDE = {
   messages: { orderBy: { createdAt: "asc" as const }, include: { author: true } },
   statusHistory: { orderBy: { createdAt: "asc" as const } },
   rating: true,
+  processedBy: true,
 } satisfies Prisma.AppealInclude;
 
 export type AppealWithDetails = Prisma.AppealGetPayload<{ include: typeof APPEAL_DETAIL_INCLUDE }>;
@@ -197,6 +198,37 @@ export class AppealRepository {
 
   setWorkingEdit(appealId: string, workingEdit: string): Promise<Appeal> {
     return prisma.appeal.update({ where: { id: appealId }, data: { workingEdit } });
+  }
+
+  /** Стадия «Оформление» увольнения (роль HR, право hr.process) — чек-лист, тоггл частичный. */
+  updateTerminationChecklist(
+    appealId: string,
+    data: {
+      walkoffSheetSigned?: boolean;
+      terminationOrderSigned?: boolean;
+      certificatesIssued?: boolean;
+      terminationApplicationSigned?: boolean;
+    },
+  ): Promise<AppealWithDetails> {
+    return prisma.appeal.update({ where: { id: appealId }, data, include: APPEAL_DETAIL_INCLUDE });
+  }
+
+  processTermination(appealId: string, processedById: string): Promise<AppealWithDetails> {
+    return prisma.appeal.update({
+      where: { id: appealId },
+      data: { processedById, processedAt: new Date() },
+      include: APPEAL_DETAIL_INCLUDE,
+    });
+  }
+
+  /** Очередь HR — увольнения, согласованные HRD и ещё не оформленные (см.
+   * Appeal.processedAt — намеренно отдельно от status/resignationOutcome). */
+  listAwaitingTerminationProcessing(): Promise<AppealWithDetails[]> {
+    return prisma.appeal.findMany({
+      where: { type: "RESIGNATION", resignationOutcome: "TERMINATED", status: "CLOSED", processedAt: null },
+      include: APPEAL_DETAIL_INCLUDE,
+      orderBy: { closedAt: "asc" },
+    });
   }
 
   setEpic(appealId: string, epicId: string | null): Promise<Appeal> {

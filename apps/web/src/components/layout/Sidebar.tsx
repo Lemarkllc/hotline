@@ -15,7 +15,13 @@ import {
 import type { Permission } from "@hotline/shared";
 import { cn, initials } from "@/lib/utils";
 import { useAuthStore } from "@/lib/authStore";
-import { useAbsenceRequests, useAccessRequests, useBusinessTripRequests, useVacationRequests } from "@/hooks/api";
+import {
+  useAbsenceRequests,
+  useAccessRequests,
+  useBusinessTripRequests,
+  useTerminationsAwaitingProcessing,
+  useVacationRequests,
+} from "@/hooks/api";
 import { Button } from "@/components/ui/button";
 
 interface NavItem {
@@ -51,7 +57,9 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       // согласовывает только HRD — тот же принцип, что и у "Заявок". Название пункта
       // меню "Отсутствие" (решение пользователя) — сама вкладка "Отпуска" внутри
       // раздела называется иначе, путаницы с этим не считали проблемой.
-      { to: "/vacations", label: "Отсутствие", icon: CalendarDays, permissions: ["vacation.manage"] },
+      // hr.process — роль HR видит раздел ради вкладки «Оформление», без vacation.manage
+      // (не может одобрять/отклонять — только чек-лист и «Оформить», см. VacationsPage.tsx).
+      { to: "/vacations", label: "Отсутствие", icon: CalendarDays, permissions: ["vacation.manage", "hr.process"] },
     ],
   },
   {
@@ -121,8 +129,19 @@ export function Sidebar() {
   const { data: pendingVacations } = useVacationRequests("PENDING", canManageVacations);
   const { data: pendingAbsences } = useAbsenceRequests("PENDING", canManageVacations);
   const { data: pendingBusinessTrips } = useBusinessTripRequests("PENDING", canManageVacations);
+  // Тот же принцип для стадии «Оформление» (роль HR, право hr.process) — сумма
+  // "ожидает оформления" по Отпуску и Увольнению, тем же образом добавляется к
+  // общему бейджу пункта меню (HRD и HR никогда не видят чужую половину суммы,
+  // т.к. соответствующие хуки включены только при наличии своего права).
+  const canProcess = hasPermission("hr.process");
+  const { data: awaitingVacations } = useVacationRequests("APPROVED", canProcess, false);
+  const { data: awaitingTerminations } = useTerminationsAwaitingProcessing(canProcess);
   const vacationsPendingCount =
-    (pendingVacations?.length ?? 0) + (pendingAbsences?.length ?? 0) + (pendingBusinessTrips?.length ?? 0);
+    (pendingVacations?.length ?? 0) +
+    (pendingAbsences?.length ?? 0) +
+    (pendingBusinessTrips?.length ?? 0) +
+    (awaitingVacations?.length ?? 0) +
+    (awaitingTerminations?.length ?? 0);
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-rule bg-surface">
