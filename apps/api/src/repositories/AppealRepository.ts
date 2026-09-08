@@ -225,7 +225,13 @@ export class AppealRepository {
    * Appeal.processedAt — намеренно отдельно от status/resignationOutcome). */
   listAwaitingTerminationProcessing(): Promise<AppealWithDetails[]> {
     return prisma.appeal.findMany({
-      where: { type: "RESIGNATION", resignationOutcome: "TERMINATED", status: "CLOSED", processedAt: null },
+      where: {
+        type: "RESIGNATION",
+        resignationOutcome: "TERMINATED",
+        status: "CLOSED",
+        processedAt: null,
+        deletedAt: null,
+      },
       include: APPEAL_DETAIL_INCLUDE,
       orderBy: { closedAt: "asc" },
     });
