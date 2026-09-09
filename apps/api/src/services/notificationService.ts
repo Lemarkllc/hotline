@@ -213,15 +213,13 @@ export class NotificationService {
   }
 
   /**
-   * Режим наблюдения (leadAiService) — автопередачи в CRM ещё нет, поэтому именно
-   * "релевантно" требует действия РОП (вручную передать в CRM), а "нерелевантно"
-   * ничего не меняет по сравнению с поведением без ИИ вообще. Уведомляем только на
-   * "релевантно" — не дублируем то, что и так не требует внимания.
-   *
-   * ВАЖНО: когда включится автопередача в CRM (следующая фаза, см. обсуждение с
-   * пользователем), это нужно ПЕРЕВЕРНУТЬ — "релевантно" будет улетать в CRM само,
-   * без участия человека, а вот "нерелевантно" (не попавшее в авто-конвертацию)
-   * станет тем самым случаем, что требует ручной проверки РОП.
+   * Путь ОТКАТА при авто-передаче (leadService.autoConvertToCrm/leadAssignmentService,
+   * emailIngestService.ts) — срабатывает, когда рубильник авто-передачи выключен
+   * (SystemSetting "lead_auto_convert_enabled") ИЛИ сама авто-передача упала (сбой
+   * Bitrix) — в обоих случаях лид остаётся НЕ сконвертирован, и именно поэтому текст
+   * прежний: "передайте в CRM" — тут действительно нужно ручное действие РОП.
+   * Когда авто-передача срабатывает успешно — уходит другое уведомление,
+   * notifySalesLeadAutoConverted (ниже), с другим, информационным текстом.
    */
   async notifySalesAiRelevantLead(lead: { id: string; publicNumber: string }, reasoning: string): Promise<void> {
     const recipients = await userRepository.findByRole("SALES");
@@ -232,6 +230,26 @@ export class NotificationService {
           lead.id,
           { type: "lead_ai_relevant", publicNumber: lead.publicNumber, reasoning },
           { title: "ИИ считает заявку релевантной", body: `Заявка ${lead.publicNumber} — передайте в CRM` },
+        ),
+      ),
+    );
+  }
+
+  /** Успешная авто-передача (leadService.autoConvertToCrm) — информационное
+   * уведомление всем SALES, ничего делать не нужно (в отличие от notifySalesAiRelevantLead
+   * выше), просто видимость происходящего без захода в Bitrix. */
+  async notifySalesLeadAutoConverted(lead: { id: string; publicNumber: string }, assigneeFullName: string): Promise<void> {
+    const recipients = await userRepository.findByRole("SALES");
+    await Promise.all(
+      recipients.map((r) =>
+        this.createLeadWebNotification(
+          r.id,
+          lead.id,
+          { type: "lead_auto_converted", publicNumber: lead.publicNumber, assigneeFullName },
+          {
+            title: "Заявка передана в CRM",
+            body: `Заявка ${lead.publicNumber} передана в CRM — назначена ${assigneeFullName}`,
+          },
         ),
       ),
     );

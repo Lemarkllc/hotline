@@ -10,9 +10,29 @@ import type {
   replyToLeadSchema,
   searchBitrixUsersQuerySchema,
   stopListLeadSchema,
+  updateLeadAutoConvertSettingSchema,
 } from "@/validators/lead.schema.js";
 
 export class LeadController extends BaseController {
+  async getAutoConvertSetting(_req: Request, res: Response): Promise<void> {
+    try {
+      const enabled = await leadService.getAutoConvertSetting();
+      this.handleSuccess(res, { enabled });
+    } catch (error) {
+      this.handleError(error, res, "getAutoConvertSetting");
+    }
+  }
+
+  async updateAutoConvertSetting(req: Request, res: Response): Promise<void> {
+    try {
+      const { enabled } = req.body as z.infer<typeof updateLeadAutoConvertSettingSchema>;
+      await leadService.setAutoConvertSetting(req.user!, enabled);
+      this.handleSuccess(res, { enabled });
+    } catch (error) {
+      this.handleError(error, res, "updateAutoConvertSetting");
+    }
+  }
+
   async list(req: Request, res: Response): Promise<void> {
     try {
       const { view, from, to } = req.query as unknown as z.infer<typeof listLeadsQuerySchema>;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { leadController } from "@/controllers/LeadController.js";
 import { requireWebAuth } from "@/middleware/auth.js";
-import { requirePlainPermission } from "@/middleware/rbac.js";
+import { requireAnyPlainPermission, requirePlainPermission } from "@/middleware/rbac.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
 import { validate } from "@/middleware/validate.js";
 import {
@@ -11,12 +11,34 @@ import {
   replyToLeadSchema,
   searchBitrixUsersQuerySchema,
   stopListLeadSchema,
+  updateLeadAutoConvertSettingSchema,
 } from "@/validators/lead.schema.js";
 
 /** «Заявки» (email-лиды, PLAN.md) — независимая от Appeal/channel подсистема,
  * поэтому requirePlainPermission("lead.manage"), а не requirePermission() (тот
  * канало-скоуплен, см. middleware/rbac.ts). */
 export const leadRoutes = Router();
+
+// Рубильник авто-передачи в CRM (leadService.getAutoConvertSetting/setAutoConvertSetting) —
+// сознательно ДО блока requirePlainPermission("lead.manage") ниже: Express применяет
+// router.use() без пути только к роутам, зарегистрированным ПОСЛЕ него, поэтому эти два
+// эндпоинта получают собственный, более широкий гейт (Администратор без lead.manage,
+// но с user.manage, тоже должен управлять рубильником — решение пользователя), а
+// остальные lead-роуты ниже остаются как были, только под lead.manage.
+leadRoutes.get(
+  "/auto-convert-setting",
+  requireWebAuth,
+  requireAnyPlainPermission("lead.manage", "user.manage"),
+  asyncErrorWrapper((req, res) => leadController.getAutoConvertSetting(req, res)),
+);
+
+leadRoutes.patch(
+  "/auto-convert-setting",
+  requireWebAuth,
+  requireAnyPlainPermission("lead.manage", "user.manage"),
+  validate(updateLeadAutoConvertSettingSchema),
+  asyncErrorWrapper((req, res) => leadController.updateAutoConvertSetting(req, res)),
+);
 
 leadRoutes.use(requireWebAuth, requirePlainPermission("lead.manage"));
 

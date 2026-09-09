@@ -20,6 +20,8 @@ export function describeNotification(payload: Record<string, unknown>): string {
       return `Новая заявка ${payload.publicNumber}`;
     case "lead_ai_relevant":
       return `ИИ считает заявку ${payload.publicNumber} релевантной — передайте в CRM: ${payload.reasoning}`;
+    case "lead_auto_converted":
+      return `Заявка ${payload.publicNumber} передана в CRM — назначена ${payload.assigneeFullName}`;
     default:
       return "Новое уведомление";
   }

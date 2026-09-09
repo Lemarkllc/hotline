@@ -34,6 +34,10 @@ export const searchBitrixUsersQuerySchema = z.object({
   query: z.string().trim().max(200).default(""),
 });
 
+export const updateLeadAutoConvertSettingSchema = z.object({
+  enabled: z.boolean(),
+});
+
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 // Общая схема для /leads/conversion-stats и /leads/daily-stats — обе принимают тот же

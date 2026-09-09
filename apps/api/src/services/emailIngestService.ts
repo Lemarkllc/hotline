@@ -9,6 +9,8 @@ import { emailLeadRepository, type EmailAttachmentInput } from "@/repositories/E
 import { systemSettingRepository } from "@/repositories/SystemSettingRepository.js";
 import { emailSendService } from "@/services/emailSendService.js";
 import { leadAiService } from "@/services/leadAiService.js";
+import { leadService } from "@/services/leadService.js";
+import { pickAssignee } from "@/services/leadAssignmentService.js";
 import { notificationService } from "@/services/notificationService.js";
 import { broadcastLeadUpdated, broadcastNewLead } from "@/lib/realtime.js";
 import {
@@ -192,20 +194,37 @@ export class EmailIngestService {
       await notificationService.notifySalesNewLead(lead);
       broadcastNewLead({ id: lead.id, publicNumber: lead.publicNumber, subject: lead.subject, fromEmail: lead.fromEmail });
 
-      // Режим наблюдения: классификация ПОСЛЕ отбивки/уведомления — медленный или
-      // упавший вызов к LLM не должен задерживать то, что реально важно клиенту/SALES.
-      // Поведение системы результат не меняет (см. leadAiService), только пишется на лид.
-      // Ключ не задан — тихо пропускаем, не отмечая это как "ошибку" на каждой заявке.
+      // Классификация ПОСЛЕ отбивки/уведомления — медленный или упавший вызов к LLM
+      // не должен задерживать то, что реально важно клиенту/SALES. Ключ не задан —
+      // тихо пропускаем, не отмечая это как "ошибку" на каждой заявке.
       if (config.yandexAi.apiKey && config.yandexAi.folderId) {
         const aiResult = await leadAiService.classify({ subject, body, fromEmail });
         if (aiResult) {
           await emailLeadRepository.markAiClassified(lead.id, aiResult);
           broadcastLeadUpdated({ id: lead.id, publicNumber: lead.publicNumber });
           if (aiResult.isRelevant) {
-            // Пока нет автопередачи в CRM — "релевантно" требует ручного действия
-            // РОП, поэтому именно этот случай уведомляем (см. комментарий в
-            // notificationService.notifySalesAiRelevantLead про разворот при автоматике).
-            await notificationService.notifySalesAiRelevantLead(lead, aiResult.reasoning);
+            // Авто-передача в CRM (leadAssignmentService/leadService.autoConvertToCrm) —
+            // рубильник по умолчанию включён (getAutoConvertSetting). Любой сбой на
+            // любом шаге (не посчитать нагрузку менеджеров, не создать лид в Bitrix) —
+            // откат к прежнему ручному режиму, без ретраев (решение пользователя):
+            // лид остаётся не сконвертированным, РОП увидит пинг и передаст сама.
+            const autoEnabled = await leadService.getAutoConvertSetting();
+            if (autoEnabled) {
+              try {
+                const assignee = await pickAssignee(aiResult.mentionedManager);
+                await leadService.autoConvertToCrm(lead.id, assignee);
+                await notificationService.notifySalesLeadAutoConverted(lead, assignee.fullName);
+                broadcastLeadUpdated({ id: lead.id, publicNumber: lead.publicNumber });
+              } catch (error) {
+                logger.error(
+                  { err: error, leadId: lead.id },
+                  "emailIngestService: авто-передача в CRM упала, откат к ручному режиму",
+                );
+                await notificationService.notifySalesAiRelevantLead(lead, aiResult.reasoning);
+              }
+            } else {
+              await notificationService.notifySalesAiRelevantLead(lead, aiResult.reasoning);
+            }
           }
         } else {
           await emailLeadRepository.markAiError(lead.id, "classify вернул null (см. логи leadAiService)");

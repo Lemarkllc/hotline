@@ -74,6 +74,33 @@ export class BitrixService {
     return users.find((u) => u.id === id) ?? null;
   }
 
+  /**
+   * Точный подсчёт лидов менеджера в конкретном статусе — для алгоритма авто-назначения
+   * (leadAssignmentService.ts). НЕ через crm.lead.list + result.length: тот отдаёт не
+   * более 50 записей за раз (проверено вживую), при большей реальной нагрузке подсчёт
+   * молча занижался бы. Вместо этого читаем поле total из сырого ответа Bitrix —
+   * оно всегда точное, независимо от размера страницы (тоже проверено вживую).
+   */
+  async countLeadsByStatus(assignedByUserId: string, statusId: string): Promise<number> {
+    if (!config.bitrix.webhookUrl) {
+      throw new ValidationError("Bitrix24 вебхук не настроен (BITRIX_WEBHOOK_URL)");
+    }
+    const url = `${config.bitrix.webhookUrl.replace(/\/$/, "")}/crm.lead.list.json`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filter: { ASSIGNED_BY_ID: assignedByUserId, STATUS_ID: statusId },
+        select: ["ID"],
+      }),
+    });
+    const data = (await res.json()) as BitrixApiResponse<unknown[]> & { total?: number };
+    if (data.error) {
+      throw new ValidationError(`Bitrix24 (crm.lead.list): ${data.error_description ?? data.error}`);
+    }
+    return data.total ?? 0;
+  }
+
   /** SOURCE_ID: "EMAIL" — встроенное системное значение Bitrix ("Электронная почта",
    * проверено вживую через crm.status.list, PLAN.md решение №8), не заводим свой. */
   async createLead(input: {

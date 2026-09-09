@@ -2,11 +2,19 @@ import { config } from "@/config/unifiedConfig.js";
 import { downloadObject, getPresignedDownloadUrl } from "@/lib/storage.js";
 import { bitrixService, type BitrixUserDTO } from "@/services/bitrixService.js";
 import { emailSendService } from "@/services/emailSendService.js";
+import { auditService } from "@/services/auditService.js";
 import { emailLeadRepository, type EmailLeadWithMessages } from "@/repositories/EmailLeadRepository.js";
 import { emailBlocklistRepository } from "@/repositories/EmailBlocklistRepository.js";
+import { systemSettingRepository } from "@/repositories/SystemSettingRepository.js";
+import type { PickedAssignee } from "@/services/leadAssignmentService.js";
 import type { AuthenticatedUser } from "@/types/index.js";
 import { ConflictError, NotFoundError, ValidationError } from "@/types/index.js";
 import { logger } from "@/lib/logger.js";
+
+/** Ключ SystemSetting для рубильника авто-передачи релевантных лидов в CRM
+ * (leadAssignmentService.ts + emailIngestService.ts) — по умолчанию включён
+ * (см. getAutoConvertSetting), управляется Администратором и SALES. */
+const AUTO_CONVERT_SETTING_KEY = "lead_auto_convert_enabled";
 
 /** Часов на первый ответ клиенту (design_handoff_lemark_one/README.md "SLA 4 ч") —
  * фиксированная политика, не настройка: как и остальные SLA-подобные величины в этой
@@ -182,11 +190,51 @@ export class LeadService {
   }
 
   async convertToCrm(user: AuthenticatedUser, id: string, bitrixUserId: string): Promise<LeadDTO> {
+    const lead = await this.assertConvertible(id);
+    const { bitrixLeadId, bitrixAssignee } = await this.performCrmConversion(lead, bitrixUserId);
+    await emailLeadRepository.markConverted(id, user.id, bitrixLeadId, bitrixAssignee);
+    return this.getById(id);
+  }
+
+  /**
+   * Авто-передача релевантного лида (emailIngestService.ts, после leadAssignmentService.
+   * pickAssignee) — та же механика конвертации, что и у ручной convertToCrm, но без
+   * человека-актора: convertedByUserId=null (отличает авто- от ручной конвертации на
+   * карточке), audit actorId=null (поле nullable, см. AuditEntryInput). Вызывающая
+   * сторона (emailIngestService) сама ловит исключения отсюда и откатывается к
+   * прежнему ручному режиму — здесь не глушим ошибку.
+   */
+  async autoConvertToCrm(id: string, assignee: PickedAssignee): Promise<LeadDTO> {
+    const lead = await this.assertConvertible(id);
+    const { bitrixLeadId, bitrixAssignee } = await this.performCrmConversion(lead, assignee.bitrixId);
+    await emailLeadRepository.markConverted(id, null, bitrixLeadId, bitrixAssignee);
+    await auditService.record({
+      actorId: null,
+      action: "lead.auto_converted",
+      objectType: "EmailLead",
+      objectId: id,
+      result: "success",
+      metadata: { bitrixUserId: assignee.bitrixId, assigneeFullName: assignee.fullName, reason: assignee.reason },
+    });
+    return this.getById(id);
+  }
+
+  private async assertConvertible(id: string): Promise<EmailLeadWithMessages> {
     const lead = await emailLeadRepository.findById(id);
     if (!lead) throw new NotFoundError("Заявка не найдена");
     if (lead.status === "STOP_LISTED") throw new ConflictError("Заявка в стоп-листе");
     if (lead.status === "CONVERTED") throw new ConflictError("Заявка уже передана в CRM");
+    return lead;
+  }
 
+  /** Общее тело конвертации для convertToCrm/autoConvertToCrm — создание лида в
+   * Bitrix, "дело" на связь, пересылка вложений, резолв снимка ответственного.
+   * Не пишет ничего в нашу БД — вызывающая сторона сама решает, каким userId
+   * (или null) пометить markConverted. */
+  private async performCrmConversion(
+    lead: EmailLeadWithMessages,
+    bitrixUserId: string,
+  ): Promise<{ bitrixLeadId: string; bitrixAssignee: BitrixUserDTO | null }> {
     // Вывод ИИ (режим наблюдения, leadAiService) — тем же текстом, что видит РОП на
     // карточке заявки, чтобы продажник в Bitrix, которому назначили лида, тоже видел,
     // почему его сочли релевантным, не открывая нашу систему отдельно.
@@ -230,7 +278,7 @@ export class LeadService {
         });
       }
     } catch (error) {
-      logger.error({ err: error, leadId: id, bitrixLeadId }, "leadService: не удалось создать дело в Bitrix24");
+      logger.error({ err: error, leadId: lead.id, bitrixLeadId }, "leadService: не удалось создать дело в Bitrix24");
     }
 
     // Вложения из писем — в таймлайн лида (best-effort, тот же принцип, что и у
@@ -241,12 +289,34 @@ export class LeadService {
     // EmailLead) — best-effort: сам лид в Bitrix уже корректно назначен через
     // ASSIGNED_BY_ID выше вне зависимости от того, найдётся ли здесь резолв.
     const bitrixAssignee = await bitrixService.findUserById(bitrixUserId).catch((error: unknown) => {
-      logger.error({ err: error, leadId: id, bitrixUserId }, "leadService: не удалось резолвить имя ответственного Bitrix24");
+      logger.error(
+        { err: error, leadId: lead.id, bitrixUserId },
+        "leadService: не удалось резолвить имя ответственного Bitrix24",
+      );
       return null;
     });
 
-    await emailLeadRepository.markConverted(id, user.id, bitrixLeadId, bitrixAssignee);
-    return this.getById(id);
+    return { bitrixLeadId, bitrixAssignee };
+  }
+
+  /** Рубильник авто-передачи (emailIngestService.ts) — по умолчанию включён (null в
+   * SystemSetting трактуем как "ещё не настраивали", не как "выключено"), управляется
+   * и Администратором, и SALES (см. requireAnyPlainPermission на роуте). */
+  async getAutoConvertSetting(): Promise<boolean> {
+    const value = await systemSettingRepository.get<boolean>(AUTO_CONVERT_SETTING_KEY);
+    return value ?? true;
+  }
+
+  async setAutoConvertSetting(user: AuthenticatedUser, enabled: boolean): Promise<void> {
+    await systemSettingRepository.set(AUTO_CONVERT_SETTING_KEY, enabled);
+    await auditService.record({
+      actorId: user.id,
+      action: "lead.auto_convert_setting_changed",
+      objectType: "SystemSetting",
+      objectId: AUTO_CONVERT_SETTING_KEY,
+      result: "success",
+      metadata: { enabled },
+    });
   }
 
   private async forwardAttachmentsToBitrix(lead: EmailLeadWithMessages, bitrixLeadId: string): Promise<void> {

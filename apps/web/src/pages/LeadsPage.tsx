@@ -9,19 +9,42 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ReasonDialog } from "@/components/ui/reason-dialog";
 import { DesktopDateRangePicker } from "@/components/ui/date-range-picker/DesktopDateRangePicker";
+import { Switch } from "@/components/ui/switch";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
   useBulkStopListLeads,
+  useLeadAutoConvertSetting,
   useLeadConversionStats,
   useLeadDailyStats,
   useLeads,
+  useUpdateLeadAutoConvertSetting,
   type LeadDTO,
   type LeadsView,
 } from "@/hooks/api";
 import { useLeadsRealtime } from "@/lib/realtimeLeads";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileLeadsRegistry } from "@/components/mobile/MobileLeadsRegistry";
+import { useAuthStore } from "@/lib/authStore";
 import { cn } from "@/lib/utils";
+
+/** Рубильник авто-передачи релевантных лидов в CRM — виден и Администратору
+ * (user.manage, у него нет lead.manage), и SALES (lead.manage) — тот же круг, что
+ * у соответствующих эндпоинтов на бэкенде (requireAnyPlainPermission). */
+function AutoConvertToggle() {
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canManage = hasPermission("lead.manage") || hasPermission("user.manage");
+  const { data } = useLeadAutoConvertSetting(canManage);
+  const update = useUpdateLeadAutoConvertSetting();
+
+  if (!canManage || !data) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-ui text-text-2">Авто-передача в CRM</span>
+      <Switch checked={data.enabled} disabled={update.isPending} onCheckedChange={(v) => update.mutate(v)} />
+    </div>
+  );
+}
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -156,15 +179,18 @@ export function LeadsPage() {
             {leads?.length ?? 0} активных · {overdueCount} просрочено
           </p>
         </div>
-        <DesktopDateRangePicker
-          from={from}
-          to={to}
-          onChange={(f, t) => {
-            setFrom(f);
-            setTo(t);
-          }}
-          resetRange={resetRange}
-        />
+        <div className="flex items-center gap-4">
+          <AutoConvertToggle />
+          <DesktopDateRangePicker
+            from={from}
+            to={to}
+            onChange={(f, t) => {
+              setFrom(f);
+              setTo(t);
+            }}
+            resetRange={resetRange}
+          />
+        </div>
       </div>
 
       {statsError && (

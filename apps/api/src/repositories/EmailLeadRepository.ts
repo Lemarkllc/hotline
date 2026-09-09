@@ -139,9 +139,11 @@ export class EmailLeadRepository {
     });
   }
 
+  /** userId — null для авто-передачи (leadService.autoConvertToCrm, нет человека-актора) —
+   * convertedByUserId уже был nullable в схеме, отличает авто- от ручной конвертации. */
   markConverted(
     id: string,
-    userId: string,
+    userId: string | null,
     bitrixLeadId: string,
     bitrixAssignee: { id: string; fullName: string; email: string | null } | null,
   ): Promise<EmailLead> {

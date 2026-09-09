@@ -719,6 +719,25 @@ export function fetchLeadAttachmentUrl(leadId: string, attachmentId: string, dow
   }).then((r) => r.url);
 }
 
+/** Рубильник авто-передачи релевантных лидов в CRM (leadAssignmentService, api) —
+ * управляется и Администратором, и SALES (requireAnyPlainPermission на роуте). */
+export function useLeadAutoConvertSetting(enabled = true) {
+  return useQuery({
+    queryKey: ["lead-auto-convert-setting"],
+    queryFn: () => apiRequest<{ enabled: boolean }>("/leads/auto-convert-setting"),
+    enabled,
+  });
+}
+
+export function useUpdateLeadAutoConvertSetting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      apiRequest<{ enabled: boolean }>("/leads/auto-convert-setting", { method: "PATCH", body: { enabled } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["lead-auto-convert-setting"] }),
+  });
+}
+
 // --- Раздел «Отпуска» (PLAN.md §10) — три независимые от Appeal подсистемы,
 // согласовывает только HRD: VacationRequest, AbsenceRequest, BusinessTripRequest ---
 
