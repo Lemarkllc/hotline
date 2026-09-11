@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttachmentGallery } from "@/components/attachments/AttachmentGallery";
 import { useAuthStore } from "@/lib/authStore";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   useAbsenceRequests,
   useApproveAbsenceRequest,
@@ -124,6 +125,53 @@ function StatusFilter({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
+/** Мобильная карточка строки реестра (по образцу MobileLeadsRegistry.tsx) — тот же
+ * набор данных, что и в Table на десктопе, просто иначе разложен: Table на телефоне
+ * читалась бы только горизонтальным скроллом (см. components/ui/table.tsx), а тут
+ * весь основной сценарий (посмотреть/одобрить/отклонить) — активная ежедневная
+ * работа HRD, не разовая настройка, как "Остатки отпуска" (та осталась Table-only —
+ * табличным горизонтальным скроллом достаточно для редкого использования). Клик —
+ * тот же onClick, что открывает Dialog на десктопе, Dialog одинаково хорошо работает
+ * на любой ширине экрана, отдельная мобильная карточка деталей не нужна. */
+function MobileRequestCard({
+  publicNumber,
+  title,
+  subtitle,
+  status,
+  decidedBy,
+  decisionReason,
+  onClick,
+}: {
+  publicNumber: string;
+  title: string;
+  subtitle: string;
+  status: HrStatus;
+  decidedBy: { fullName: string } | null;
+  decisionReason: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col gap-1.5 rounded-lg border border-rule bg-surface p-3.5 text-left active:bg-surface-sunk"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-ui font-medium leading-snug text-text-1">{title}</span>
+        <Badge variant={STATUS_VARIANT[status]}>{VACATION_STATUS_LABELS[status]}</Badge>
+      </div>
+      <span className="text-meta text-text-3">{subtitle}</span>
+      <span className="font-mono text-meta text-text-3">{publicNumber}</span>
+      {status !== "PENDING" && decidedBy && (
+        <span className="text-meta text-text-3">
+          {decidedBy.fullName}
+          {decisionReason ? ` — ${decisionReason}` : ""}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function VacationsTab() {
   const [statusFilter, setStatusFilter] = useState("PENDING");
   const status = statusFilter === "all" ? undefined : (statusFilter as HrStatus);
@@ -132,10 +180,27 @@ function VacationsTab() {
   const reject = useRejectVacationRequest();
   const [selected, setSelected] = useState<VacationRequestDTO | null>(null);
   const [rejectTarget, setRejectTarget] = useState<VacationRequestDTO | null>(null);
+  const isMobile = useIsMobile();
 
   return (
     <div className="flex flex-col gap-4">
       <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+      {isMobile ? (
+        <div className="flex flex-col gap-2.5">
+          {requests?.map((r) => (
+            <MobileRequestCard
+              key={r.id}
+              publicNumber={r.publicNumber}
+              title={r.user.fullName}
+              subtitle={`${formatDate(r.dateFrom)} – ${formatDate(r.dateTo)} · ${r.paid ? "Оплачиваемый" : "За свой счёт"}`}
+              status={r.status}
+              decidedBy={r.decidedBy}
+              decisionReason={r.decisionReason}
+              onClick={() => setSelected(r)}
+            />
+          ))}
+        </div>
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
@@ -177,6 +242,7 @@ function VacationsTab() {
           ))}
         </TableBody>
       </Table>
+      )}
       {!requests?.length && (
         <p className="text-ui text-text-3">
           {statusFilter === "all" ? "Заявок на отпуск пока нет." : "По выбранному статусу заявок нет."}
@@ -242,10 +308,27 @@ function AbsencesTab() {
   const reject = useRejectAbsenceRequest();
   const [selected, setSelected] = useState<AbsenceRequestDTO | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AbsenceRequestDTO | null>(null);
+  const isMobile = useIsMobile();
 
   return (
     <div className="flex flex-col gap-4">
       <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+      {isMobile ? (
+        <div className="flex flex-col gap-2.5">
+          {requests?.map((r) => (
+            <MobileRequestCard
+              key={r.id}
+              publicNumber={r.publicNumber}
+              title={r.user.fullName}
+              subtitle={`${formatDate(r.date)} · ${r.fullDay ? "Весь день" : `${r.timeFrom}–${r.timeTo}`}`}
+              status={r.status}
+              decidedBy={r.decidedBy}
+              decisionReason={r.decisionReason}
+              onClick={() => setSelected(r)}
+            />
+          ))}
+        </div>
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
@@ -287,6 +370,7 @@ function AbsencesTab() {
           ))}
         </TableBody>
       </Table>
+      )}
       {!requests?.length && (
         <p className="text-ui text-text-3">
           {statusFilter === "all" ? "Заявок на отсутствие пока нет." : "По выбранному статусу заявок нет."}
@@ -356,10 +440,27 @@ function BusinessTripsTab() {
   function transportLabel(r: BusinessTripRequestDTO): string {
     return BUSINESS_TRIP_TRANSPORT_LABELS[r.transport] + (r.transport === "OTHER" && r.transportOther ? ` (${r.transportOther})` : "");
   }
+  const isMobile = useIsMobile();
 
   return (
     <div className="flex flex-col gap-4">
       <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+      {isMobile ? (
+        <div className="flex flex-col gap-2.5">
+          {requests?.map((r) => (
+            <MobileRequestCard
+              key={r.id}
+              publicNumber={r.publicNumber}
+              title={r.user.fullName}
+              subtitle={`${formatDate(r.dateFrom)} – ${formatDate(r.dateTo)} · ${transportLabel(r)}`}
+              status={r.status}
+              decidedBy={r.decidedBy}
+              decisionReason={r.decisionReason}
+              onClick={() => setSelected(r)}
+            />
+          ))}
+        </div>
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
@@ -403,6 +504,7 @@ function BusinessTripsTab() {
           ))}
         </TableBody>
       </Table>
+      )}
       {!requests?.length && (
         <p className="text-ui text-text-3">
           {statusFilter === "all" ? "Заявок на командировку пока нет." : "По выбранному статусу заявок нет."}
