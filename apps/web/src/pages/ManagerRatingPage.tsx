@@ -134,12 +134,13 @@ export function ManagerRatingPage() {
     }
   }
 
-  function SortHeader({ label, sortKeyValue }: { label: string; sortKeyValue: SortKey }) {
+  function SortHeader({ label, sortKeyValue, hint }: { label: string; sortKeyValue: SortKey; hint?: string }) {
     const active = sortKey === sortKeyValue;
     return (
       <button
         type="button"
         onClick={() => toggleSort(sortKeyValue)}
+        title={hint}
         className="flex items-center gap-1 text-label font-medium uppercase tracking-wide text-text-3 hover:text-text-1"
       >
         {label}
@@ -188,14 +189,21 @@ export function ManagerRatingPage() {
         <CardContent className="p-0">
           <div className="grid grid-cols-5 gap-2 border-b border-rule bg-surface-sunk px-4 py-2.5">
             <SortHeader label="Менеджер" sortKeyValue="name" />
-            <SortHeader label="Создано" sortKeyValue="total" />
+            <SortHeader label="Создано" sortKeyValue="total" hint="Всего лидов за выбранный период" />
             <SortHeader label="SLA-нарушений" sortKeyValue="slaViolations" />
             {/* "Не в сделке", не "не переведено в CRM" — лид и так уже в Bitrix CRM
                 (мы читаем его оттуда же), переводится он в Сделку (STATUS_ID=CONVERTED,
                 см. crm.status.list), правильная терминология важна, реальный вопрос
-                пользователя 2026-09-12: "куда его ещё передавать, он уже в CRM". */}
-            <SortHeader label="Не в сделке" sortKeyValue="notConvertedRate" />
-            <SortHeader label="Провалено" sortKeyValue="junkRate" />
+                пользователя 2026-09-12: "куда его ещё передавать, он уже в CRM". Числа
+                пересекаются с "Провалено" (провальный лид тоже не в сделке) — hint
+                вместо перестройки таблицы в три непересекающихся столбца (решение
+                пользователя, "лаконично"). */}
+            <SortHeader
+              label="Не в сделке"
+              sortKeyValue="notConvertedRate"
+              hint="Не переведено в Сделку — включает и ещё не решённые, и провальные"
+            />
+            <SortHeader label="Провалено" sortKeyValue="junkRate" hint="Помечены Bitrix как некачественные (входит в «Не в сделке»)" />
           </div>
           {statsLoading && <p className="p-4 text-ui text-text-3">Загрузка…</p>}
           {!statsLoading &&
