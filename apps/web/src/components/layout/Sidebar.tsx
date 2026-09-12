@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
+  AlertTriangle,
   BarChart3,
   BookOpen,
   CalendarDays,
@@ -53,6 +54,9 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       // «Заявки» — email-лиды с sales@, независимая от «Обращения» подсистема
       // (PLAN.md "«Заявки» — email-лиды..."), поэтому отдельный permission, не appeal.*.
       { to: "/leads", label: "Заявки", icon: Mail, permissions: ["lead.manage"] },
+      // Зависшие лиды Bitrix24 (grill-me допрос 2026-09-12) — отдельный источник данных
+      // (crm.lead.list, не наш EmailLead), поэтому отдельный пункт, не вкладка "Заявок".
+      { to: "/sla-leads", label: "SLA Лиды", icon: AlertTriangle, permissions: ["lead.manage"] },
       // Раздел (не только VacationRequest — внутри три вкладки, PLAN.md §10),
       // согласовывает только HRD — тот же принцип, что и у "Заявок". Название пункта
       // меню "Отсутствие" (решение пользователя) — сама вкладка "Отпуска" внутри

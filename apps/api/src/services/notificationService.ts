@@ -255,6 +255,30 @@ export class NotificationService {
     );
   }
 
+  /** «SLA Лиды» (bitrixLeadSlaService.ts) — лид Bitrix завис (не двигался дольше
+   * порога для своего статуса). Не через createLeadWebNotification — это чужая
+   * сущность (Bitrix lead, не наш EmailLead), appealId/emailLeadId оба null, ссылка
+   * ведёт прямо в Bitrix, не на наш /leads/:id. Повторяется раз в 24ч, пока лид не
+   * сдвинется (см. bitrixLeadAlertRepository) — решение пользователя, "народ ленивый,
+   * одного алерта мало". */
+  async notifySalesBitrixLeadStalled(lead: { id: string; title: string; url: string }): Promise<void> {
+    const recipients = await userRepository.findByRole("SALES");
+    await Promise.all(
+      recipients.map(async (r) => {
+        await notificationRepository.create({
+          userId: r.id,
+          channel: "WEB",
+          payload: { type: "bitrix_lead_stalled", bitrixLeadId: lead.id, title: lead.title, url: lead.url },
+        });
+        await pushService.sendToUser(r.id, {
+          title: "Лид завис в Bitrix",
+          body: lead.title,
+          url: lead.url,
+        });
+      }),
+    );
+  }
+
   /** NPS-style — низкая любая из двух оценок (порог ≤2, по аналогии с notifyLowRating). */
   async notifyLowCustomerRating(
     appealId: string,

@@ -22,6 +22,8 @@ export function describeNotification(payload: Record<string, unknown>): string {
       return `ИИ считает заявку ${payload.publicNumber} релевантной — передайте в CRM: ${payload.reasoning}`;
     case "lead_auto_converted":
       return `Заявка ${payload.publicNumber} передана в CRM — назначена ${payload.assigneeFullName}`;
+    case "bitrix_lead_stalled":
+      return `Лид Bitrix «${payload.title}» завис без движения`;
     default:
       return "Новое уведомление";
   }

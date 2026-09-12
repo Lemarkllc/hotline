@@ -39,6 +39,11 @@ export function NotificationsPage() {
                 if (unread) markRead.mutate(n.id);
                 if (n.appealId) navigate(`/appeals/${n.appealId}`);
                 else if (n.emailLeadId) navigate(`/leads/${n.emailLeadId}`);
+                // «SLA Лиды» (bitrixLeadSlaService) — чужая сущность (Bitrix, не наш
+                // EmailLead), ни appealId, ни emailLeadId нет, ссылка внешняя.
+                else if (n.payload?.type === "bitrix_lead_stalled" && n.payload.url) {
+                  window.open(n.payload.url as string, "_blank", "noopener,noreferrer");
+                }
               }}
               className="flex items-start gap-3 rounded-[14px] border border-border bg-surface p-4 text-left"
             >

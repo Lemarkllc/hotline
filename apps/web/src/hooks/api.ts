@@ -738,6 +738,30 @@ export function useUpdateLeadAutoConvertSetting() {
   });
 }
 
+// --- «SLA Лиды» — зависшие лиды Bitrix24 (grill-me допрос 2026-09-12), отдельный
+// источник данных от EmailLead выше (crm.lead.list, не наша "Заявка") ---
+
+export interface StalledLeadDTO {
+  id: string;
+  title: string;
+  statusId: "NEW" | "IN_PROCESS";
+  statusLabel: string;
+  assigneeName: string;
+  dateModify: string;
+  hoursStale: number;
+  url: string;
+}
+
+export function useStalledBitrixLeads() {
+  return useQuery({
+    queryKey: ["bitrix-leads-stalled"],
+    queryFn: () => apiRequest<StalledLeadDTO[]>("/bitrix-leads/stalled"),
+    // Данные всегда живые (без снимка на бэкенде) — поллим на странице тем же
+    // принципом, что и useLeads выше, чтобы не требовать ручного обновления.
+    refetchInterval: 30000,
+  });
+}
+
 // --- Раздел «Отпуска» (PLAN.md §10) — три независимые от Appeal подсистемы,
 // согласовывает только HRD: VacationRequest, AbsenceRequest, BusinessTripRequest ---
 

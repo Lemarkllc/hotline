@@ -526,6 +526,29 @@ model NumberSequence {
   @@map("number_sequences")
 }
 
+/// Дедуп/эскалация уведомлений «SLA Лиды» (bitrixLeadSlaService.ts) — НЕ снимок лида
+/// Bitrix целиком (решение пользователя: своей копии данных не заводим, при каждой
+/// проверке спрашиваем Bitrix напрямую через crm.lead.list). Единственное, что нужно
+/// хранить у нас — когда последний раз слали алерт по конкретному (lead, статус), чтобы
+/// не спамить на каждом тике поллера, но и не молчать вечно, если лид так и не сдвинулся
+/// (повтор раз в 24ч, см. bitrixLeadSlaService.RE_ALERT_HOURS). statusId — часть ключа:
+/// при смене статуса лида это уже другой повод для алерта, старая запись просто больше
+/// не совпадает ни с одним будущим запросом.
+model BitrixLeadAlert {
+  id           String   @id @default(uuid())
+  bitrixLeadId String
+  statusId     String
+  /// Задел под будущую фичу "рейтинг/антирейтинг менеджера" (частота SLA-нарушений
+  /// per ASSIGNED_BY_ID) — не используется этой фичей напрямую, добавлено заранее,
+  /// потому что значение и так уже под рукой в момент записи (bitrixLeadSlaService),
+  /// а бэкфиллить его в старые строки задним числом было бы невозможно.
+  assignedById String
+  alertedAt    DateTime @default(now())
+
+  @@unique([bitrixLeadId, statusId])
+  @@map("bitrix_lead_alerts")
+}
+
 /// «Заявки» — email-лиды с sales@lemarkllc.ru (читаются через robot@ на Zimbra),
 /// полностью отдельная от Appeal/ExternalContact/CUSTOMER-канала подсистема
 /// (см. PLAN.md "«Заявки» — email-лиды..." — намеренное архитектурное решение,

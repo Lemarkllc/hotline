@@ -41,6 +41,9 @@ export function Topbar() {
                       setOpen(false);
                       if (n.appealId) navigate(`/appeals/${n.appealId}`);
                       else if (n.emailLeadId) navigate(`/leads/${n.emailLeadId}`);
+                      else if (n.payload?.type === "bitrix_lead_stalled" && n.payload.url) {
+                        window.open(n.payload.url as string, "_blank", "noopener,noreferrer");
+                      }
                     }}
                     className={cn(
                       "flex w-full flex-col items-start gap-0.5 rounded-md p-3 text-left text-ui hover:bg-surface-sunk",
