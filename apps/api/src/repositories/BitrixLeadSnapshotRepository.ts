@@ -29,14 +29,20 @@ export class BitrixLeadSnapshotRepository {
 
   /** Для страницы «Рейтинг менеджеров» — total/converted/junk на менеджера за период,
    * когорта по dateCreate (см. схему). "Провальные" — JUNK и UC_UO10VU (оба
-   * SEMANTICS=failure в crm.status.list, проверено вживую 2026-09-12). */
+   * SEMANTICS=failure в crm.status.list, проверено вживую 2026-09-12).
+   *
+   * PROCESSED ("Передано дилеру/партнёру") ИСКЛЮЧЕНА (решение пользователя,
+   * 2026-09-12) — не в сделке и не провал, но раздувала бы "Не в сделке" знаменателем,
+   * пока не решили отдельно, как эту категорию вообще учитывать. Сам снимок в
+   * BitrixLeadSnapshot по-прежнему хранит эти лиды (upsertAll ничего не фильтрует) —
+   * данные не теряются, просто не участвуют в отчёте до отдельного решения. */
   async findStatsByAssignee(
     from: Date,
     to: Date,
   ): Promise<{ assignedById: string; total: number; converted: number; junk: number }[]> {
     const rows = await prisma.bitrixLeadSnapshot.groupBy({
       by: ["assignedById", "currentStatusId"],
-      where: { dateCreate: { gte: from, lte: to } },
+      where: { dateCreate: { gte: from, lte: to }, currentStatusId: { not: "PROCESSED" } },
       _count: { _all: true },
     });
     const byAssignee = new Map<string, { total: number; converted: number; junk: number }>();
@@ -52,10 +58,11 @@ export class BitrixLeadSnapshotRepository {
 
   /** Для недельного тренда — сырые строки, бакетинг по неделям в JS (managerLeadRatingService),
    * тем же принципом, что и EmailLeadRepository.dailyStats — объём не оправдывает
-   * DATE_TRUNC в SQL. */
+   * DATE_TRUNC в SQL. PROCESSED исключена тем же принципом, что и findStatsByAssignee
+   * выше — иначе тренд "Не в сделке" тоже был бы раздут. */
   findForTrend(from: Date, to: Date): Promise<{ assignedById: string; dateCreate: Date; currentStatusId: string }[]> {
     return prisma.bitrixLeadSnapshot.findMany({
-      where: { dateCreate: { gte: from, lte: to } },
+      where: { dateCreate: { gte: from, lte: to }, currentStatusId: { not: "PROCESSED" } },
       select: { assignedById: true, dateCreate: true, currentStatusId: true },
     });
   }
