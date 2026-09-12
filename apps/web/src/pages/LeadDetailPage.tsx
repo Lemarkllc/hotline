@@ -139,7 +139,15 @@ function SlaBlock({ lead }: { lead: NonNullable<ReturnType<typeof useLead>["data
  * (leadService.convertToCrm), не редактируемое поле: продажники работают в Bitrix,
  * не в HotLine, назначение там же и происходит (см. ConvertToCrmDialog). До
  * конвертации у заявки нет ответственного вовсе. */
-function AssigneeCard({ bitrixAssignee }: { bitrixAssignee: { name: string; email: string | null } | null }) {
+function AssigneeCard({
+  bitrixAssignee,
+  autoAssignReason,
+}: {
+  bitrixAssignee: { name: string; email: string | null } | null;
+  /** Причина алгоритмического выбора (leadAssignmentService.pickAssignee) — null у
+   * ручной передачи в CRM (ConvertToCrmDialog), см. grill-me допрос 2026-09-12. */
+  autoAssignReason: string | null;
+}) {
   if (!bitrixAssignee) return null;
   return (
     <Card>
@@ -147,6 +155,7 @@ function AssigneeCard({ bitrixAssignee }: { bitrixAssignee: { name: string; emai
         <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">Ответственный в Bitrix24</p>
         <p className="text-ui text-text-1">{bitrixAssignee.name}</p>
         {bitrixAssignee.email && <p className="text-meta text-text-3">{bitrixAssignee.email}</p>}
+        {autoAssignReason && <p className="text-meta text-text-3">Авто-назначение: {autoAssignReason}</p>}
       </CardContent>
     </Card>
   );
@@ -330,7 +339,7 @@ export function LeadDetailPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <AssigneeCard bitrixAssignee={lead.bitrixAssignee} />
+          <AssigneeCard bitrixAssignee={lead.bitrixAssignee} autoAssignReason={lead.autoAssignReason} />
           <Card>
             <CardContent className="flex flex-col gap-2 p-4 text-ui">
               <p className="font-mono text-label font-medium uppercase tracking-wide text-text-3">Клиент</p>

@@ -577,6 +577,12 @@ model EmailLead {
   bitrixAssigneeName  String?
   bitrixAssigneeEmail String?
 
+  /// Денормализованная копия PickedAssignee.reason (leadAssignmentService.ts) — до этого
+  /// была видна только в audit_log (action=lead.auto_converted, metadata.reason), что
+  /// заставляло лазить в БД руками при вопросе "почему всё ушло Роме". null при ручной
+  /// convertToCrm — reason существует только у алгоритмического выбора.
+  autoAssignReason String?
+
   stopListedByUserId String?
   stopListedAt       DateTime?
   stopListReason     String?

@@ -140,12 +140,15 @@ export class EmailLeadRepository {
   }
 
   /** userId — null для авто-передачи (leadService.autoConvertToCrm, нет человека-актора) —
-   * convertedByUserId уже был nullable в схеме, отличает авто- от ручной конвертации. */
+   * convertedByUserId уже был nullable в схеме, отличает авто- от ручной конвертации.
+   * autoAssignReason — только у алгоритмического выбора (PickedAssignee.reason), у
+   * ручной convertToCrm её не передают, остаётся null. */
   markConverted(
     id: string,
     userId: string | null,
     bitrixLeadId: string,
     bitrixAssignee: { id: string; fullName: string; email: string | null } | null,
+    autoAssignReason?: string,
   ): Promise<EmailLead> {
     return prisma.emailLead.update({
       where: { id },
@@ -157,6 +160,7 @@ export class EmailLeadRepository {
         bitrixAssigneeId: bitrixAssignee?.id,
         bitrixAssigneeName: bitrixAssignee?.fullName,
         bitrixAssigneeEmail: bitrixAssignee?.email,
+        autoAssignReason,
       },
     });
   }

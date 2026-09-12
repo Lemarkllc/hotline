@@ -573,6 +573,7 @@ export interface LeadDTO {
   subject: string;
   status: "NEW" | "IN_PROGRESS" | "CONVERTED" | "STOP_LISTED";
   bitrixAssignee: { name: string; email: string | null } | null;
+  autoAssignReason: string | null;
   bitrixLeadId: string | null;
   stopListReason: string | null;
   aiIsRelevant: boolean | null;
