@@ -1,4 +1,5 @@
 import { config } from "@/config/unifiedConfig.js";
+import { logger } from "@/lib/logger.js";
 import { ValidationError } from "@/types/index.js";
 
 export interface BitrixUserDTO {
@@ -183,8 +184,10 @@ export class BitrixService {
    * «Рейтинг менеджеров» (managerLeadRatingService.ts) — полная выгрузка лидов
    * 6 сотрудников SALES_ROSTER, ВСЕ статусы (используется и для ежесуточного
    * обновления кэша, и для разового бэкфилла — это одна и та же операция). Кэп в
-   * 60 страниц (3000 лидов) — с запасом под объём компании такого размера,
-   * страхует от бесконечного цикла, не реальный лимит (см. listActiveLeads выше).
+   * 400 страниц (20000 лидов) — реальный объём на момент внедрения (проверено
+   * вживую 2026-09-12) уже 3232, растёт со временем; 60 страниц (3000) молча
+   * обрезали бэкфилл на живых данных — если когда-нибудь дойдём и до этого кэпа,
+   * лучше явно упасть в лог, чем повторить ту же тихую потерю данных.
    */
   async listAllLeads(assignedByIds: string[]): Promise<BitrixAnyLeadDTO[]> {
     if (!config.bitrix.webhookUrl) {
@@ -193,7 +196,9 @@ export class BitrixService {
     const url = `${config.bitrix.webhookUrl.replace(/\/$/, "")}/crm.lead.list.json`;
     const result: BitrixAnyLeadDTO[] = [];
     let start = 0;
-    for (let page = 0; page < 60; page++) {
+    let hitPageCap = true;
+    const MAX_PAGES = 400;
+    for (let page = 0; page < MAX_PAGES; page++) {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,8 +222,14 @@ export class BitrixService {
           dateCreate: lead.DATE_CREATE,
         });
       }
-      if (data.next == null) break;
+      if (data.next == null) {
+        hitPageCap = false;
+        break;
+      }
       start = data.next;
+    }
+    if (hitPageCap) {
+      logger.error({ pages: MAX_PAGES, fetched: result.length }, "bitrixService.listAllLeads: упёрлись в кэп страниц, выгрузка обрезана");
     }
     return result;
   }

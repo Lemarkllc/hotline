@@ -17,8 +17,12 @@ const MANAGER_COLORS = ["#96631A", "#2F6B4F", "#4A5568", "#C2410C", "#6D28D9", "
 
 type SortKey = "name" | "total" | "slaViolations" | "notConvertedRate" | "junkRate";
 
-function formatPercent(v: number | null): string {
-  return v == null ? "—" : `${v.toFixed(0)}%`;
+/** count/total (%) вместо голого процента — заказчик прямо попросил видеть, из чего
+ * процент считался (2026-09-12, живая проверка страницы): "35%" при 2 лидах из 6
+ * читается совсем не так, как "35%" при 200 из 570. */
+function formatCountRate(count: number, total: number): string {
+  if (total === 0) return "—";
+  return `${count}/${total} (${Math.round((count / total) * 100)}%)`;
 }
 
 function formatWeekLabel(week: string): string {
@@ -86,10 +90,11 @@ function TrendChart({
   );
 }
 
-/** «Рейтинг менеджеров» по лидам (grill-me допрос 2026-09-12) — три тренда сверху
- * (недельная динамика, линия на менеджера), плоская сортируемая таблица снизу с
- * текущими цифрами за выбранный период. Без композитного score (решение
- * пользователя) — три метрики рядом, сортировка на усмотрение смотрящего. */
+/** «Рейтинг менеджеров» по лидам (grill-me допрос 2026-09-12) — один тренд сверху
+ * (SLA-нарушения по неделям, линия на менеджера — единственная метрика, где недельная
+ * динамика физически читается, см. правку 2026-09-12), плоская сортируемая таблица
+ * снизу с текущими цифрами за весь выбранный период. Без композитного score
+ * (решение пользователя) — три метрики рядом, сортировка на усмотрение смотрящего. */
 export function ManagerRatingPage() {
   const resetRange = useMemo(
     () => ({ from: isoDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)), to: isoDate(new Date()) }),
@@ -164,30 +169,19 @@ export function ManagerRatingPage() {
         </p>
       )}
 
+      {/* Только SLA-нарушения трендом — реальные счётные события. "Не переведено в
+          сделку"/"провалено" по неделям убраны (2026-09-12, живая проверка страницы):
+          при малом числе лидов на менеджера в неделю проценты скачут почти случайно,
+          тренда физически не видно. Обе метрики остаются в таблице снизу — там за
+          весь период, знаменатель достаточно большой, чтобы процент что-то значил. */}
       {!!stats?.length && !!trend?.length && (
-        <>
-          <TrendChart
-            title="SLA-нарушений по неделям"
-            data={trend}
-            managers={stats}
-            metricKey="slaViolations"
-            valueFormatter={(v) => `${v}`}
-          />
-          <TrendChart
-            title="Не переведено в CRM по неделям"
-            data={trend}
-            managers={stats}
-            metricKey="notConvertedRate"
-            valueFormatter={(v) => `${v.toFixed(0)}%`}
-          />
-          <TrendChart
-            title="Провалено по неделям"
-            data={trend}
-            managers={stats}
-            metricKey="junkRate"
-            valueFormatter={(v) => `${v.toFixed(0)}%`}
-          />
-        </>
+        <TrendChart
+          title="SLA-нарушений по неделям"
+          data={trend}
+          managers={stats}
+          metricKey="slaViolations"
+          valueFormatter={(v) => `${v}`}
+        />
       )}
 
       <Card>
@@ -196,7 +190,11 @@ export function ManagerRatingPage() {
             <SortHeader label="Менеджер" sortKeyValue="name" />
             <SortHeader label="Создано" sortKeyValue="total" />
             <SortHeader label="SLA-нарушений" sortKeyValue="slaViolations" />
-            <SortHeader label="Не переведено" sortKeyValue="notConvertedRate" />
+            {/* "Не в сделке", не "не переведено в CRM" — лид и так уже в Bitrix CRM
+                (мы читаем его оттуда же), переводится он в Сделку (STATUS_ID=CONVERTED,
+                см. crm.status.list), правильная терминология важна, реальный вопрос
+                пользователя 2026-09-12: "куда его ещё передавать, он уже в CRM". */}
+            <SortHeader label="Не в сделке" sortKeyValue="notConvertedRate" />
             <SortHeader label="Провалено" sortKeyValue="junkRate" />
           </div>
           {statsLoading && <p className="p-4 text-ui text-text-3">Загрузка…</p>}
@@ -206,8 +204,10 @@ export function ManagerRatingPage() {
                 <span className="text-ui font-medium text-text-1">{m.name}</span>
                 <span className="font-mono text-ui tabular-nums text-text-2">{m.total}</span>
                 <span className="font-mono text-ui tabular-nums text-text-2">{m.slaViolations}</span>
-                <span className="font-mono text-ui tabular-nums text-text-2">{formatPercent(m.notConvertedRate)}</span>
-                <span className="font-mono text-ui tabular-nums text-text-2">{formatPercent(m.junkRate)}</span>
+                <span className="font-mono text-ui tabular-nums text-text-2">
+                  {formatCountRate(m.total - m.converted, m.total)}
+                </span>
+                <span className="font-mono text-ui tabular-nums text-text-2">{formatCountRate(m.junk, m.total)}</span>
               </div>
             ))}
         </CardContent>
