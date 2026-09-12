@@ -537,6 +537,23 @@ enum LeadStatus {
   STOP_LISTED
 }
 
+/// Грубая категория нерелевантности (leadAiService.classify, только при is_relevant:
+/// false) — используется leadAutoStopListService для асимметричного авто-стоплиста
+/// (grill-me допрос 2026-09-12): SPAM/COURSE_OR_TRAINING/VACANCY/SUPPLIER_PITCH —
+/// однозначный мусор, авто-стоплистится (при включённом рубильнике). OTHER — модель
+/// не смогла уверенно классифицировать, остаётся только ручной разбор (риск ложного
+/// скрытия реального клиента выше). PHISHING_ATTEMPT — попытка манипуляции самой
+/// системой (промпт-инъекция) — НЕ стоплистится тихо вместе со спамом, а поднимает
+/// отдельный алерт Администратору (см. leadAutoStopListService.notifyPhishingAttempt).
+enum LeadIrrelevantCategory {
+  SPAM
+  COURSE_OR_TRAINING
+  VACANCY
+  SUPPLIER_PITCH
+  PHISHING_ATTEMPT
+  OTHER
+}
+
 /// OUTBOUND — ответ сотрудника с sales@ (leadService.reply), не письмо от клиента.
 /// Появилось вместе с assigneeId/SLA-таймером — до этого EmailLeadMessage хранил
 /// только входящие письма (design_handoff_lemark_one/Leads.dc.html предполагает
@@ -600,13 +617,16 @@ model EmailLead {
   confirmationEmailSentAt DateTime?
   confirmationEmailError  String?
 
-  /// Режим наблюдения (leadAiService) — ИИ пишет вердикт релевантности сюда, но
-  /// поведение системы (кому уходит отбивка, статус) пока НЕ меняется. Только на
-  /// НОВЫХ заявках (первое сообщение), не на доливаемых письмах в открытый тред.
-  aiProcessedAt DateTime?
-  aiIsRelevant  Boolean?
-  aiReasoning   String?
-  aiError       String?
+  /// ИИ-классификация (leadAiService) — только на НОВЫХ заявках (первое сообщение),
+  /// не на доливаемых письмах в открытый тред. is_relevant:true реально действует
+  /// (авто-передача в CRM, leadService.autoConvertToCrm) с коммита про авто-передачу
+  /// лидов в CRM; is_relevant:false — см. irrelevantCategory ниже и
+  /// leadAutoStopListService (асимметричный авто-стоплист, только часть категорий).
+  aiProcessedAt      DateTime?
+  aiIsRelevant       Boolean?
+  aiReasoning        String?
+  aiError            String?
+  irrelevantCategory LeadIrrelevantCategory?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
