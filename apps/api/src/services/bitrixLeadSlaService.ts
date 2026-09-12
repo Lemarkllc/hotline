@@ -1,5 +1,6 @@
 import { bitrixService, type BitrixActiveLeadDTO } from "@/services/bitrixService.js";
 import { bitrixLeadAlertRepository } from "@/repositories/BitrixLeadAlertRepository.js";
+import { bitrixLeadSlaEventRepository } from "@/repositories/BitrixLeadSlaEventRepository.js";
 import { notificationService } from "@/services/notificationService.js";
 import { logger } from "@/lib/logger.js";
 import { SALES_ROSTER, SALES_ROSTER_KEYS } from "@/config/salesRoster.js";
@@ -91,6 +92,9 @@ export class BitrixLeadSlaService {
 
         await notificationService.notifySalesBitrixLeadStalled(lead);
         await bitrixLeadAlertRepository.touch(lead.id, lead.statusId, lead.assignedById);
+        // Append-only журнал для "Рейтинга менеджеров" (managerLeadRatingService) —
+        // BitrixLeadAlert.touch() выше перезаписывает alertedAt, историю не хранит.
+        await bitrixLeadSlaEventRepository.record(lead.id, lead.statusId, lead.assignedById);
       } catch (error) {
         logger.error({ err: error, bitrixLeadId: lead.id }, "bitrixLeadSlaService: alert failed");
       }

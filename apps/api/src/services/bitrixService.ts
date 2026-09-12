@@ -18,6 +18,18 @@ export interface BitrixActiveLeadDTO {
   dateModify: string;
 }
 
+/** «Рейтинг менеджеров» (managerLeadRatingService.ts) — ВСЕ статусы, не только
+ * активные (в отличие от BitrixActiveLeadDTO выше), нужны для расчёта конверсии/
+ * доли провальных по когорте dateCreate. statusId — строка, не литерал: сюда
+ * попадают все 6 значений из crm.status.list (NEW/IN_PROCESS/PROCESSED/CONVERTED/
+ * JUNK/UC_UO10VU), не только два активных. */
+export interface BitrixAnyLeadDTO {
+  id: string;
+  statusId: string;
+  assignedById: string;
+  dateCreate: string;
+}
+
 interface BitrixApiResponse<T> {
   result?: T;
   error?: string;
@@ -159,6 +171,50 @@ export class BitrixService {
           statusId: lead.STATUS_ID,
           assignedById: lead.ASSIGNED_BY_ID,
           dateModify: lead.DATE_MODIFY,
+        });
+      }
+      if (data.next == null) break;
+      start = data.next;
+    }
+    return result;
+  }
+
+  /**
+   * «Рейтинг менеджеров» (managerLeadRatingService.ts) — полная выгрузка лидов
+   * 6 сотрудников SALES_ROSTER, ВСЕ статусы (используется и для ежесуточного
+   * обновления кэша, и для разового бэкфилла — это одна и та же операция). Кэп в
+   * 60 страниц (3000 лидов) — с запасом под объём компании такого размера,
+   * страхует от бесконечного цикла, не реальный лимит (см. listActiveLeads выше).
+   */
+  async listAllLeads(assignedByIds: string[]): Promise<BitrixAnyLeadDTO[]> {
+    if (!config.bitrix.webhookUrl) {
+      throw new ValidationError("Bitrix24 вебхук не настроен (BITRIX_WEBHOOK_URL)");
+    }
+    const url = `${config.bitrix.webhookUrl.replace(/\/$/, "")}/crm.lead.list.json`;
+    const result: BitrixAnyLeadDTO[] = [];
+    let start = 0;
+    for (let page = 0; page < 60; page++) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filter: { ASSIGNED_BY_ID: assignedByIds },
+          select: ["ID", "STATUS_ID", "ASSIGNED_BY_ID", "DATE_CREATE"],
+          start,
+        }),
+      });
+      const data = (await res.json()) as BitrixApiResponse<
+        { ID: string; STATUS_ID: string; ASSIGNED_BY_ID: string; DATE_CREATE: string }[]
+      > & { next?: number };
+      if (data.error) {
+        throw new ValidationError(`Bitrix24 (crm.lead.list): ${data.error_description ?? data.error}`);
+      }
+      for (const lead of data.result ?? []) {
+        result.push({
+          id: lead.ID,
+          statusId: lead.STATUS_ID,
+          assignedById: lead.ASSIGNED_BY_ID,
+          dateCreate: lead.DATE_CREATE,
         });
       }
       if (data.next == null) break;
