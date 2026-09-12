@@ -40,6 +40,9 @@ export interface LeadDTO {
   /** Ответственный — только снимок Bitrix24-пользователя с момента конвертации
    * (leadService.convertToCrm), не внутреннее назначение (см. схему EmailLead). */
   bitrixAssignee: { name: string; email: string | null } | null;
+  /** Причина алгоритмического выбора (leadAssignmentService.PickedAssignee.reason),
+   * денормализованная копия из момента autoConvertToCrm — null у ручной convertToCrm. */
+  autoAssignReason: string | null;
   bitrixLeadId: string | null;
   stopListReason: string | null;
   aiIsRelevant: boolean | null;
@@ -78,6 +81,7 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
     bitrixAssignee: lead.bitrixAssigneeName
       ? { name: lead.bitrixAssigneeName, email: lead.bitrixAssigneeEmail }
       : null,
+    autoAssignReason: lead.autoAssignReason,
     bitrixLeadId: lead.bitrixLeadId,
     stopListReason: lead.stopListReason,
     aiIsRelevant: lead.aiIsRelevant,
@@ -207,7 +211,7 @@ export class LeadService {
   async autoConvertToCrm(id: string, assignee: PickedAssignee): Promise<LeadDTO> {
     const lead = await this.assertConvertible(id);
     const { bitrixLeadId, bitrixAssignee } = await this.performCrmConversion(lead, assignee.bitrixId);
-    await emailLeadRepository.markConverted(id, null, bitrixLeadId, bitrixAssignee);
+    await emailLeadRepository.markConverted(id, null, bitrixLeadId, bitrixAssignee, assignee.reason);
     await auditService.record({
       actorId: null,
       action: "lead.auto_converted",

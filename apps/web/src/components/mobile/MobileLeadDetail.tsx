@@ -161,6 +161,9 @@ export function MobileLeadDetail({
             <div className="rounded-lg border border-rule bg-surface p-4">
               <p className="text-ui text-text-1">{lead.bitrixAssignee.name}</p>
               {lead.bitrixAssignee.email && <p className="mt-0.5 text-meta text-text-3">{lead.bitrixAssignee.email}</p>}
+              {lead.autoAssignReason && (
+                <p className="mt-0.5 text-meta text-text-3">Авто-назначение: {lead.autoAssignReason}</p>
+              )}
             </div>
           </div>
         )}
