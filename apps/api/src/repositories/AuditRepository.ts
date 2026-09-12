@@ -21,6 +21,12 @@ export class AuditRepository {
     return prisma.auditLog.create({ data: entry });
   }
 
+  /** Для дайджеста авто-стоплиста (leadAutoStopListDigestService.ts) — сколько раз
+   * action сработал с указанного момента, без выгрузки самих строк. */
+  countSince(action: string, since: Date): Promise<number> {
+    return prisma.auditLog.count({ where: { action, createdAt: { gte: since } } });
+  }
+
   list(filters: { action?: string; actorId?: string; appealId?: string }, page: number, pageSize: number) {
     return prisma.auditLog.findMany({
       where: {

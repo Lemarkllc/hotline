@@ -22,6 +22,10 @@ export function describeNotification(payload: Record<string, unknown>): string {
       return `ИИ считает заявку ${payload.publicNumber} релевантной — передайте в CRM: ${payload.reasoning}`;
     case "lead_auto_converted":
       return `Заявка ${payload.publicNumber} передана в CRM — назначена ${payload.assigneeFullName}`;
+    case "lead_phishing_attempt":
+      return `Заявка ${payload.publicNumber} похожа на попытку манипуляции ИИ (промпт-инъекция)`;
+    case "lead_ai_autostoplist_digest":
+      return `ИИ отправил в стоп-лист ${payload.count} писем за сегодня — фильтр «От ИИ» в стоп-листе`;
     default:
       return "Новое уведомление";
   }

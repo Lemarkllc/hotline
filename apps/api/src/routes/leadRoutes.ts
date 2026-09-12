@@ -40,6 +40,24 @@ leadRoutes.patch(
   asyncErrorWrapper((req, res) => leadController.updateAutoConvertSetting(req, res)),
 );
 
+// Рубильник авто-стоплиста (leadAutoStopListService) — тот же круг доступа, что и у
+// авто-передачи выше (requireAnyPlainPermission), по той же причине (Администратор
+// без lead.manage тоже должен управлять рубильниками автоматизации).
+leadRoutes.get(
+  "/auto-stoplist-setting",
+  requireWebAuth,
+  requireAnyPlainPermission("lead.manage", "user.manage"),
+  asyncErrorWrapper((req, res) => leadController.getAutoStopListSetting(req, res)),
+);
+
+leadRoutes.patch(
+  "/auto-stoplist-setting",
+  requireWebAuth,
+  requireAnyPlainPermission("lead.manage", "user.manage"),
+  validate(updateLeadAutoConvertSettingSchema),
+  asyncErrorWrapper((req, res) => leadController.updateAutoStopListSetting(req, res)),
+);
+
 leadRoutes.use(requireWebAuth, requirePlainPermission("lead.manage"));
 
 leadRoutes.get("/", validate(listLeadsQuerySchema, "query"), asyncErrorWrapper((req, res) => leadController.list(req, res)));

@@ -9,6 +9,7 @@ import { emailLeadRepository, type EmailAttachmentInput } from "@/repositories/E
 import { systemSettingRepository } from "@/repositories/SystemSettingRepository.js";
 import { emailSendService } from "@/services/emailSendService.js";
 import { leadAiService } from "@/services/leadAiService.js";
+import { leadAutoStopListService } from "@/services/leadAutoStopListService.js";
 import { leadService } from "@/services/leadService.js";
 import { pickAssignee } from "@/services/leadAssignmentService.js";
 import { notificationService } from "@/services/notificationService.js";
@@ -225,6 +226,12 @@ export class EmailIngestService {
             } else {
               await notificationService.notifySalesAiRelevantLead(lead, aiResult.reasoning);
             }
+          } else {
+            // Асимметричный авто-стоплист (leadAutoStopListService, grill-me допрос
+            // 2026-09-12) — только "безопасные" категории и только если включён
+            // отдельный рубильник (по умолчанию выключен, в отличие от авто-передачи
+            // выше); PHISHING_ATTEMPT — вне рубильника, всегда алертит Администратора.
+            await leadAutoStopListService.handleIrrelevant(lead, aiResult);
           }
         } else {
           await emailLeadRepository.markAiError(lead.id, "classify вернул null (см. логи leadAiService)");

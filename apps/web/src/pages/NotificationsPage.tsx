@@ -39,6 +39,10 @@ export function NotificationsPage() {
                 if (unread) markRead.mutate(n.id);
                 if (n.appealId) navigate(`/appeals/${n.appealId}`);
                 else if (n.emailLeadId) navigate(`/leads/${n.emailLeadId}`);
+                // Дайджест авто-стоплиста (leadAutoStopListService) — про N писем сразу,
+                // не про один лид, поэтому нет ни appealId, ни emailLeadId (см.
+                // notificationService.notifySalesAutoStopListDigest).
+                else if (n.payload?.type === "lead_ai_autostoplist_digest") navigate("/leads");
               }}
               className="flex items-start gap-3 rounded-[14px] border border-border bg-surface p-4 text-left"
             >

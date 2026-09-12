@@ -7,6 +7,7 @@ const { config } = await import("@/config/unifiedConfig.js");
 const { logger } = await import("@/lib/logger.js");
 const { attachmentService } = await import("@/services/attachmentService.js");
 const { emailIngestService } = await import("@/services/emailIngestService.js");
+const { leadAutoStopListService } = await import("@/services/leadAutoStopListService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 const { initRealtime } = await import("@/lib/realtime.js");
 
@@ -28,9 +29,16 @@ const emailPollInterval = setInterval(() => {
   emailIngestService.pollInbox().catch((error) => logger.error({ err: error }, "email poll failed"));
 }, config.email.pollIntervalMs);
 
+// Дайджест авто-стоплиста (leadAutoStopListService) — сам метод не шлёт чаще раза в
+// сутки (see DIGEST_HOUR_UTC), 30 минут просто с запасом ловит порог по времени.
+const leadStopListDigestInterval = setInterval(() => {
+  leadAutoStopListService.sendDailyDigestIfDue().catch((error) => logger.error({ err: error }, "lead stoplist digest failed"));
+}, 30 * 60 * 1000);
+
 function shutdown(): void {
   clearInterval(cleanupInterval);
   clearInterval(emailPollInterval);
+  clearInterval(leadStopListDigestInterval);
   server.close(() => process.exit(0));
 }
 

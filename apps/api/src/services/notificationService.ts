@@ -255,6 +255,46 @@ export class NotificationService {
     );
   }
 
+  /** Попытка манипуляции/промпт-инъекции (leadAiService, irrelevant_category=
+   * PHISHING_ATTEMPT) — НЕ роли SALES (ей это ни о чём не скажет, решение пользователя,
+   * grill-me допрос 2026-09-12), а Администратору: это сигнал про саму систему, не про
+   * рабочий процесс продаж. Лид НЕ авто-стоплистится за это — остаётся на ручной разбор. */
+  async notifyAdminPhishingAttempt(lead: { id: string; publicNumber: string }): Promise<void> {
+    const recipients = await userRepository.findByRole("ADMINISTRATOR");
+    await Promise.all(
+      recipients.map((r) =>
+        this.createLeadWebNotification(
+          r.id,
+          lead.id,
+          { type: "lead_phishing_attempt", publicNumber: lead.publicNumber },
+          { title: "Попытка манипуляции ИИ", body: `Заявка ${lead.publicNumber} похожа на промпт-инъекцию` },
+        ),
+      ),
+    );
+  }
+
+  /** Дайджест авто-стоплиста (leadAutoStopListService.sendDailyDigestIfDue) — про N
+   * писем сразу, не про один лид, поэтому не через createLeadWebNotification (та
+   * привязана к одному emailLeadId). appealId/emailLeadId оба null — клик в панели
+   * не ведёт на конкретную карточку, только на общий список (см. фронт). */
+  async notifySalesAutoStopListDigest(count: number): Promise<void> {
+    const recipients = await userRepository.findByRole("SALES");
+    await Promise.all(
+      recipients.map(async (r) => {
+        await notificationRepository.create({
+          userId: r.id,
+          channel: "WEB",
+          payload: { type: "lead_ai_autostoplist_digest", count },
+        });
+        await pushService.sendToUser(r.id, {
+          title: "ИИ отправил письма в стоп-лист",
+          body: `За сегодня: ${count} — проверьте фильтр «От ИИ» в стоп-листе`,
+          url: "/leads",
+        });
+      }),
+    );
+  }
+
   /** NPS-style — низкая любая из двух оценок (порог ≤2, по аналогии с notifyLowRating). */
   async notifyLowCustomerRating(
     appealId: string,

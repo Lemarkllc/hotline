@@ -33,6 +33,25 @@ export class LeadController extends BaseController {
     }
   }
 
+  async getAutoStopListSetting(_req: Request, res: Response): Promise<void> {
+    try {
+      const enabled = await leadService.getAutoStopListSetting();
+      this.handleSuccess(res, { enabled });
+    } catch (error) {
+      this.handleError(error, res, "getAutoStopListSetting");
+    }
+  }
+
+  async updateAutoStopListSetting(req: Request, res: Response): Promise<void> {
+    try {
+      const { enabled } = req.body as z.infer<typeof updateLeadAutoConvertSettingSchema>;
+      await leadService.setAutoStopListSetting(req.user!, enabled);
+      this.handleSuccess(res, { enabled });
+    } catch (error) {
+      this.handleError(error, res, "updateAutoStopListSetting");
+    }
+  }
+
   async list(req: Request, res: Response): Promise<void> {
     try {
       const { view, from, to } = req.query as unknown as z.infer<typeof listLeadsQuerySchema>;

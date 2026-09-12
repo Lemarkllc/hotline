@@ -1,4 +1,4 @@
-import type { EmailLead, LeadStatus, Prisma } from "@prisma/client";
+import type { EmailLead, LeadIrrelevantCategory, LeadStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma.js";
 import { nextSequence } from "@/utils/sequence.js";
 
@@ -120,7 +120,9 @@ export class EmailLeadRepository {
     return prisma.emailLead.update({ where: { id }, data: { status: "IN_PROGRESS" } });
   }
 
-  stopList(id: string, userId: string, reason: string | undefined): Promise<EmailLead> {
+  /** userId — null для авто-стоплиста (leadAutoStopListService, нет человека-актора),
+   * тем же принципом, что и userId у markConverted выше. */
+  stopList(id: string, userId: string | null, reason: string | undefined): Promise<EmailLead> {
     return prisma.emailLead.update({
       where: { id },
       data: { status: "STOP_LISTED", stopListedByUserId: userId, stopListedAt: new Date(), stopListReason: reason },
@@ -181,12 +183,21 @@ export class EmailLeadRepository {
     return prisma.emailLead.update({ where: { id }, data: { confirmationEmailError: error } });
   }
 
-  /** Режим наблюдения (leadAiService) — пишет вердикт уже ПОСЛЕ создания заявки
-   * (не в create(), см. комментарий там), не блокируя отбивку/уведомление SALES. */
-  markAiClassified(id: string, result: { isRelevant: boolean; reasoning: string }): Promise<EmailLead> {
+  /** Пишет вердикт уже ПОСЛЕ создания заявки (не в create(), см. комментарий там), не
+   * блокируя отбивку/уведомление SALES. irrelevantCategory — только при isRelevant:false
+   * (см. LeadIrrelevantCategory в схеме), у релевантных всегда null. */
+  markAiClassified(
+    id: string,
+    result: { isRelevant: boolean; reasoning: string; irrelevantCategory: LeadIrrelevantCategory | null },
+  ): Promise<EmailLead> {
     return prisma.emailLead.update({
       where: { id },
-      data: { aiProcessedAt: new Date(), aiIsRelevant: result.isRelevant, aiReasoning: result.reasoning },
+      data: {
+        aiProcessedAt: new Date(),
+        aiIsRelevant: result.isRelevant,
+        aiReasoning: result.reasoning,
+        irrelevantCategory: result.irrelevantCategory,
+      },
     });
   }
 

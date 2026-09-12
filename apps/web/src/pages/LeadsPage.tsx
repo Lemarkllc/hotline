@@ -14,10 +14,12 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
   useBulkStopListLeads,
   useLeadAutoConvertSetting,
+  useLeadAutoStopListSetting,
   useLeadConversionStats,
   useLeadDailyStats,
   useLeads,
   useUpdateLeadAutoConvertSetting,
+  useUpdateLeadAutoStopListSetting,
   type LeadDTO,
   type LeadsView,
 } from "@/hooks/api";
@@ -41,6 +43,25 @@ function AutoConvertToggle() {
   return (
     <div className="flex items-center gap-2">
       <span className="text-ui text-text-2">Авто-передача в CRM</span>
+      <Switch checked={data.enabled} disabled={update.isPending} onCheckedChange={(v) => update.mutate(v)} />
+    </div>
+  );
+}
+
+/** Рубильник авто-стоплиста нерелевантных лидов (leadAutoStopListService) — по
+ * умолчанию выключен на бэкенде (getAutoStopListSetting), в отличие от
+ * AutoConvertToggle выше. Тот же круг доступа. */
+function AutoStopListToggle() {
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canManage = hasPermission("lead.manage") || hasPermission("user.manage");
+  const { data } = useLeadAutoStopListSetting(canManage);
+  const update = useUpdateLeadAutoStopListSetting();
+
+  if (!canManage || !data) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-ui text-text-2">Авто-стоплист ИИ</span>
       <Switch checked={data.enabled} disabled={update.isPending} onCheckedChange={(v) => update.mutate(v)} />
     </div>
   );
@@ -96,6 +117,10 @@ export function LeadsPage() {
   const isMobile = useIsMobile();
   const [view, setView] = useState<LeadsView>("active");
   const [chip, setChip] = useState<ChipFilter>("all");
+  // Только на view "stop_listed" — фильтр "От ИИ" (leadAutoStopListService, grill-me
+  // допрос 2026-09-12), не часть ChipFilter выше: разная семантика для разных view,
+  // смешивать в один union type не стоит.
+  const [aiStopListedOnly, setAiStopListedOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [stopListDialogOpen, setStopListDialogOpen] = useState(false);
@@ -122,6 +147,7 @@ export function LeadsPage() {
   const filteredLeads = useMemo(() => {
     let rows = leads ?? [];
     if (view === "active" && chip === "overdue") rows = rows.filter(isOverdue);
+    if (view === "stop_listed" && aiStopListedOnly) rows = rows.filter((l) => l.isAiStopListed);
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter(
@@ -133,7 +159,7 @@ export function LeadsPage() {
       );
     }
     return rows;
-  }, [leads, view, chip, search]);
+  }, [leads, view, chip, aiStopListedOnly, search]);
 
   const overdueCount = (leads ?? []).filter(isOverdue).length;
 
@@ -181,6 +207,7 @@ export function LeadsPage() {
         </div>
         <div className="flex items-center gap-4">
           <AutoConvertToggle />
+          <AutoStopListToggle />
           <DesktopDateRangePicker
             from={from}
             to={to}
@@ -248,6 +275,7 @@ export function LeadsPage() {
               onClick={() => {
                 setView(v);
                 setChip("all");
+                setAiStopListedOnly(false);
                 setSelectedIds(new Set());
               }}
               className={cn(
@@ -285,6 +313,23 @@ export function LeadsPage() {
               {CHIP_LABELS[c]}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* leadAutoStopListService — отличить авто-стоплист от ручного, чтобы РОП могла
+          пройтись по решениям ИИ после дайджеста (grill-me допрос 2026-09-12). */}
+      {view === "stop_listed" && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setAiStopListedOnly((v) => !v)}
+            className={cn(
+              "rounded-full px-3 py-1 text-meta font-medium transition-colors duration-1",
+              aiStopListedOnly ? "bg-action text-action-fg" : "bg-surface-sunk text-text-2 hover:text-text-1",
+            )}
+          >
+            От ИИ
+          </button>
         </div>
       )}
 

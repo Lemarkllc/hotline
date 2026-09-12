@@ -575,8 +575,10 @@ export interface LeadDTO {
   bitrixAssignee: { name: string; email: string | null } | null;
   bitrixLeadId: string | null;
   stopListReason: string | null;
+  isAiStopListed: boolean;
   aiIsRelevant: boolean | null;
   aiReasoning: string | null;
+  irrelevantCategory: "SPAM" | "COURSE_OR_TRAINING" | "VACANCY" | "SUPPLIER_PITCH" | "PHISHING_ATTEMPT" | "OTHER" | null;
   firstResponseDueAt: string;
   firstRespondedAt: string | null;
   messages: {
@@ -735,6 +737,25 @@ export function useUpdateLeadAutoConvertSetting() {
     mutationFn: (enabled: boolean) =>
       apiRequest<{ enabled: boolean }>("/leads/auto-convert-setting", { method: "PATCH", body: { enabled } }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["lead-auto-convert-setting"] }),
+  });
+}
+
+/** По умолчанию выключен на бэкенде (leadService.getAutoStopListSetting) — здесь
+ * default не задаём, просто отражаем то, что вернул сервер. */
+export function useLeadAutoStopListSetting(enabled = true) {
+  return useQuery({
+    queryKey: ["lead-auto-stoplist-setting"],
+    queryFn: () => apiRequest<{ enabled: boolean }>("/leads/auto-stoplist-setting"),
+    enabled,
+  });
+}
+
+export function useUpdateLeadAutoStopListSetting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      apiRequest<{ enabled: boolean }>("/leads/auto-stoplist-setting", { method: "PATCH", body: { enabled } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["lead-auto-stoplist-setting"] }),
   });
 }
 

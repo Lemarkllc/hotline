@@ -41,6 +41,7 @@ export function Topbar() {
                       setOpen(false);
                       if (n.appealId) navigate(`/appeals/${n.appealId}`);
                       else if (n.emailLeadId) navigate(`/leads/${n.emailLeadId}`);
+                      else if (n.payload?.type === "lead_ai_autostoplist_digest") navigate("/leads");
                     }}
                     className={cn(
                       "flex w-full flex-col items-start gap-0.5 rounded-md p-3 text-left text-ui hover:bg-surface-sunk",

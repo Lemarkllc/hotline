@@ -1,3 +1,4 @@
+import type { LeadIrrelevantCategory } from "@prisma/client";
 import { config } from "@/config/unifiedConfig.js";
 import { downloadObject, getPresignedDownloadUrl } from "@/lib/storage.js";
 import { bitrixService, type BitrixUserDTO } from "@/services/bitrixService.js";
@@ -15,6 +16,13 @@ import { logger } from "@/lib/logger.js";
  * (leadAssignmentService.ts + emailIngestService.ts) — по умолчанию включён
  * (см. getAutoConvertSetting), управляется Администратором и SALES. */
 const AUTO_CONVERT_SETTING_KEY = "lead_auto_convert_enabled";
+
+/** Рубильник авто-стоплиста нерелевантных лидов (leadAutoStopListService.ts) — в
+ * отличие от AUTO_CONVERT_SETTING_KEY выше, по умолчанию ВЫКЛЮЧЕН (см.
+ * getAutoStopListSetting): ложноположительный auto-convert не страшен (лишняя работа
+ * на 2 минуты), а ложноотрицательный auto-stoplist — молча спрятанный реальный
+ * клиент, поэтому включать нужно осознанно (grill-me допрос 2026-09-12). */
+const AUTO_STOPLIST_SETTING_KEY = "lead_ai_auto_stoplist_enabled";
 
 /** Часов на первый ответ клиенту (design_handoff_lemark_one/README.md "SLA 4 ч") —
  * фиксированная политика, не настройка: как и остальные SLA-подобные величины в этой
@@ -42,8 +50,16 @@ export interface LeadDTO {
   bitrixAssignee: { name: string; email: string | null } | null;
   bitrixLeadId: string | null;
   stopListReason: string | null;
+  /** stopListedByUserId=null отличает авто-стоплист (leadService.autoStopList, нет
+   * человека-актора) от ручного — тот же принцип, что и convertedByUserId=null у
+   * авто-конвертации. Только для status=STOP_LISTED имеет смысл (иначе false). */
+  isAiStopListed: boolean;
   aiIsRelevant: boolean | null;
   aiReasoning: string | null;
+  /** Только при aiIsRelevant:false (leadAiService) — какая категория мусора и был ли
+   * лид авто-стоплистнут за неё (см. stopListReason: заполняется только у категорий,
+   * которые реально прогоняются через авто-стоплист). */
+  irrelevantCategory: LeadIrrelevantCategory | null;
   /** SLA на первый ответ клиенту (design_handoff_lemark_one/Leads.dc.html) — не поле в
    * БД, вычисляется здесь из createdAt + LEAD_FIRST_RESPONSE_SLA_HOURS и первого
    * OUTBOUND-сообщения; просрочку (isFirstResponseOverdue) считает фронт по этим двум
@@ -80,8 +96,10 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
       : null,
     bitrixLeadId: lead.bitrixLeadId,
     stopListReason: lead.stopListReason,
+    isAiStopListed: lead.status === "STOP_LISTED" && lead.stopListedByUserId === null,
     aiIsRelevant: lead.aiIsRelevant,
     aiReasoning: lead.aiReasoning,
+    irrelevantCategory: lead.irrelevantCategory,
     firstResponseDueAt: new Date(lead.createdAt.getTime() + LEAD_FIRST_RESPONSE_SLA_HOURS * 60 * 60 * 1000),
     firstRespondedAt: firstOutbound?.receivedAt ?? null,
     messages: lead.messages.map((m) => ({
@@ -316,6 +334,45 @@ export class LeadService {
       objectId: AUTO_CONVERT_SETTING_KEY,
       result: "success",
       metadata: { enabled },
+    });
+  }
+
+  /** Рубильник авто-стоплиста (leadAutoStopListService.ts) — по умолчанию ВЫКЛЮЧЕН
+   * (null трактуем как "выключено", в отличие от getAutoConvertSetting выше), см.
+   * AUTO_STOPLIST_SETTING_KEY. */
+  async getAutoStopListSetting(): Promise<boolean> {
+    const value = await systemSettingRepository.get<boolean>(AUTO_STOPLIST_SETTING_KEY);
+    return value ?? false;
+  }
+
+  async setAutoStopListSetting(user: AuthenticatedUser, enabled: boolean): Promise<void> {
+    await systemSettingRepository.set(AUTO_STOPLIST_SETTING_KEY, enabled);
+    await auditService.record({
+      actorId: user.id,
+      action: "lead.auto_stoplist_setting_changed",
+      objectType: "SystemSetting",
+      objectId: AUTO_STOPLIST_SETTING_KEY,
+      result: "success",
+      metadata: { enabled },
+    });
+  }
+
+  /** Асимметричный авто-стоплист (grill-me допрос 2026-09-12) — вызывается из
+   * emailIngestService только для "безопасных" категорий (SPAM/COURSE_OR_TRAINING/
+   * VACANCY/SUPPLIER_PITCH), никогда для OTHER/PHISHING_ATTEMPT. userId=null на
+   * stopList (нет человека-актора) — в отличие от ручного stopList() выше, НЕ
+   * трогает emailBlocklistRepository: перманентная блокировка адреса — решение с
+   * большими последствиями (все будущие письма молча пропадут), а не только этого
+   * одного письма; риск слишком велик для полностью автоматического решения. */
+  async autoStopList(id: string, category: LeadIrrelevantCategory, reasoning: string): Promise<void> {
+    await emailLeadRepository.stopList(id, null, `ИИ (${category}): ${reasoning}`);
+    await auditService.record({
+      actorId: null,
+      action: "lead.auto_stoplisted",
+      objectType: "EmailLead",
+      objectId: id,
+      result: "success",
+      metadata: { category, reasoning },
     });
   }
 
