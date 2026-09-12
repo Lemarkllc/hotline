@@ -18,7 +18,10 @@ const ACCENT_STYLES: Record<Accent, { icon: string; value?: string }> = {
 };
 
 /** Общий KPI-тайл — используется и на DashboardPage, и на LeadsPage (конверсия
- * email → CRM, см. PLAN.md "«Заявки» — email-лиды..."). */
+ * email → CRM, см. PLAN.md "«Заявки» — email-лиды..."). onClick/active — плитка
+ * как фильтр-переключатель (SlaLeadsPage, решение пользователя 2026-09-12: клик по
+ * плитке должен фильтровать список), взаимоисключающе с to — либо ссылка, либо
+ * кнопка-фильтр, не обе сразу. */
 export function KpiCard({
   label,
   value,
@@ -26,6 +29,8 @@ export function KpiCard({
   icon: Icon,
   accent,
   to,
+  onClick,
+  active,
 }: {
   label: string;
   value: string | number;
@@ -33,6 +38,8 @@ export function KpiCard({
   icon: LucideIcon;
   accent: Accent;
   to?: string;
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const style = ACCENT_STYLES[accent];
   const content = (
@@ -49,6 +56,21 @@ export function KpiCard({
       </div>
     </CardContent>
   );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "block w-full rounded-lg border bg-surface text-left transition-colors duration-1 hover:border-rule-strong",
+          active ? "border-action ring-1 ring-action" : "border-rule",
+        )}
+      >
+        {content}
+      </button>
+    );
+  }
 
   if (!to) return <Card>{content}</Card>;
 
