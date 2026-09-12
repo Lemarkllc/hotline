@@ -538,15 +538,50 @@ model BitrixLeadAlert {
   id           String   @id @default(uuid())
   bitrixLeadId String
   statusId     String
-  /// Задел под будущую фичу "рейтинг/антирейтинг менеджера" (частота SLA-нарушений
-  /// per ASSIGNED_BY_ID) — не используется этой фичей напрямую, добавлено заранее,
-  /// потому что значение и так уже под рукой в момент записи (bitrixLeadSlaService),
-  /// а бэкфиллить его в старые строки задним числом было бы невозможно.
+  /// Используется managerLeadRatingService для резолва имени в агрегатах — само
+  /// нарушение считается по BitrixLeadSlaEvent ниже, не по этой таблице (она
+  /// дедуп/upsert, не журнал, историю не хранит, см. модель ниже).
   assignedById String
   alertedAt    DateTime @default(now())
 
   @@unique([bitrixLeadId, statusId])
   @@map("bitrix_lead_alerts")
+}
+
+/// Append-only журнал КАЖДОЙ реальной отправки SLA-алерта — в отличие от
+/// BitrixLeadAlert выше (дедуп-upsert, хранит только последний момент на пару
+/// лид+статус), эта таблица накапливает историю: сколько раз конкретный
+/// ASSIGNED_BY_ID реально получал нарушение за произвольный период (фича "Рейтинг
+/// менеджеров"). Пишется В ТОТ ЖЕ момент, что и BitrixLeadAlert.touch() —
+/// bitrixLeadSlaService.checkStalled не меняет свою dedup-логику, просто рядом
+/// добавляется ещё одна запись при каждой реальной отправке.
+model BitrixLeadSlaEvent {
+  id           String   @id @default(uuid())
+  bitrixLeadId String
+  statusId     String
+  assignedById String
+  occurredAt   DateTime @default(now())
+
+  @@index([assignedById, occurredAt])
+  @@map("bitrix_lead_sla_events")
+}
+
+/// Per-lead кэш для "Рейтинга менеджеров" (grill-me допрос 2026-09-12, вариант В) —
+/// НЕ снимок на день/агрегат, а по одной строке на лид, обновляется целиком раз в
+/// сутки (managerLeadRatingService.refreshSnapshots, тот же вызов делает и разовый
+/// бэкфилл при первом запуске). Период считается обычным GROUP BY по dateCreate —
+/// корректная когорта (конверсия лида относится к дню его СОЗДАНИЯ, не дню перехода
+/// в CONVERTED/JUNK, см. допрос) без риска смешать разные популяции лидов, как в
+/// отброшенном варианте "снимок на конец дня".
+model BitrixLeadSnapshot {
+  bitrixLeadId    String   @id
+  assignedById    String
+  dateCreate      DateTime
+  currentStatusId String
+  updatedAt       DateTime @updatedAt
+
+  @@index([assignedById, dateCreate])
+  @@map("bitrix_lead_snapshots")
 }
 
 /// «Заявки» — email-лиды с sales@lemarkllc.ru (читаются через robot@ на Zimbra),

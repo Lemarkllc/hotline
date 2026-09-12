@@ -10,6 +10,7 @@ const { emailIngestService } = await import("@/services/emailIngestService.js");
 const { leadSlaService } = await import("@/services/leadSlaService.js");
 const { leadAutoStopListService } = await import("@/services/leadAutoStopListService.js");
 const { bitrixLeadSlaService } = await import("@/services/bitrixLeadSlaService.js");
+const { managerLeadRatingService } = await import("@/services/managerLeadRatingService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 const { initRealtime } = await import("@/lib/realtime.js");
 
@@ -49,12 +50,25 @@ const bitrixLeadSlaInterval = setInterval(() => {
   bitrixLeadSlaService.checkStalled().catch((error) => logger.error({ err: error }, "bitrix lead SLA check failed"));
 }, 30 * 60 * 1000);
 
+// «Рейтинг менеджеров» (managerLeadRatingService) — вызов сразу при старте
+// служит и разовым бэкфиллом истории (grill-me допрос 2026-09-12: с июня, не с
+// момента деплоя), и первым обновлением кэша, дальше раз в сутки.
+managerLeadRatingService
+  .refreshSnapshots()
+  .catch((error) => logger.error({ err: error }, "manager lead rating initial refresh failed"));
+const managerLeadRatingInterval = setInterval(() => {
+  managerLeadRatingService
+    .refreshSnapshots()
+    .catch((error) => logger.error({ err: error }, "manager lead rating refresh failed"));
+}, 24 * 60 * 60 * 1000);
+
 function shutdown(): void {
   clearInterval(cleanupInterval);
   clearInterval(emailPollInterval);
   clearInterval(leadSlaInterval);
   clearInterval(leadStopListDigestInterval);
   clearInterval(bitrixLeadSlaInterval);
+  clearInterval(managerLeadRatingInterval);
   server.close(() => process.exit(0));
 }
 

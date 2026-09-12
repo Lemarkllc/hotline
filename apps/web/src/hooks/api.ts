@@ -790,6 +790,39 @@ export function useStalledBitrixLeads() {
   });
 }
 
+// --- «Рейтинг менеджеров» по лидам (grill-me допрос 2026-09-12) — per-lead кэш на
+// бэкенде обновляется раз в сутки, поэтому без refetchInterval — свежее не станет ---
+
+export interface ManagerLeadStatsDTO {
+  assignedById: string;
+  name: string;
+  total: number;
+  converted: number;
+  junk: number;
+  slaViolations: number;
+  notConvertedRate: number | null;
+  junkRate: number | null;
+}
+
+export interface WeeklyTrendPointDTO {
+  week: string;
+  byManager: Record<string, { slaViolations: number; notConvertedRate: number | null; junkRate: number | null }>;
+}
+
+export function useManagerLeadStats(from: string, to: string) {
+  return useQuery({
+    queryKey: ["manager-lead-rating-stats", from, to],
+    queryFn: () => apiRequest<ManagerLeadStatsDTO[]>("/manager-lead-rating/stats", { query: { from, to } }),
+  });
+}
+
+export function useManagerLeadWeeklyTrend(from: string, to: string) {
+  return useQuery({
+    queryKey: ["manager-lead-rating-trend", from, to],
+    queryFn: () => apiRequest<WeeklyTrendPointDTO[]>("/manager-lead-rating/weekly-trend", { query: { from, to } }),
+  });
+}
+
 // --- Раздел «Отпуска» (PLAN.md §10) — три независимые от Appeal подсистемы,
 // согласовывает только HRD: VacationRequest, AbsenceRequest, BusinessTripRequest ---
 

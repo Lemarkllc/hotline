@@ -9,6 +9,7 @@ import {
   LogOut,
   Mail,
   ScrollText,
+  TrendingUp,
   UserCheck,
   Users,
   type LucideIcon,
@@ -68,7 +69,12 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   },
   {
     label: "Аналитика",
-    items: [{ to: "/reports", label: "Отчёты", icon: BarChart3, permissions: ["report.read"] }],
+    items: [
+      { to: "/reports", label: "Отчёты", icon: BarChart3, permissions: ["report.read"] },
+      // Тренды + таблица по данным лидов Bitrix (grill-me допрос 2026-09-12) — аналитика,
+      // не рабочая очередь (в отличие от "SLA Лиды" в "Работе"), поэтому здесь.
+      { to: "/manager-rating", label: "Рейтинг менеджеров", icon: TrendingUp, permissions: ["lead.manage"] },
+    ],
   },
   {
     label: "Администрирование",
