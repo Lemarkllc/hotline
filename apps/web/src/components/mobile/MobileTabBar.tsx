@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Bell, CalendarDays, LayoutDashboard, Mail, ScrollText, User, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Bell, CalendarDays, LayoutDashboard, Mail, ScrollText, User, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/api";
 import { useAuthStore } from "@/lib/authStore";
@@ -43,6 +43,11 @@ export function MobileTabBar() {
   }
   if (hasPermission("lead.manage")) {
     middleTabs.push({ to: "/leads", label: "Заявки", icon: Mail });
+    // «SLA Лиды» (зависшие лиды Bitrix24, grill-me допрос 2026-09-12) — тот же
+    // lead.manage, что и «Заявки»: РОП работает преимущественно с телефона, недостижимо
+    // с мобилы означало бы фактически нерабочую фичу (тот же урок, что и с «Отсутствие»
+    // выше — см. комментарий блока).
+    middleTabs.push({ to: "/sla-leads", label: "SLA Лиды", icon: AlertTriangle });
   }
   if (hasPermission("vacation.manage") || hasPermission("hr.process")) {
     middleTabs.push({ to: "/vacations", label: "Отсутствие", icon: CalendarDays });
