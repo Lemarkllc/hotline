@@ -11,6 +11,7 @@ const { leadSlaService } = await import("@/services/leadSlaService.js");
 const { leadAutoStopListService } = await import("@/services/leadAutoStopListService.js");
 const { bitrixLeadSlaService } = await import("@/services/bitrixLeadSlaService.js");
 const { managerLeadRatingService } = await import("@/services/managerLeadRatingService.js");
+const { weeklyManagerDigestService } = await import("@/services/weeklyManagerDigestService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 const { initRealtime } = await import("@/lib/realtime.js");
 
@@ -62,6 +63,15 @@ const managerLeadRatingInterval = setInterval(() => {
     .catch((error) => logger.error({ err: error }, "manager lead rating refresh failed"));
 }, 24 * 60 * 60 * 1000);
 
+// Еженедельная сводка «Рейтинг менеджеров» на почту (2026-09-12) — сама функция
+// не шлёт чаще раза в неделю и только по пятницам после 18:00 МСК (см.
+// weeklyManagerDigestService.FRIDAY_SEND_HOUR_UTC), 30 минут — с запасом.
+const weeklyManagerDigestInterval = setInterval(() => {
+  weeklyManagerDigestService
+    .sendWeeklyDigestIfDue()
+    .catch((error) => logger.error({ err: error }, "weekly manager digest failed"));
+}, 30 * 60 * 1000);
+
 function shutdown(): void {
   clearInterval(cleanupInterval);
   clearInterval(emailPollInterval);
@@ -69,6 +79,7 @@ function shutdown(): void {
   clearInterval(leadStopListDigestInterval);
   clearInterval(bitrixLeadSlaInterval);
   clearInterval(managerLeadRatingInterval);
+  clearInterval(weeklyManagerDigestInterval);
   server.close(() => process.exit(0));
 }
 

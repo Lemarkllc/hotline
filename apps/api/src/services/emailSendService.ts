@@ -100,6 +100,28 @@ export class EmailSendService {
       return false;
     }
   }
+
+  /** Еженедельная сводка «Рейтинг менеджеров» (weeklyManagerDigestService.ts) —
+   * systemFromAddress, тем же принципом, что и sendTemporaryPassword: внутреннее
+   * системное письмо, не лид-переписка от sales@. toEmails через запятую — nodemailer
+   * поддерживает это нативно, отдельный цикл на каждого получателя не нужен. */
+  async sendWeeklyManagerDigest(toEmails: string[], html: string): Promise<boolean> {
+    const transporter = this.getTransporter();
+    if (!transporter) return false;
+
+    try {
+      await transporter.sendMail({
+        from: config.email.systemFromAddress,
+        to: toEmails.join(", "),
+        subject: "Рейтинг менеджеров — сводка за неделю",
+        html,
+      });
+      return true;
+    } catch (error) {
+      logger.error({ err: error, toEmails }, "emailSendService: weekly manager digest send failed");
+      return false;
+    }
+  }
 }
 
 export const emailSendService = new EmailSendService();
