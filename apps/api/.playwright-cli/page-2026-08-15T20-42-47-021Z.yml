@@ -1,0 +1,236 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - complementary [ref=f2e4]:
+      - generic [ref=f2e5]: HotLine
+      - navigation [ref=f2e8]:
+        - link "Dashboard" [ref=f2e9] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Обращения" [ref=f2e16] [cursor=pointer]:
+          - /url: /appeals
+        - link "Заявки" [ref=f2e21] [cursor=pointer]:
+          - /url: /leads
+        - link "Отчёты" [ref=f2e26] [cursor=pointer]:
+          - /url: /reports
+    - generic [ref=f2e30]:
+      - banner [ref=f2e31]:
+        - generic [ref=f2e32]:
+          - generic [ref=f2e33]:
+            - button "Уведомления" [ref=f2e34] [cursor=pointer]
+            - generic [ref=f2e38]: "2"
+          - generic [ref=f2e39]: Первичный менеджер продаж
+          - button "Выйти" [ref=f2e40] [cursor=pointer]
+      - main [ref=f2e44]:
+        - generic [ref=f2e45]:
+          - generic [ref=f2e46]:
+            - generic [ref=f2e47]:
+              - heading "Заявки" [level=1] [ref=f2e48]
+              - paragraph [ref=f2e49]: Email-лиды с sales@lemarkllc.ru
+            - generic [ref=f2e50]:
+              - button "16.07 – 15.08" [expanded] [ref=f2e51] [cursor=pointer]
+              - button "Сбросить диапазон" [ref=f2e55] [cursor=pointer]
+          - generic [ref=f2e59]:
+            - generic [ref=f2e66]:
+              - paragraph [ref=f2e67]: Всего заявок
+              - paragraph [ref=f2e68]: "4"
+            - generic [ref=f2e76]:
+              - paragraph [ref=f2e77]: Передано в CRM
+              - paragraph [ref=f2e78]: "1"
+            - generic [ref=f2e86]:
+              - paragraph [ref=f2e87]: Конверсия
+              - paragraph [ref=f2e88]: 25%
+            - generic [ref=f2e94]:
+              - paragraph [ref=f2e95]: Качественных (ИИ)
+              - paragraph [ref=f2e96]: "2"
+          - generic [ref=f2e97]:
+            - heading "Качественные лиды по дням" [level=3] [ref=f2e99]
+            - img [ref=f2e103]:
+              - generic [ref=f2e141]:
+                - generic [ref=f2e142]: "16.07"
+                - generic [ref=f2e144]: "18.07"
+                - generic [ref=f2e146]: "20.07"
+                - generic [ref=f2e148]: "22.07"
+                - generic [ref=f2e150]: "24.07"
+                - generic [ref=f2e152]: "26.07"
+                - generic [ref=f2e154]: "28.07"
+                - generic [ref=f2e156]: "30.07"
+                - generic [ref=f2e158]: "01.08"
+                - generic [ref=f2e160]: "03.08"
+                - generic [ref=f2e162]: "05.08"
+                - generic [ref=f2e164]: "07.08"
+                - generic [ref=f2e166]: "09.08"
+                - generic [ref=f2e168]: "11.08"
+                - generic [ref=f2e170]: "13.08"
+                - generic [ref=f2e172]: "15.08"
+              - generic [ref=f2e107]:
+                - generic [ref=f2e108]: "0"
+                - generic [ref=f2e174]: "1"
+                - generic [ref=f2e176]: "2"
+          - generic [ref=f2e113]:
+            - button "Активные" [ref=f2e114] [cursor=pointer]
+            - button "Переданные в CRM" [ref=f2e115] [cursor=pointer]
+            - button "Стоп-лист" [ref=f2e120] [cursor=pointer]
+          - table [ref=f2e126]:
+            - rowgroup [ref=f2e127]:
+              - row [ref=f2e128]:
+                - columnheader [ref=f2e129]:
+                  - checkbox "Выбрать все" [ref=f2e130]
+                - columnheader "Номер" [ref=f2e131]
+                - columnheader "Дата" [ref=f2e132]
+                - columnheader "Отправитель" [ref=f2e133]
+                - columnheader "Тема" [ref=f2e134]
+                - columnheader "Статус" [ref=f2e135]
+            - rowgroup [ref=f2e136]:
+              - row [ref=f2e183]:
+                - cell [ref=f2e184]:
+                  - checkbox "Выбрать Л-2026-00007" [ref=f2e185]
+                - cell [ref=f2e186]:
+                  - link "Л-2026-00007" [ref=f2e187] [cursor=pointer]:
+                    - /url: /leads/4ca6a3aa-5bcf-486e-9ebc-3e446b6499fa
+                - cell "10.08.2026" [ref=f2e188]
+                - cell "Тест ИИ-конвейера test-ai-pipeline@example.com" [ref=f2e189]:
+                  - generic [ref=f2e190]:
+                    - generic [ref=f2e191]: Тест ИИ-конвейера
+                    - generic [ref=f2e192]: test-ai-pipeline@example.com
+                - cell "Хотим заказать фасадные панели из HPL" [ref=f2e193]
+                - cell "Новая ИИ считает релевантным" [ref=f2e194]:
+                  - generic [ref=f2e195]:
+                    - generic [ref=f2e196]: Новая
+                    - generic "Автор интересуется покупкой фасадных панелей из HPL (готовая продукция партнёров компании)." [ref=f2e197]:
+                      - img "ИИ считает релевантным" [ref=f2e198]
+              - row [ref=f2e201]:
+                - cell [ref=f2e202]:
+                  - checkbox "Выбрать Л-2026-00006" [ref=f2e203]
+                - cell [ref=f2e204]:
+                  - link "Л-2026-00006" [ref=f2e205] [cursor=pointer]:
+                    - /url: /leads/2e3b8448-8e90-43fe-ba24-8d1b14856880
+                - cell "10.08.2026" [ref=f2e206]
+                - cell "Тест ИИ-конвейера test-ai-pipeline@example.com" [ref=f2e207]:
+                  - generic [ref=f2e208]:
+                    - generic [ref=f2e209]: Тест ИИ-конвейера
+                    - generic [ref=f2e210]: test-ai-pipeline@example.com
+                - cell "Хотим заказать фасадные панели из HPL" [ref=f2e211]
+                - cell "Новая ИИ считает релевантным" [ref=f2e212]:
+                  - generic [ref=f2e213]:
+                    - generic [ref=f2e214]: Новая
+                    - generic "Автор интересуется покупкой фасадных панелей из HPL — готовой продукции из HPL, что релевантно запросу." [ref=f2e215]:
+                      - img "ИИ считает релевантным" [ref=f2e216]
+              - row [ref=f2e219]:
+                - cell [ref=f2e220]:
+                  - checkbox "Выбрать Л-2026-00005" [ref=f2e221]
+                - cell [ref=f2e222]:
+                  - link "Л-2026-00005" [ref=f2e223] [cursor=pointer]:
+                    - /url: /leads/40766864-2d20-4850-9f09-304c722d05e0
+                - cell "07.08.2026" [ref=f2e224]
+                - cell "Тест Realtime test-realtime@example.com" [ref=f2e225]:
+                  - generic [ref=f2e226]:
+                    - generic [ref=f2e227]: Тест Realtime
+                    - generic [ref=f2e228]: test-realtime@example.com
+                - cell "Проверка live-обновления и push" [ref=f2e229]
+                - cell "Новая" [ref=f2e230]
+  - generic [ref=f2e139]: "2"
+  - dialog [ref=f2e234]:
+    - generic [ref=f2e235]:
+      - button "Сегодня" [active] [ref=f2e236] [cursor=pointer]
+      - button "Последние 7 дней" [ref=f2e237] [cursor=pointer]
+      - button "Последние 30 дней" [ref=f2e238] [cursor=pointer]
+      - button "Этот месяц" [ref=f2e239] [cursor=pointer]
+      - button "Прошлый месяц" [ref=f2e240] [cursor=pointer]
+      - button "Свой период" [ref=f2e241] [cursor=pointer]
+    - generic [ref=f2e242]:
+      - generic [ref=f2e243]:
+        - button "Предыдущий месяц" [ref=f2e244] [cursor=pointer]
+        - generic [ref=f2e247]:
+          - generic [ref=f2e248]: Июль 2026
+          - generic [ref=f2e249]: Август 2026
+        - button "Следующий месяц" [ref=f2e250] [cursor=pointer]
+      - generic [ref=f2e253]:
+        - generic [ref=f2e254]:
+          - generic [ref=f2e255]: Пн
+          - generic [ref=f2e256]: Вт
+          - generic [ref=f2e257]: Ср
+          - generic [ref=f2e258]: Чт
+          - generic [ref=f2e259]: Пт
+          - generic [ref=f2e260]: Сб
+          - generic [ref=f2e261]: Вс
+          - button [disabled] [ref=f2e262]
+          - button [disabled] [ref=f2e263]
+          - button "1" [ref=f2e264] [cursor=pointer]
+          - button "2" [ref=f2e265] [cursor=pointer]
+          - button "3" [ref=f2e266] [cursor=pointer]
+          - button "4" [ref=f2e267] [cursor=pointer]
+          - button "5" [ref=f2e268] [cursor=pointer]
+          - button "6" [ref=f2e269] [cursor=pointer]
+          - button "7" [ref=f2e270] [cursor=pointer]
+          - button "8" [ref=f2e271] [cursor=pointer]
+          - button "9" [ref=f2e272] [cursor=pointer]
+          - button "10" [ref=f2e273] [cursor=pointer]
+          - button "11" [ref=f2e274] [cursor=pointer]
+          - button "12" [ref=f2e275] [cursor=pointer]
+          - button "13" [ref=f2e276] [cursor=pointer]
+          - button "14" [ref=f2e277] [cursor=pointer]
+          - button "15" [ref=f2e278] [cursor=pointer]
+          - button "16" [ref=f2e279] [cursor=pointer]
+          - button "17" [ref=f2e280] [cursor=pointer]
+          - button "18" [ref=f2e281] [cursor=pointer]
+          - button "19" [ref=f2e282] [cursor=pointer]
+          - button "20" [ref=f2e283] [cursor=pointer]
+          - button "21" [ref=f2e284] [cursor=pointer]
+          - button "22" [ref=f2e285] [cursor=pointer]
+          - button "23" [ref=f2e286] [cursor=pointer]
+          - button "24" [ref=f2e287] [cursor=pointer]
+          - button "25" [ref=f2e288] [cursor=pointer]
+          - button "26" [ref=f2e289] [cursor=pointer]
+          - button "27" [ref=f2e290] [cursor=pointer]
+          - button "28" [ref=f2e291] [cursor=pointer]
+          - button "29" [ref=f2e292] [cursor=pointer]
+          - button "30" [ref=f2e293] [cursor=pointer]
+          - button "31" [ref=f2e294] [cursor=pointer]
+        - generic [ref=f2e295]:
+          - generic [ref=f2e296]: Пн
+          - generic [ref=f2e297]: Вт
+          - generic [ref=f2e298]: Ср
+          - generic [ref=f2e299]: Чт
+          - generic [ref=f2e300]: Пт
+          - generic [ref=f2e301]: Сб
+          - generic [ref=f2e302]: Вс
+          - button [disabled] [ref=f2e303]
+          - button [disabled] [ref=f2e304]
+          - button [disabled] [ref=f2e305]
+          - button [disabled] [ref=f2e306]
+          - button [disabled] [ref=f2e307]
+          - button "1" [ref=f2e308] [cursor=pointer]
+          - button "2" [ref=f2e309] [cursor=pointer]
+          - button "3" [ref=f2e310] [cursor=pointer]
+          - button "4" [ref=f2e311] [cursor=pointer]
+          - button "5" [ref=f2e312] [cursor=pointer]
+          - button "6" [ref=f2e313] [cursor=pointer]
+          - button "7" [ref=f2e314] [cursor=pointer]
+          - button "8" [ref=f2e315] [cursor=pointer]
+          - button "9" [ref=f2e316] [cursor=pointer]
+          - button "10" [ref=f2e317] [cursor=pointer]
+          - button "11" [ref=f2e318] [cursor=pointer]
+          - button "12" [ref=f2e319] [cursor=pointer]
+          - button "13" [ref=f2e320] [cursor=pointer]
+          - button "14" [ref=f2e321] [cursor=pointer]
+          - button "15" [ref=f2e322] [cursor=pointer]
+          - button "16" [ref=f2e323] [cursor=pointer]
+          - button "17" [ref=f2e324] [cursor=pointer]
+          - button "18" [ref=f2e325] [cursor=pointer]
+          - button "19" [ref=f2e326] [cursor=pointer]
+          - button "20" [ref=f2e327] [cursor=pointer]
+          - button "21" [ref=f2e328] [cursor=pointer]
+          - button "22" [ref=f2e329] [cursor=pointer]
+          - button "23" [ref=f2e330] [cursor=pointer]
+          - button "24" [ref=f2e331] [cursor=pointer]
+          - button "25" [ref=f2e332] [cursor=pointer]
+          - button "26" [ref=f2e333] [cursor=pointer]
+          - button "27" [ref=f2e334] [cursor=pointer]
+          - button "28" [ref=f2e335] [cursor=pointer]
+          - button "29" [ref=f2e336] [cursor=pointer]
+          - button "30" [ref=f2e337] [cursor=pointer]
+          - button "31" [ref=f2e338] [cursor=pointer]
+      - generic [ref=f2e339]:
+        - generic [ref=f2e340]: 16.07 – 15.08
+        - generic [ref=f2e341]:
+          - button "Сбросить" [ref=f2e342] [cursor=pointer]
+          - button "Применить" [ref=f2e343] [cursor=pointer]

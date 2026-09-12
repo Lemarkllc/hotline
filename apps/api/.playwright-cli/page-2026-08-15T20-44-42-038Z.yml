@@ -1,0 +1,130 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - complementary [ref=f2e4]:
+      - generic [ref=f2e5]: HotLine
+      - navigation [ref=f2e8]:
+        - link "Dashboard" [ref=f2e9] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Обращения" [ref=f2e16] [cursor=pointer]:
+          - /url: /appeals
+        - link "Заявки" [ref=f2e21] [cursor=pointer]:
+          - /url: /leads
+        - link "Отчёты" [ref=f2e26] [cursor=pointer]:
+          - /url: /reports
+    - generic [ref=f2e30]:
+      - banner [ref=f2e31]:
+        - generic [ref=f2e32]:
+          - generic [ref=f2e33]:
+            - button "Уведомления" [ref=f2e34] [cursor=pointer]
+            - generic [ref=f2e38]: "2"
+          - generic [ref=f2e39]: Первичный менеджер продаж
+          - button "Выйти" [ref=f2e40] [cursor=pointer]
+      - main [ref=f2e44]:
+        - generic [ref=f2e45]:
+          - generic [ref=f2e46]:
+            - generic [ref=f2e47]:
+              - heading "Заявки" [level=1] [ref=f2e48]
+              - paragraph [ref=f2e49]: Email-лиды с sales@lemarkllc.ru
+            - generic [ref=f2e50]:
+              - button "16.07 – 15.08" [ref=f2e474] [cursor=pointer]
+              - button "Сбросить диапазон" [active] [ref=f2e55] [cursor=pointer]
+          - generic [ref=f2e59]:
+            - generic [ref=f2e66]:
+              - paragraph [ref=f2e67]: Всего заявок
+              - paragraph [ref=f2e68]: "4"
+            - generic [ref=f2e76]:
+              - paragraph [ref=f2e77]: Передано в CRM
+              - paragraph [ref=f2e78]: "1"
+            - generic [ref=f2e86]:
+              - paragraph [ref=f2e87]: Конверсия
+              - paragraph [ref=f2e88]: 25%
+            - generic [ref=f2e94]:
+              - paragraph [ref=f2e95]: Качественных (ИИ)
+              - paragraph [ref=f2e96]: "2"
+          - generic [ref=f2e97]:
+            - heading "Качественные лиды по дням" [level=3] [ref=f2e99]
+            - img [ref=f2e103]:
+              - generic [ref=f2e457]:
+                - generic [ref=f2e475]: "16.07"
+                - generic [ref=f2e477]: "18.07"
+                - generic [ref=f2e479]: "20.07"
+                - generic [ref=f2e481]: "22.07"
+                - generic [ref=f2e483]: "24.07"
+                - generic [ref=f2e485]: "26.07"
+                - generic [ref=f2e487]: "28.07"
+                - generic [ref=f2e489]: "30.07"
+                - generic [ref=f2e491]: "01.08"
+                - generic [ref=f2e493]: "03.08"
+                - generic [ref=f2e495]: "05.08"
+                - generic [ref=f2e497]: "07.08"
+                - generic [ref=f2e499]: "09.08"
+                - generic [ref=f2e501]: "11.08"
+                - generic [ref=f2e503]: "13.08"
+                - generic [ref=f2e505]: "15.08"
+              - generic [ref=f2e107]:
+                - generic [ref=f2e108]: "0"
+                - generic [ref=f2e507]: "1"
+                - generic [ref=f2e509]: "2"
+          - generic [ref=f2e113]:
+            - button "Активные" [ref=f2e114] [cursor=pointer]
+            - button "Переданные в CRM" [ref=f2e115] [cursor=pointer]
+            - button "Стоп-лист" [ref=f2e120] [cursor=pointer]
+          - table [ref=f2e126]:
+            - rowgroup [ref=f2e127]:
+              - row [ref=f2e128]:
+                - columnheader [ref=f2e129]:
+                  - checkbox "Выбрать все" [ref=f2e130]
+                - columnheader "Номер" [ref=f2e131]
+                - columnheader "Дата" [ref=f2e132]
+                - columnheader "Отправитель" [ref=f2e133]
+                - columnheader "Тема" [ref=f2e134]
+                - columnheader "Статус" [ref=f2e135]
+            - rowgroup [ref=f2e136]:
+              - row [ref=f2e516]:
+                - cell [ref=f2e517]:
+                  - checkbox "Выбрать Л-2026-00007" [ref=f2e518]
+                - cell [ref=f2e519]:
+                  - link "Л-2026-00007" [ref=f2e520] [cursor=pointer]:
+                    - /url: /leads/4ca6a3aa-5bcf-486e-9ebc-3e446b6499fa
+                - cell "10.08.2026" [ref=f2e521]
+                - cell "Тест ИИ-конвейера test-ai-pipeline@example.com" [ref=f2e522]:
+                  - generic [ref=f2e523]:
+                    - generic [ref=f2e524]: Тест ИИ-конвейера
+                    - generic [ref=f2e525]: test-ai-pipeline@example.com
+                - cell "Хотим заказать фасадные панели из HPL" [ref=f2e526]
+                - cell "Новая ИИ считает релевантным" [ref=f2e527]:
+                  - generic [ref=f2e528]:
+                    - generic [ref=f2e529]: Новая
+                    - generic "Автор интересуется покупкой фасадных панелей из HPL (готовая продукция партнёров компании)." [ref=f2e530]:
+                      - img "ИИ считает релевантным" [ref=f2e531]
+              - row [ref=f2e534]:
+                - cell [ref=f2e535]:
+                  - checkbox "Выбрать Л-2026-00006" [ref=f2e536]
+                - cell [ref=f2e537]:
+                  - link "Л-2026-00006" [ref=f2e538] [cursor=pointer]:
+                    - /url: /leads/2e3b8448-8e90-43fe-ba24-8d1b14856880
+                - cell "10.08.2026" [ref=f2e539]
+                - cell "Тест ИИ-конвейера test-ai-pipeline@example.com" [ref=f2e540]:
+                  - generic [ref=f2e541]:
+                    - generic [ref=f2e542]: Тест ИИ-конвейера
+                    - generic [ref=f2e543]: test-ai-pipeline@example.com
+                - cell "Хотим заказать фасадные панели из HPL" [ref=f2e544]
+                - cell "Новая ИИ считает релевантным" [ref=f2e545]:
+                  - generic [ref=f2e546]:
+                    - generic [ref=f2e547]: Новая
+                    - generic "Автор интересуется покупкой фасадных панелей из HPL — готовой продукции из HPL, что релевантно запросу." [ref=f2e548]:
+                      - img "ИИ считает релевантным" [ref=f2e549]
+              - row [ref=f2e552]:
+                - cell [ref=f2e553]:
+                  - checkbox "Выбрать Л-2026-00005" [ref=f2e554]
+                - cell [ref=f2e555]:
+                  - link "Л-2026-00005" [ref=f2e556] [cursor=pointer]:
+                    - /url: /leads/40766864-2d20-4850-9f09-304c722d05e0
+                - cell "07.08.2026" [ref=f2e557]
+                - cell "Тест Realtime test-realtime@example.com" [ref=f2e558]:
+                  - generic [ref=f2e559]:
+                    - generic [ref=f2e560]: Тест Realtime
+                    - generic [ref=f2e561]: test-realtime@example.com
+                - cell "Проверка live-обновления и push" [ref=f2e562]
+                - cell "Новая" [ref=f2e563]
+  - generic [ref=f2e139]: "05.07"

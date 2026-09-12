@@ -30,6 +30,8 @@ export function describeNotification(payload: Record<string, unknown>): string {
       return `Заявка ${payload.publicNumber} похожа на попытку манипуляции ИИ (промпт-инъекция)`;
     case "lead_ai_autostoplist_digest":
       return `ИИ отправил в стоп-лист ${payload.count} писем за сегодня — фильтр «От ИИ» в стоп-листе`;
+    case "bitrix_lead_stalled":
+      return `Лид Bitrix «${payload.title}» завис без движения`;
     default:
       return "Новое уведомление";
   }

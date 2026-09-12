@@ -1,0 +1,190 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - text: Lemark
+          - generic: ·
+          - generic: One
+        - navigation:
+          - generic:
+            - paragraph: Работа
+            - link:
+              - /url: /dashboard
+              - generic: Обзор
+            - link:
+              - /url: /appeals
+              - generic: Обращения
+            - link:
+              - /url: /vacations
+              - generic: Отсутствие
+          - generic:
+            - paragraph: Аналитика
+            - link:
+              - /url: /reports
+              - generic: Отчёты
+          - generic:
+            - paragraph: Администрирование
+            - link:
+              - /url: /audit
+              - generic: Аудит
+            - link:
+              - /url: /access-requests
+              - generic: Заявки на доступ
+        - generic:
+          - generic: ПH
+          - button
+      - generic:
+        - banner:
+          - generic:
+            - switch
+            - generic:
+              - button
+        - main:
+          - generic:
+            - heading [level=1]: Отсутствие
+            - generic:
+              - tablist:
+                - tab: Отпуска
+                - tab: Отсутствия
+                - tab: Командировки
+                - tab [selected]: Остатки отпуска
+              - tabpanel:
+                - generic:
+                  - generic:
+                    - table:
+                      - rowgroup:
+                        - row:
+                          - columnheader: Сотрудник
+                          - columnheader: Дата приёма
+                          - columnheader: Остаток (дней)
+                          - columnheader: Снимок на дату
+                          - columnheader: Действия
+                      - rowgroup:
+                        - row:
+                          - cell: Тест HRD Clean
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Тест Продажи Clean
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Тест HRD
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Тест Продажи
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Тест HRD
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Тест Продажи
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Первичный менеджер продаж
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Смирнова Ольга Петровна
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Соколов Артём Викторович
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Кузнецов Дмитрий Сергеевич
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Волкова Анна Игоревна
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Петрова Мария Сергеевна
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Тестовый Менеджер
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Иванов Иван Иванович
+                          - cell: 15.01.2024
+                          - cell: "-2"
+                          - cell: 01.09.2026
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Первичный HRD
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+                        - row:
+                          - cell: Первичный администратор
+                          - cell: —
+                          - cell: не настроен
+                          - cell: —
+                          - cell:
+                            - button: Изменить
+  - dialog [ref=f3e362]:
+    - heading "Тест HRD Clean" [level=2] [ref=f3e363]
+    - generic [ref=f3e364]:
+      - generic [ref=f3e365]:
+        - generic [ref=f3e366]: Дата приёма на работу
+        - button "Выберите дату" [active] [ref=f3e367] [cursor=pointer]
+        - paragraph [ref=f3e371]: Источник для расчёта остатка отпуска.
+      - generic [ref=f3e372]:
+        - generic [ref=f3e373]: Остаток отпуска на дату (дней)
+        - generic [ref=f3e374]:
+          - spinbutton "Остаток отпуска на дату (дней)" [ref=f3e375]
+          - button "07.09.2026" [disabled] [ref=f3e376]
+        - paragraph [ref=f3e380]: Разовый снимок из кадровых данных — остаток на сегодня считается формулой от него.
+      - button "Сохранить" [ref=f3e382] [cursor=pointer]
+    - button "Закрыть" [ref=f3e383] [cursor=pointer]

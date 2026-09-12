@@ -1,0 +1,21 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - paragraph [ref=e5]: Lemark One
+    - generic [ref=e6]:
+      - generic [ref=e7]: Lemark
+      - generic [ref=e10]: One
+    - paragraph [ref=e13]: ЕДИНАЯ СИСТЕМА ВЗАИМОДЕЙСТВИЯ
+  - generic [ref=e16]:
+    - generic [ref=e17]:
+      - heading "Вход" [level=1] [ref=e18]
+      - paragraph [ref=e19]: Войдите с учётными данными Lemark One
+    - generic [ref=e20]:
+      - generic [ref=e21]: Email
+      - textbox "Email" [ref=e22]
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]: Пароль
+        - link "Забыли пароль?" [ref=e26] [cursor=pointer]:
+          - /url: /forgot-password
+      - textbox "Пароль" [ref=e27]
+    - button "Войти" [ref=e28] [cursor=pointer]

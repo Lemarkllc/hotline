@@ -1,0 +1,12 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]: Lemark· One
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - paragraph [ref=e7]: Lemark· One
+      - paragraph [ref=e8]: Единая система взаимодействия
+    - generic [ref=e10]:
+      - textbox "Email" [ref=e11]
+      - textbox "Пароль" [ref=e12]
+      - link "Забыли пароль?" [ref=e13] [cursor=pointer]:
+        - /url: /forgot-password
+      - button "Войти" [ref=e14] [cursor=pointer]

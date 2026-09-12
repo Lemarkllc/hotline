@@ -1,0 +1,170 @@
+- generic [ref=f3e3]:
+  - complementary [ref=f3e4]:
+    - generic [ref=f3e5]:
+      - text: Lemark
+      - generic [ref=f3e6]: ·
+      - generic [ref=f3e7]: One
+    - navigation [ref=f3e8]:
+      - generic [ref=f3e9]:
+        - paragraph [ref=f3e10]: Работа
+        - link "Обзор" [ref=f3e11] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Обращения" [ref=f3e18] [cursor=pointer]:
+          - /url: /appeals
+        - link "Отсутствие 2" [ref=f3e97] [cursor=pointer]:
+          - /url: /vacations
+          - generic [ref=f3e26]: Отсутствие
+          - generic [ref=f3e98]: "2"
+      - generic [ref=f3e27]:
+        - paragraph [ref=f3e28]: Аналитика
+        - link "Отчёты" [ref=f3e29] [cursor=pointer]:
+          - /url: /reports
+      - generic [ref=f3e33]:
+        - paragraph [ref=f3e34]: Администрирование
+        - link "Аудит" [ref=f3e35] [cursor=pointer]:
+          - /url: /audit
+        - link "Заявки на доступ" [ref=f3e41] [cursor=pointer]:
+          - /url: /access-requests
+    - generic [ref=f3e47]:
+      - generic "Первичный HRD" [ref=f3e48]: ПH
+      - button "Выйти" [ref=f3e49] [cursor=pointer]
+  - generic [ref=f3e53]:
+    - banner [ref=f3e54]:
+      - generic [ref=f3e55]:
+        - switch "Включена светлая тема — нажмите для тёмной" [ref=f3e56] [cursor=pointer]
+        - button "Уведомления" [ref=f3e66] [cursor=pointer]
+    - main [ref=f3e70]:
+      - generic [ref=f3e71]:
+        - heading "Отсутствие" [level=1] [ref=f3e72]
+        - generic [ref=f3e73]:
+          - tablist [ref=f3e74]:
+            - tab "Отпуска 1" [ref=f3e99] [cursor=pointer]:
+              - text: Отпуска
+              - generic [ref=f3e100]: "1"
+            - tab "Отсутствия 1" [ref=f3e101] [cursor=pointer]:
+              - text: Отсутствия
+              - generic [ref=f3e102]: "1"
+            - tab "Командировки" [ref=f3e77] [cursor=pointer]
+            - tab "Остатки отпуска" [active] [selected] [ref=f3e78] [cursor=pointer]
+          - tabpanel "Остатки отпуска" [ref=f3e165]:
+            - table [ref=f3e168]:
+              - rowgroup [ref=f3e169]:
+                - row [ref=f3e170]:
+                  - columnheader "Сотрудник" [ref=f3e171]
+                  - columnheader "Дата приёма" [ref=f3e172]
+                  - columnheader "Остаток (дней)" [ref=f3e173]
+                  - columnheader "Снимок на дату" [ref=f3e174]
+                  - columnheader "Действия" [ref=f3e175]
+              - rowgroup [ref=f3e176]:
+                - row [ref=f3e177]:
+                  - cell "Тест HRD Clean" [ref=f3e178]
+                  - cell "—" [ref=f3e179]
+                  - cell "не настроен" [ref=f3e180]
+                  - cell "—" [ref=f3e181]
+                  - cell [ref=f3e182]:
+                    - button "Изменить" [ref=f3e183] [cursor=pointer]
+                - row [ref=f3e184]:
+                  - cell "Тест Продажи Clean" [ref=f3e185]
+                  - cell "—" [ref=f3e186]
+                  - cell "не настроен" [ref=f3e187]
+                  - cell "—" [ref=f3e188]
+                  - cell [ref=f3e189]:
+                    - button "Изменить" [ref=f3e190] [cursor=pointer]
+                - row [ref=f3e191]:
+                  - cell "Тест HRD" [ref=f3e192]
+                  - cell "—" [ref=f3e193]
+                  - cell "не настроен" [ref=f3e194]
+                  - cell "—" [ref=f3e195]
+                  - cell [ref=f3e196]:
+                    - button "Изменить" [ref=f3e197] [cursor=pointer]
+                - row [ref=f3e198]:
+                  - cell "Тест Продажи" [ref=f3e199]
+                  - cell "—" [ref=f3e200]
+                  - cell "не настроен" [ref=f3e201]
+                  - cell "—" [ref=f3e202]
+                  - cell [ref=f3e203]:
+                    - button "Изменить" [ref=f3e204] [cursor=pointer]
+                - row [ref=f3e205]:
+                  - cell "Тест HRD" [ref=f3e206]
+                  - cell "—" [ref=f3e207]
+                  - cell "не настроен" [ref=f3e208]
+                  - cell "—" [ref=f3e209]
+                  - cell [ref=f3e210]:
+                    - button "Изменить" [ref=f3e211] [cursor=pointer]
+                - row [ref=f3e212]:
+                  - cell "Тест Продажи" [ref=f3e213]
+                  - cell "—" [ref=f3e214]
+                  - cell "не настроен" [ref=f3e215]
+                  - cell "—" [ref=f3e216]
+                  - cell [ref=f3e217]:
+                    - button "Изменить" [ref=f3e218] [cursor=pointer]
+                - row [ref=f3e219]:
+                  - cell "Первичный менеджер продаж" [ref=f3e220]
+                  - cell "—" [ref=f3e221]
+                  - cell "не настроен" [ref=f3e222]
+                  - cell "—" [ref=f3e223]
+                  - cell [ref=f3e224]:
+                    - button "Изменить" [ref=f3e225] [cursor=pointer]
+                - row [ref=f3e226]:
+                  - cell "Смирнова Ольга Петровна" [ref=f3e227]
+                  - cell "—" [ref=f3e228]
+                  - cell "не настроен" [ref=f3e229]
+                  - cell "—" [ref=f3e230]
+                  - cell [ref=f3e231]:
+                    - button "Изменить" [ref=f3e232] [cursor=pointer]
+                - row [ref=f3e233]:
+                  - cell "Соколов Артём Викторович" [ref=f3e234]
+                  - cell "—" [ref=f3e235]
+                  - cell "не настроен" [ref=f3e236]
+                  - cell "—" [ref=f3e237]
+                  - cell [ref=f3e238]:
+                    - button "Изменить" [ref=f3e239] [cursor=pointer]
+                - row [ref=f3e240]:
+                  - cell "Кузнецов Дмитрий Сергеевич" [ref=f3e241]
+                  - cell "—" [ref=f3e242]
+                  - cell "не настроен" [ref=f3e243]
+                  - cell "—" [ref=f3e244]
+                  - cell [ref=f3e245]:
+                    - button "Изменить" [ref=f3e246] [cursor=pointer]
+                - row [ref=f3e247]:
+                  - cell "Волкова Анна Игоревна" [ref=f3e248]
+                  - cell "—" [ref=f3e249]
+                  - cell "не настроен" [ref=f3e250]
+                  - cell "—" [ref=f3e251]
+                  - cell [ref=f3e252]:
+                    - button "Изменить" [ref=f3e253] [cursor=pointer]
+                - row [ref=f3e254]:
+                  - cell "Петрова Мария Сергеевна" [ref=f3e255]
+                  - cell "—" [ref=f3e256]
+                  - cell "не настроен" [ref=f3e257]
+                  - cell "—" [ref=f3e258]
+                  - cell [ref=f3e259]:
+                    - button "Изменить" [ref=f3e260] [cursor=pointer]
+                - row [ref=f3e261]:
+                  - cell "Тестовый Менеджер" [ref=f3e262]
+                  - cell "—" [ref=f3e263]
+                  - cell "не настроен" [ref=f3e264]
+                  - cell "—" [ref=f3e265]
+                  - cell [ref=f3e266]:
+                    - button "Изменить" [ref=f3e267] [cursor=pointer]
+                - row [ref=f3e268]:
+                  - cell "Иванов Иван Иванович" [ref=f3e269]
+                  - cell "15.01.2024" [ref=f3e270]
+                  - cell "-2" [ref=f3e271]
+                  - cell "01.09.2026" [ref=f3e272]
+                  - cell [ref=f3e273]:
+                    - button "Изменить" [ref=f3e274] [cursor=pointer]
+                - row [ref=f3e275]:
+                  - cell "Первичный HRD" [ref=f3e276]
+                  - cell "—" [ref=f3e277]
+                  - cell "не настроен" [ref=f3e278]
+                  - cell "—" [ref=f3e279]
+                  - cell [ref=f3e280]:
+                    - button "Изменить" [ref=f3e281] [cursor=pointer]
+                - row [ref=f3e282]:
+                  - cell "Первичный администратор" [ref=f3e283]
+                  - cell "—" [ref=f3e284]
+                  - cell "не настроен" [ref=f3e285]
+                  - cell "—" [ref=f3e286]
+                  - cell [ref=f3e287]:
+                    - button "Изменить" [ref=f3e288] [cursor=pointer]

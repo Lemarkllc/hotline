@@ -7,6 +7,17 @@ export interface BitrixUserDTO {
   email: string | null;
 }
 
+/** «SLA Лиды» (bitrixLeadSlaService.ts) — только поля, реально нужные для расчёта
+ * зависания и отображения списка, не полный набор полей лида (снимок не заводим,
+ * решение пользователя, grill-me допрос 2026-09-12). */
+export interface BitrixActiveLeadDTO {
+  id: string;
+  title: string;
+  statusId: "NEW" | "IN_PROCESS";
+  assignedById: string;
+  dateModify: string;
+}
+
 interface BitrixApiResponse<T> {
   result?: T;
   error?: string;
@@ -26,6 +37,14 @@ interface BitrixRawUser {
  * 2026-08-03: user.current/crm.lead.fields/user.search/crm.status.list). Никакого SDK
  * или OAuth-флоу — токен уже встроен в сам webhookUrl. */
 export class BitrixService {
+  /** Человеческая ссылка на карточку лида (не REST-эндпоинт) — портал берём из origin
+   * уже существующего BITRIX_WEBHOOK_URL, отдельный env под это заводить незачем
+   * (grill-me допрос 2026-09-12, "SLA Лиды"). */
+  getLeadUrl(id: string): string {
+    const origin = new URL(config.bitrix.webhookUrl).origin;
+    return `${origin}/crm/lead/details/${id}/`;
+  }
+
   private async call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
     if (!config.bitrix.webhookUrl) {
       throw new ValidationError("Bitrix24 вебхук не настроен (BITRIX_WEBHOOK_URL)");
@@ -99,6 +118,53 @@ export class BitrixService {
       throw new ValidationError(`Bitrix24 (crm.lead.list): ${data.error_description ?? data.error}`);
     }
     return data.total ?? 0;
+  }
+
+  /**
+   * «SLA Лиды» (bitrixLeadSlaService.ts) — все лиды в статусах NEW/IN_PROCESS,
+   * назначенные на кого-то из assignedByIds (SALES_ROSTER — grill-me допрос
+   * 2026-09-12: мониторим только этот отдел, не всех пользователей Bitrix). Ручная
+   * пагинация через `next` (не через call(), тот отдаёт только result без него) —
+   * crm.lead.list отдаёт не больше 50 записей за раз (см. countLeadsByStatus выше).
+   * Кэп в 20 страниц (1000 лидов) — разумный компании такого размера с запасом,
+   * страхует от бесконечного цикла при неожиданном поведении API, а не реальный лимит.
+   */
+  async listActiveLeads(assignedByIds: string[]): Promise<BitrixActiveLeadDTO[]> {
+    if (!config.bitrix.webhookUrl) {
+      throw new ValidationError("Bitrix24 вебхук не настроен (BITRIX_WEBHOOK_URL)");
+    }
+    const url = `${config.bitrix.webhookUrl.replace(/\/$/, "")}/crm.lead.list.json`;
+    const result: BitrixActiveLeadDTO[] = [];
+    let start = 0;
+    for (let page = 0; page < 20; page++) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filter: { STATUS_ID: ["NEW", "IN_PROCESS"], ASSIGNED_BY_ID: assignedByIds },
+          select: ["ID", "TITLE", "STATUS_ID", "ASSIGNED_BY_ID", "DATE_MODIFY"],
+          start,
+        }),
+      });
+      const data = (await res.json()) as BitrixApiResponse<
+        { ID: string; TITLE: string; STATUS_ID: "NEW" | "IN_PROCESS"; ASSIGNED_BY_ID: string; DATE_MODIFY: string }[]
+      > & { next?: number };
+      if (data.error) {
+        throw new ValidationError(`Bitrix24 (crm.lead.list): ${data.error_description ?? data.error}`);
+      }
+      for (const lead of data.result ?? []) {
+        result.push({
+          id: lead.ID,
+          title: lead.TITLE,
+          statusId: lead.STATUS_ID,
+          assignedById: lead.ASSIGNED_BY_ID,
+          dateModify: lead.DATE_MODIFY,
+        });
+      }
+      if (data.next == null) break;
+      start = data.next;
+    }
+    return result;
   }
 
   /** SOURCE_ID: "EMAIL" — встроенное системное значение Bitrix ("Электронная почта",

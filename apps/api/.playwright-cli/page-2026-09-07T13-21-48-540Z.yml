@@ -1,0 +1,27 @@
+- generic [ref=f2e3]:
+  - generic [ref=f2e4]:
+    - paragraph [ref=f2e5]: Lemark One
+    - generic [ref=f2e6]:
+      - generic [ref=f2e7]: Lemark
+      - generic [ref=f2e10]: One
+    - paragraph [ref=f2e13]: ЕДИНАЯ СИСТЕМА ВЗАИМОДЕЙСТВИЯ
+  - generic [ref=f2e29]:
+    - generic [ref=f2e30]:
+      - heading "Двухфакторная аутентификация" [level=1] [ref=f2e31]
+      - paragraph [ref=f2e32]:
+        - text: Введите 6-значный код из приложения-аутентификатора для
+        - strong [ref=f2e33]: hrd@hotline.local
+        - text: .
+    - generic [ref=f2e34]:
+      - textbox [active] [invalid] [ref=f2e35]: "7"
+      - textbox [invalid] [ref=f2e36]: "0"
+      - textbox [invalid] [ref=f2e37]: "7"
+      - textbox [invalid] [ref=f2e38]: "5"
+      - textbox [invalid] [ref=f2e39]: "5"
+      - textbox [invalid] [ref=f2e40]: "9"
+    - generic [ref=f2e45]:
+      - paragraph [ref=f2e46]: Неверный код
+      - paragraph [ref=f2e47]: Неверный код двухфакторной аутентификации. Код живёт 30 секунд — проверьте текущий.
+    - button "Подтвердить" [ref=f2e48] [cursor=pointer]
+    - paragraph [ref=f2e41]: Нет доступа к аутентификатору? Сброс 2FA делает администратор — обратитесь к нему.
+    - button "Назад к вводу пароля" [ref=f2e42] [cursor=pointer]

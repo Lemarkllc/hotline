@@ -1,0 +1,10 @@
+- generic [ref=e4]:
+  - heading "HotLine — вход" [level=3] [ref=e6]
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]: Email
+      - textbox "Email" [ref=e13]
+    - generic [ref=e14]:
+      - generic [ref=e15]: Пароль
+      - textbox "Пароль" [ref=e16]
+    - button "Войти" [ref=e17] [cursor=pointer]

@@ -1,0 +1,59 @@
+- generic [ref=f2e3]:
+  - complementary [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - text: Lemark
+      - generic [ref=f2e6]: ·
+      - generic [ref=f2e7]: One
+    - navigation [ref=f2e8]:
+      - generic [ref=f2e9]:
+        - paragraph [ref=f2e10]: Работа
+        - link "Обзор" [ref=f2e11] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Обращения" [ref=f2e18] [cursor=pointer]:
+          - /url: /appeals
+        - link "Отпуска" [ref=f2e23] [cursor=pointer]:
+          - /url: /vacations
+      - generic [ref=f2e27]:
+        - paragraph [ref=f2e28]: Аналитика
+        - link "Отчёты" [ref=f2e29] [cursor=pointer]:
+          - /url: /reports
+      - generic [ref=f2e33]:
+        - paragraph [ref=f2e34]: Администрирование
+        - link "Аудит" [ref=f2e35] [cursor=pointer]:
+          - /url: /audit
+        - link "Заявки на доступ" [ref=f2e41] [cursor=pointer]:
+          - /url: /access-requests
+    - generic [ref=f2e47]:
+      - generic "Первичный HRD" [ref=f2e48]: ПH
+      - button "Выйти" [ref=f2e49] [cursor=pointer]
+  - generic [ref=f2e53]:
+    - banner [ref=f2e54]:
+      - generic [ref=f2e55]:
+        - switch "Включена светлая тема — нажмите для тёмной" [ref=f2e56] [cursor=pointer]
+        - button "Уведомления" [ref=f2e66] [cursor=pointer]
+    - main [ref=f2e70]:
+      - generic [ref=f2e71]:
+        - generic [ref=f2e72]:
+          - heading "Обращения" [level=1] [ref=f2e73]
+          - generic [ref=f2e74]:
+            - button "Список" [ref=f2e75] [cursor=pointer]
+            - button "Kanban" [ref=f2e77] [cursor=pointer]
+        - generic [ref=f2e80]:
+          - textbox "Поиск по номеру или тексту" [ref=f2e85]
+          - combobox [ref=f2e86] [cursor=pointer]:
+            - generic: Активные
+          - button "Только бэклог" [ref=f2e89] [cursor=pointer]
+          - button "Низкие оценки" [ref=f2e93] [cursor=pointer]
+        - generic [ref=f2e98]:
+          - generic [ref=f2e99]: Номер
+          - generic [ref=f2e100]: Тема / тип
+          - generic [ref=f2e101]: Статус
+          - generic [ref=f2e102]: Режим
+          - generic [ref=f2e103]: Ответственный
+          - generic [ref=f2e104]: Оценка
+          - generic [ref=f2e105]: Дата
+        - generic [ref=f2e119]:
+          - generic [ref=f2e120]: Стр. 1 из 1
+          - generic [ref=f2e121]:
+            - button "Назад" [disabled]
+            - button "Вперёд" [disabled]

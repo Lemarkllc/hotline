@@ -1,0 +1,94 @@
+- generic [ref=f3e3]:
+  - complementary [ref=f3e4]:
+    - generic [ref=f3e5]:
+      - text: Lemark
+      - generic [ref=f3e6]: ·
+      - generic [ref=f3e7]: One
+    - navigation [ref=f3e8]:
+      - generic [ref=f3e9]:
+        - paragraph [ref=f3e10]: Работа
+        - link "Обзор" [ref=f3e11] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Обращения" [ref=f3e18] [cursor=pointer]:
+          - /url: /appeals
+        - link "Отсутствие 2" [ref=f3e97] [cursor=pointer]:
+          - /url: /vacations
+          - generic [ref=f3e26]: Отсутствие
+          - generic [ref=f3e98]: "2"
+      - generic [ref=f3e27]:
+        - paragraph [ref=f3e28]: Аналитика
+        - link "Отчёты" [ref=f3e29] [cursor=pointer]:
+          - /url: /reports
+      - generic [ref=f3e33]:
+        - paragraph [ref=f3e34]: Администрирование
+        - link "Аудит" [ref=f3e35] [cursor=pointer]:
+          - /url: /audit
+        - link "Заявки на доступ" [ref=f3e41] [cursor=pointer]:
+          - /url: /access-requests
+    - generic [ref=f3e47]:
+      - generic "Первичный HRD" [ref=f3e48]: ПH
+      - button "Выйти" [ref=f3e49] [cursor=pointer]
+  - generic [ref=f3e53]:
+    - banner [ref=f3e54]:
+      - generic [ref=f3e55]:
+        - switch "Включена светлая тема — нажмите для тёмной" [ref=f3e56] [cursor=pointer]
+        - button "Уведомления" [ref=f3e66] [cursor=pointer]
+    - main [ref=f3e70]:
+      - generic [ref=f3e71]:
+        - heading "Отсутствие" [level=1] [ref=f3e72]
+        - generic [ref=f3e73]:
+          - tablist [ref=f3e74]:
+            - tab "Отпуска 1" [selected] [ref=f3e99] [cursor=pointer]:
+              - text: Отпуска
+              - generic [ref=f3e100]: "1"
+            - tab "Отсутствия 1" [ref=f3e101] [cursor=pointer]:
+              - text: Отсутствия
+              - generic [ref=f3e102]: "1"
+            - tab "Командировки" [ref=f3e77] [cursor=pointer]
+            - tab "Остатки отпуска" [ref=f3e78] [cursor=pointer]
+          - tabpanel "Отпуска 1" [ref=f3e103]:
+            - generic [ref=f3e80]:
+              - combobox [active] [ref=f3e81] [cursor=pointer]:
+                - generic [ref=f3e82]: Все статусы
+              - table [ref=f3e86]:
+                - rowgroup [ref=f3e87]:
+                  - row [ref=f3e88]:
+                    - columnheader "№" [ref=f3e89]
+                    - columnheader "Сотрудник" [ref=f3e90]
+                    - columnheader "Даты" [ref=f3e91]
+                    - columnheader "Тип" [ref=f3e92]
+                    - columnheader "Комментарий" [ref=f3e93]
+                    - columnheader "Статус" [ref=f3e94]
+                    - columnheader "Действия" [ref=f3e95]
+                - rowgroup [ref=f3e104]:
+                  - row [ref=f3e133] [cursor=pointer]:
+                    - cell "ОТП-2026-00003" [ref=f3e134]
+                    - cell "Иванов Иван Иванович" [ref=f3e135]
+                    - cell "01.10.2026 – 05.10.2026" [ref=f3e136]
+                    - cell "Оплачиваемый" [ref=f3e137]
+                    - cell "—" [ref=f3e138]
+                    - cell "На рассмотрении" [ref=f3e139]
+                    - cell [ref=f3e141]:
+                      - generic [ref=f3e142]:
+                        - button "Одобрить" [ref=f3e143]
+                        - button "Отклонить" [ref=f3e144]
+                  - row [ref=f3e145] [cursor=pointer]:
+                    - cell "ОТП-2026-00002" [ref=f3e146]
+                    - cell "Иванов Иван Иванович" [ref=f3e147]
+                    - cell "14.09.2026 – 20.09.2026" [ref=f3e148]
+                    - cell "Оплачиваемый" [ref=f3e149]
+                    - cell "Ежегодный отпуск, билеты уже куплены" [ref=f3e150]
+                    - cell "Одобрено Первичный HRD" [ref=f3e151]:
+                      - generic [ref=f3e152]: Одобрено
+                      - paragraph [ref=f3e153]: Первичный HRD
+                    - cell [ref=f3e154]
+                  - row [ref=f3e155] [cursor=pointer]:
+                    - cell "ОТП-2026-00001" [ref=f3e156]
+                    - cell "Иванов Иван Иванович" [ref=f3e157]
+                    - cell "20.09.2026 – 27.09.2026" [ref=f3e158]
+                    - cell "Оплачиваемый" [ref=f3e159]
+                    - 'cell "QA-тест: прямой вызов бот-эндпоинта" [ref=f3e160]'
+                    - cell "Отклонено Первичный HRD — Пересекается с плановым отпуском другого сотрудника отдела продаж, перенесите даты" [ref=f3e161]:
+                      - generic [ref=f3e162]: Отклонено
+                      - paragraph [ref=f3e163]: Первичный HRD — Пересекается с плановым отпуском другого сотрудника отдела продаж, перенесите даты
+                    - cell [ref=f3e164]

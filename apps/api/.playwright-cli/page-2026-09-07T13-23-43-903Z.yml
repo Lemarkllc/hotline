@@ -1,0 +1,89 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - text: Lemark
+          - generic: ·
+          - generic: One
+        - navigation:
+          - generic:
+            - paragraph: Работа
+            - link:
+              - /url: /dashboard
+              - generic: Обзор
+            - link:
+              - /url: /appeals
+              - generic: Обращения
+            - link:
+              - /url: /vacations
+              - generic: Отсутствие
+              - generic: "2"
+          - generic:
+            - paragraph: Аналитика
+            - link:
+              - /url: /reports
+              - generic: Отчёты
+          - generic:
+            - paragraph: Администрирование
+            - link:
+              - /url: /audit
+              - generic: Аудит
+            - link:
+              - /url: /access-requests
+              - generic: Заявки на доступ
+        - generic:
+          - generic: ПH
+          - button
+      - generic:
+        - banner:
+          - generic:
+            - switch
+            - generic:
+              - button
+        - main:
+          - generic:
+            - heading [level=1]: Отсутствие
+            - generic:
+              - tablist:
+                - tab [selected]:
+                  - text: Отпуска
+                  - generic: "1"
+                - tab:
+                  - text: Отсутствия
+                  - generic: "1"
+                - tab: Командировки
+                - tab: Остатки отпуска
+              - tabpanel:
+                - generic:
+                  - combobox [expanded]:
+                    - generic: На рассмотрении
+                  - generic:
+                    - table:
+                      - rowgroup:
+                        - row:
+                          - columnheader: №
+                          - columnheader: Сотрудник
+                          - columnheader: Даты
+                          - columnheader: Тип
+                          - columnheader: Комментарий
+                          - columnheader: Статус
+                          - columnheader: Действия
+                      - rowgroup:
+                        - row:
+                          - cell: ОТП-2026-00003
+                          - cell: Иванов Иван Иванович
+                          - cell: 01.10.2026 – 05.10.2026
+                          - cell: Оплачиваемый
+                          - cell: —
+                          - cell:
+                            - generic: На рассмотрении
+                          - cell:
+                            - generic:
+                              - button: Одобрить
+                              - button: Отклонить
+  - listbox [ref=f3e117]:
+    - option "На рассмотрении" [active] [selected] [ref=f3e118] [cursor=pointer]
+    - option "Все статусы" [ref=f3e124] [cursor=pointer]
+    - option "Одобрено" [ref=f3e127] [cursor=pointer]
+    - option "Отклонено" [ref=f3e130] [cursor=pointer]

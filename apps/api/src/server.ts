@@ -9,6 +9,7 @@ const { attachmentService } = await import("@/services/attachmentService.js");
 const { emailIngestService } = await import("@/services/emailIngestService.js");
 const { leadSlaService } = await import("@/services/leadSlaService.js");
 const { leadAutoStopListService } = await import("@/services/leadAutoStopListService.js");
+const { bitrixLeadSlaService } = await import("@/services/bitrixLeadSlaService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 const { initRealtime } = await import("@/lib/realtime.js");
 
@@ -42,11 +43,18 @@ const leadStopListDigestInterval = setInterval(() => {
   leadAutoStopListService.sendDailyDigestIfDue().catch((error) => logger.error({ err: error }, "lead stoplist digest failed"));
 }, 30 * 60 * 1000);
 
+// «SLA Лиды» (bitrixLeadSlaService) — пороги в часах/днях, 30 минут даёт запас
+// с большим отрывом, не нужно тикать чаще (см. также RE_ALERT_HOURS=24 в сервисе).
+const bitrixLeadSlaInterval = setInterval(() => {
+  bitrixLeadSlaService.checkStalled().catch((error) => logger.error({ err: error }, "bitrix lead SLA check failed"));
+}, 30 * 60 * 1000);
+
 function shutdown(): void {
   clearInterval(cleanupInterval);
   clearInterval(emailPollInterval);
   clearInterval(leadSlaInterval);
   clearInterval(leadStopListDigestInterval);
+  clearInterval(bitrixLeadSlaInterval);
   server.close(() => process.exit(0));
 }
 

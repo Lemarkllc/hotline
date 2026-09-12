@@ -11,6 +11,7 @@ import { ProfilePage } from "@/pages/ProfilePage";
 import { ReportsPage } from "@/pages/ReportsPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { LeadsPage } from "@/pages/LeadsPage";
+import { SlaLeadsPage } from "@/pages/SlaLeadsPage";
 import { LeadDetailPage } from "@/pages/LeadDetailPage";
 import { AccessRequestsPage } from "@/pages/AccessRequestsPage";
 import { DirectoriesPage } from "@/pages/DirectoriesPage";
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
             children: [
               { path: "/leads", element: <LeadsPage /> },
               { path: "/leads/:id", element: <LeadDetailPage /> },
+              { path: "/sla-leads", element: <SlaLeadsPage /> },
             ],
           },
           {

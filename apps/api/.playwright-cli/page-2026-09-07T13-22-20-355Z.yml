@@ -1,0 +1,21 @@
+- generic [ref=f2e3]:
+  - generic [ref=f2e4]:
+    - paragraph [ref=f2e5]: Lemark One
+    - generic [ref=f2e6]:
+      - generic [ref=f2e7]: Lemark
+      - generic [ref=f2e10]: One
+    - paragraph [ref=f2e13]: ЕДИНАЯ СИСТЕМА ВЗАИМОДЕЙСТВИЯ
+  - generic [ref=f2e52]:
+    - generic [ref=f2e53]:
+      - heading "Вход" [level=1] [ref=f2e54]
+      - paragraph [ref=f2e55]: Войдите с учётными данными Lemark One
+    - generic [ref=f2e56]:
+      - generic [ref=f2e57]: Email
+      - textbox "Email" [ref=f2e58]: hrd@hotline.local
+    - generic [ref=f2e59]:
+      - generic [ref=f2e60]:
+        - generic [ref=f2e61]: Пароль
+        - link "Забыли пароль?" [ref=f2e62] [cursor=pointer]:
+          - /url: /forgot-password
+      - textbox "Пароль" [ref=f2e63]: QaTest123!
+    - button "Войти" [ref=f2e64] [cursor=pointer]

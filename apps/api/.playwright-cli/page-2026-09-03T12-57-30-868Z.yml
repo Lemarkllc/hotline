@@ -1,0 +1,87 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - text: Lemark
+          - generic: ·
+          - generic: One
+        - navigation:
+          - generic:
+            - paragraph: Работа
+            - link:
+              - /url: /dashboard
+              - generic: Обзор
+            - link:
+              - /url: /appeals
+              - generic: Обращения
+            - link:
+              - /url: /vacations
+              - generic: Отпуска
+          - generic:
+            - paragraph: Аналитика
+            - link:
+              - /url: /reports
+              - generic: Отчёты
+          - generic:
+            - paragraph: Администрирование
+            - link:
+              - /url: /audit
+              - generic: Аудит
+            - link:
+              - /url: /access-requests
+              - generic: Заявки на доступ
+        - generic:
+          - generic: ПH
+          - button
+      - generic:
+        - banner:
+          - generic:
+            - switch
+            - generic:
+              - button
+        - main:
+          - generic:
+            - heading [level=1]: Отпуска
+            - generic:
+              - table:
+                - rowgroup:
+                  - row:
+                    - columnheader: №
+                    - columnheader: Сотрудник
+                    - columnheader: Даты
+                    - columnheader: Комментарий
+                    - columnheader: Статус
+                    - columnheader: Действия
+                - rowgroup:
+                  - row:
+                    - cell: ОТП-2026-00002
+                    - cell: Иванов Иван Иванович
+                    - cell: 14.09.2026 – 20.09.2026
+                    - cell: Ежегодный отпуск, билеты уже куплены
+                    - cell:
+                      - generic: На рассмотрении
+                    - cell:
+                      - generic:
+                        - button: Одобрить
+                        - button: Отклонить
+                  - row:
+                    - cell: ОТП-2026-00001
+                    - cell: Иванов Иван Иванович
+                    - cell: 20.09.2026 – 27.09.2026
+                    - cell: "QA-тест: прямой вызов бот-эндпоинта"
+                    - cell:
+                      - generic: На рассмотрении
+                    - cell:
+                      - generic:
+                        - button: Одобрить
+                        - button: Отклонить
+  - generic: "0"
+  - dialog [ref=f1e302]:
+    - heading "Отклонить заявку ОТП-2026-00001" [level=2] [ref=f1e303]
+    - paragraph [ref=f1e304]: Причина обязательна и будет видна сотруднику.
+    - textbox "Причина отказа…" [active] [ref=f1e305]
+    - generic [ref=f1e306]:
+      - button "Отменить" [ref=f1e307] [cursor=pointer]
+      - button "Отклонить" [disabled]
+    - button "Закрыть" [ref=f1e308] [cursor=pointer]

@@ -1,0 +1,68 @@
+- generic:
+  - generic:
+    - generic:
+      - main:
+        - generic:
+          - heading [level=1]: Отсутствие
+          - generic:
+            - tablist:
+              - tab [selected]:
+                - text: Отпуска
+                - generic: "1"
+              - tab:
+                - text: Отсутствия
+                - generic: "1"
+              - tab: Командировки
+              - tab:
+                - text: Оформление
+                - generic: "5"
+              - tab: Остатки отпуска
+            - tabpanel:
+              - generic:
+                - combobox:
+                  - generic: На рассмотрении
+                - generic:
+                  - button:
+                    - generic:
+                      - generic: Иванов Иван Иванович
+                      - generic: На рассмотрении
+                    - generic: 01.10.2026 – 05.10.2026 · Оплачиваемый
+                    - generic: ОТП-2026-00003
+      - navigation:
+        - link:
+          - /url: /dashboard
+          - text: Главная
+        - link:
+          - /url: /appeals
+          - text: Реестр
+        - link:
+          - /url: /vacations
+          - text: Отсутствие
+        - link:
+          - /url: /notifications
+          - text: Уведомл.
+        - link:
+          - /url: /profile
+          - text: Профиль
+  - dialog [ref=f3e86]:
+    - heading "ОТП-2026-00003" [level=2] [ref=f3e87]
+    - generic [ref=f3e88]:
+      - generic [ref=f3e89]:
+        - paragraph [ref=f3e90]: Сотрудник
+        - generic [ref=f3e91]: Иванов Иван Иванович
+      - generic [ref=f3e92]:
+        - paragraph [ref=f3e93]: Даты
+        - generic [ref=f3e94]: 01.10.2026 – 05.10.2026
+      - generic [ref=f3e95]:
+        - paragraph [ref=f3e96]: Тип
+        - generic [ref=f3e97]: Оплачиваемый
+      - generic [ref=f3e98]:
+        - paragraph [ref=f3e99]: Комментарий
+        - generic [ref=f3e100]: —
+      - generic [ref=f3e101]:
+        - paragraph [ref=f3e102]: Статус
+        - generic [ref=f3e103]: На рассмотрении
+    - generic [ref=f3e105]:
+      - button "Отклонить" [active] [ref=f3e106] [cursor=pointer]
+      - button "Одобрить" [ref=f3e107] [cursor=pointer]
+    - button "Закрыть" [ref=f3e108] [cursor=pointer]
