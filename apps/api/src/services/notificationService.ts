@@ -255,6 +255,40 @@ export class NotificationService {
     );
   }
 
+  /** SLA-эскалация (leadSlaService.ts) — единственный получатель "РОП" в системе,
+   * см. permissions.ts: нет отдельного тира прав под РОП, стоп-лист/передача в CRM
+   * доступны всей роли SALES целиком, туда же входит РОП/помощник РОП (решение
+   * пользователя) — та же аудитория, что и у остальных lead-уведомлений выше. */
+  async notifySalesLeadSlaWarning(lead: { id: string; publicNumber: string }): Promise<void> {
+    const recipients = await userRepository.findByRole("SALES");
+    await Promise.all(
+      recipients.map((r) =>
+        this.createLeadWebNotification(
+          r.id,
+          lead.id,
+          { type: "lead_sla_warning", publicNumber: lead.publicNumber },
+          { title: "Скоро истечёт SLA", body: `Заявка ${lead.publicNumber} — меньше часа до дедлайна ответа` },
+        ),
+      ),
+    );
+  }
+
+  /** Дедлайн уже прошёл (createdAt + 4ч, leadService.LEAD_FIRST_RESPONSE_SLA_HOURS),
+   * без ответа через нашу систему и без конвертации в CRM. */
+  async notifySalesLeadSlaBreach(lead: { id: string; publicNumber: string }): Promise<void> {
+    const recipients = await userRepository.findByRole("SALES");
+    await Promise.all(
+      recipients.map((r) =>
+        this.createLeadWebNotification(
+          r.id,
+          lead.id,
+          { type: "lead_sla_breach", publicNumber: lead.publicNumber },
+          { title: "SLA просрочен", body: `Заявка ${lead.publicNumber} — дедлайн ответа прошёл` },
+        ),
+      ),
+    );
+  }
+
   /** NPS-style — низкая любая из двух оценок (порог ≤2, по аналогии с notifyLowRating). */
   async notifyLowCustomerRating(
     appealId: string,

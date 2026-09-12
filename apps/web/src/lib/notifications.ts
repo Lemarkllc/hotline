@@ -22,6 +22,10 @@ export function describeNotification(payload: Record<string, unknown>): string {
       return `ИИ считает заявку ${payload.publicNumber} релевантной — передайте в CRM: ${payload.reasoning}`;
     case "lead_auto_converted":
       return `Заявка ${payload.publicNumber} передана в CRM — назначена ${payload.assigneeFullName}`;
+    case "lead_sla_warning":
+      return `Заявка ${payload.publicNumber} — меньше часа до дедлайна ответа`;
+    case "lead_sla_breach":
+      return `Заявка ${payload.publicNumber} — дедлайн ответа просрочен`;
     default:
       return "Новое уведомление";
   }

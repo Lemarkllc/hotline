@@ -581,6 +581,14 @@ model EmailLead {
   stopListedAt       DateTime?
   stopListReason     String?
 
+  /// SLA-эскалация (leadSlaService.ts) — метки "уже отправлено", чтобы поллер не слал
+  /// одно и то же уведомление на каждом тике. Проверяются только для status IN
+  /// (NEW, IN_PROGRESS) без firstRespondedAt — тот же фильтр, что и isOverdue() на
+  /// фронте (LeadsPage.tsx): CONVERTED/STOP_LISTED вне зоны ответственности нашей
+  /// системы (ответ клиенту после конвертации происходит в Bitrix, нам не виден).
+  slaWarningSentAt DateTime?
+  slaBreachSentAt  DateTime?
+
   /// Автоответ клиенту шлётся только при создании НОВОЙ заявки (не на письма,
   /// доливаемые в уже открытую) — см. PLAN.md, решение №7.
   confirmationEmailSentAt DateTime?
