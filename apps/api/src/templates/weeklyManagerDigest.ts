@@ -80,7 +80,7 @@ export function renderWeeklyManagerDigestHtml(stats: ManagerStatsDTO[], from: Da
           <tr>
             <td align="center" style="padding:16px 24px;background-color:#F5F3F0;border-top:1px solid #E2E0DD;">
               <p style="margin:0;font:12px/1.5 Arial,Helvetica,sans-serif;color:#8A8780;">
-                Автоматическое уведомление · Lemark HotLine
+                Автоматическое уведомление · Lemark One
               </p>
             </td>
           </tr>
