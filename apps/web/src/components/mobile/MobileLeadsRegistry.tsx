@@ -34,7 +34,7 @@ function isOverdue(lead: LeadDTO): boolean {
 /** Плитки статистики за выбранный период — тот же 2×2 паттерн, что и у
  * MobileDashboard.tsx (крупная цифра + подпись), без графика по дням: recharts на
  * телефоне не нужен, тот же принцип, что и у MobileDashboard (см. его комментарий). */
-const STAT_CARDS: { key: keyof LeadConversionStats; label: string; color: string; suffix?: string }[] = [
+const STAT_CARDS: { key: "total" | "converted" | "aiRelevant"; label: string; color: string; suffix?: string }[] = [
   { key: "total", label: "Всего заявок", color: "#6E6C68" },
   { key: "converted", label: "Передано в CRM", color: "#2F6B4F" },
   { key: "aiRelevant", label: "Качественных (ИИ)", color: "#96631A" },
@@ -97,9 +97,9 @@ export function MobileLeadsRegistry({
         ))}
         <div className="rounded-lg border border-rule bg-surface p-3.5">
           <div className="font-mono text-[22px] font-semibold tabular-nums text-status-progress">
-            {stats?.conversionRate !== null && stats?.conversionRate !== undefined ? `${stats.conversionRate.toFixed(0)}%` : "—"}
+            {stats?.convertedOfRelevantRate != null ? `${stats.convertedOfRelevantRate.toFixed(0)}%` : "—"}
           </div>
-          <div className="mt-0.5 text-meta leading-tight text-text-3">Конверсия</div>
+          <div className="mt-0.5 text-meta leading-tight text-text-3">Из релевантных</div>
         </div>
       </div>
 

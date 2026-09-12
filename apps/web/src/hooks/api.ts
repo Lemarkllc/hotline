@@ -604,7 +604,13 @@ export interface LeadConversionStats {
   total: number;
   converted: number;
   aiRelevant: number;
-  conversionRate: number | null;
+  /** Доля релевантных (aiRelevant/total) — качество входящего потока. */
+  relevanceRate: number | null;
+  /** Доля переданных в CRM из релевантных (converted/aiRelevant) — здоровье пайплайна
+   * автоматизации, не путать с relevanceRate (см. leadService.conversionStats). */
+  convertedOfRelevantRate: number | null;
+  avgTimeToConvertMs: number | null;
+  assigneeDistribution: { name: string; count: number }[];
 }
 
 export interface LeadDailyStat {

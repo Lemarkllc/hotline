@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, FilePlus2, Percent, Search, ShieldOff, Sparkles, Target } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, FilePlus2, Percent, Search, ShieldOff, Sparkles, Target } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@hotline/shared";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,14 @@ function LeadStatusBadge({ status }: { status: LeadStatus }) {
 /** SLA — не поле в БД, а вычисление из firstResponseDueAt/firstRespondedAt (leadService),
  * тем же принципом, что и на карточке лида (LeadDetailPage). Только для активных заявок —
  * переданные в CRM/стоп-лист не могут быть "просрочены". */
+/** Для KPI "Среднее время до CRM" (leadService.conversionStats) — часы+минуты, тем же
+ * принципом округления, что и SlaBlock на карточке лида (LeadDetailPage.tsx). */
+function formatDurationHours(ms: number): string {
+  const hours = Math.floor(ms / 3_600_000);
+  const minutes = Math.round((ms % 3_600_000) / 60_000);
+  return `${hours} ч ${minutes} мин`;
+}
+
 function isOverdue(lead: LeadDTO): boolean {
   if (lead.status !== "NEW" && lead.status !== "IN_PROGRESS") return false;
   if (lead.firstRespondedAt) return false;
@@ -199,16 +207,32 @@ export function LeadsPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      {/* Воронка "Всего -> Релевантных -> Передано в CRM", не единая "Конверсия" (была
+          converted/total — тавтология: converted почти всегда = aiRelevant, когда
+          авто-передача работает штатно, число крутилось у 100% и никогда не сигналило
+          о проблеме, см. grill-me допрос 2026-09-12). relevanceRate — качество входящего
+          потока, convertedOfRelevantRate — здоровье пайплайна автоматизации. */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <KpiCard label="Всего заявок" value={stats?.total ?? "—"} icon={FilePlus2} accent="neutral" />
+        <KpiCard
+          label="Релевантных"
+          value={stats?.relevanceRate != null ? `${stats.relevanceRate.toFixed(0)}%` : "—"}
+          icon={Sparkles}
+          accent="review"
+        />
         <KpiCard label="Передано в CRM" value={stats?.converted ?? "—"} icon={Target} accent="closed" />
         <KpiCard
-          label="Конверсия"
-          value={stats?.conversionRate !== null && stats?.conversionRate !== undefined ? `${stats.conversionRate.toFixed(0)}%` : "—"}
+          label="Из релевантных"
+          value={stats?.convertedOfRelevantRate != null ? `${stats.convertedOfRelevantRate.toFixed(0)}%` : "—"}
           icon={Percent}
           accent="progress"
         />
-        <KpiCard label="Качественных (ИИ)" value={stats?.aiRelevant ?? "—"} icon={Sparkles} accent="review" />
+        <KpiCard
+          label="Среднее время до CRM"
+          value={stats?.avgTimeToConvertMs != null ? formatDurationHours(stats.avgTimeToConvertMs) : "—"}
+          icon={Clock}
+          accent="neutral"
+        />
       </div>
 
       <Card>
@@ -238,6 +262,34 @@ export function LeadsPage() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Распределение переданных в CRM лидов по менеджеру — раньше это выковыривали
+          вручную через audit_log + запрос к Bitrix (см. grill-me допрос 2026-09-12).
+          Один ряд (count) — заливка одним нейтральным цветом, не по менеджеру: identity
+          уже несёт подпись оси, а не цвет (dataviz-скилл — категориальные оттенки не
+          нужны для единственного измерения). */}
+      {(stats?.assigneeDistribution.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Распределение по менеджерам</CardTitle>
+          </CardHeader>
+          <CardContent className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[...(stats?.assigneeDistribution ?? [])].sort((a, b) => b.count - a.count)}
+                layout="vertical"
+                margin={{ left: 8 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E0DD" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value: number) => [value, "Передано"]} />
+                <Bar dataKey="count" fill="#96631A" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">

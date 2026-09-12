@@ -248,6 +248,33 @@ export class EmailLeadRepository {
     return { total, converted, aiRelevant };
   }
 
+  /** Распределение переданных в CRM лидов по менеджеру (bitrixAssigneeName) за период —
+   * та же метрика, что раньше выковыривали руками через audit_log + прямой запрос к
+   * Bitrix (см. grill-me допрос 2026-09-12). Только CONVERTED — у остальных статусов
+   * bitrixAssigneeName пуст (см. схему EmailLead). */
+  async assigneeDistribution(from: Date, to: Date): Promise<{ name: string; count: number }[]> {
+    const rows = await prisma.emailLead.groupBy({
+      by: ["bitrixAssigneeName"],
+      where: { createdAt: { gte: from, lte: to }, status: "CONVERTED", bitrixAssigneeName: { not: null } },
+      _count: { _all: true },
+    });
+    return rows.map((r) => ({ name: r.bitrixAssigneeName!, count: r._count._all }));
+  }
+
+  /** Среднее время от создания заявки до передачи в CRM — proxy скорости алгоритма/
+   * подхвата, НЕ время ответа менеджера клиенту (тот происходит в Bitrix, нам не
+   * виден, см. grill-me допрос 2026-09-12). Считаем в JS — то же обоснование, что и
+   * у dailyStats выше: объём не оправдывает EXTRACT(EPOCH ...) в raw SQL. */
+  async avgTimeToConvertMs(from: Date, to: Date): Promise<number | null> {
+    const rows = await prisma.emailLead.findMany({
+      where: { createdAt: { gte: from, lte: to }, status: "CONVERTED", convertedAt: { not: null } },
+      select: { createdAt: true, convertedAt: true },
+    });
+    if (rows.length === 0) return null;
+    const totalMs = rows.reduce((sum, r) => sum + (r.convertedAt!.getTime() - r.createdAt.getTime()), 0);
+    return totalMs / rows.length;
+  }
+
   /** Разбивка по дням для графика "качественные лиды по дням" на LeadsPage — считаем
    * в JS, а не через SQL DATE_TRUNC: объём (email-лиды одной компании) не оправдывает
    * возню с часовым поясом в raw SQL, а бакетинг по UTC-дню тут ровно то же самое,

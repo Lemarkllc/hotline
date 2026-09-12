@@ -353,12 +353,41 @@ export class LeadService {
     }
   }
 
+  /** Раньше отдавал единственную "конверсию" (converted/total) — тавтология: converted
+   * почти всегда равен aiRelevant, когда авто-передача работает штатно (см. grill-me
+   * допрос 2026-09-12), число крутится у 100% и никогда не сигналит о реальной
+   * проблеме. Разделено на два независимых сигнала:
+   *   - relevanceRate = aiRelevant/total — качество входящего потока (канала);
+   *   - convertedOfRelevantRate = converted/aiRelevant — здоровье пайплайна
+   *     автоматизации, просадка здесь = рубильник выключен/упал/скопился ручной
+   *     хвост (та же группа лидов, что уже ловит SLA-эскалация).
+   * assigneeDistribution/avgTimeToConvertMs — тоже из того допроса. */
   async conversionStats(
     from: Date,
     to: Date,
-  ): Promise<{ total: number; converted: number; aiRelevant: number; conversionRate: number | null }> {
-    const { total, converted, aiRelevant } = await emailLeadRepository.conversionStats(from, to);
-    return { total, converted, aiRelevant, conversionRate: total > 0 ? (converted / total) * 100 : null };
+  ): Promise<{
+    total: number;
+    converted: number;
+    aiRelevant: number;
+    relevanceRate: number | null;
+    convertedOfRelevantRate: number | null;
+    avgTimeToConvertMs: number | null;
+    assigneeDistribution: { name: string; count: number }[];
+  }> {
+    const [{ total, converted, aiRelevant }, avgTimeToConvertMs, assigneeDistribution] = await Promise.all([
+      emailLeadRepository.conversionStats(from, to),
+      emailLeadRepository.avgTimeToConvertMs(from, to),
+      emailLeadRepository.assigneeDistribution(from, to),
+    ]);
+    return {
+      total,
+      converted,
+      aiRelevant,
+      relevanceRate: total > 0 ? (aiRelevant / total) * 100 : null,
+      convertedOfRelevantRate: aiRelevant > 0 ? (converted / aiRelevant) * 100 : null,
+      avgTimeToConvertMs,
+      assigneeDistribution,
+    };
   }
 
   async dailyStats(from: Date, to: Date): Promise<{ date: string; total: number; aiRelevant: number }[]> {
