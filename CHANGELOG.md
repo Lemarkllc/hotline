@@ -2,6 +2,74 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [2.1.0](https://lemarkllc///compare/v0.4.0...v2.1.0) (2026-09-12)
+
+
+### Новые возможности
+
+* **api,bot-employee,web:** раздел «Отпуска» — Отпуск/Отсутствие/Командировка (PLAN.md §10) ([1bad368](https://lemarkllc///commit/1bad3681cf7398833250da989c4ba600292e3d00))
+* **api,bot-employee,web:** роль HR и стадия «Оформление» для отпуска и увольнения ([4a020eb](https://lemarkllc///commit/4a020eb6b46ee56ce56527b4f52366421e201474))
+* **api,web:** HRD-доступ к остаткам отпуска сотрудников + кастомный дата-пикер ([546392f](https://lemarkllc///commit/546392fa31c0f0f0c2f1c753e3b02fa3856e4f3a))
+* **api,web:** авто-передача релевантных лидов в CRM с алгоритмическим назначением менеджера ([212b500](https://lemarkllc///commit/212b50004687407e680fe6c6da290b3e3d7e368a))
+* **api,web:** ответственный по заявке — снимок Bitrix24-пользователя вместо внутреннего назначения ([f7dd201](https://lemarkllc///commit/f7dd201b56aa36069470532a08c803dd60307107))
+* **api:** HTML-шаблон письма-ответа клиенту по заявке ([f4dcb0c](https://lemarkllc///commit/f4dcb0ce532becdf72b8accaae7e82da70e030c1))
+* **api:** назначение ответственного, SLA и ответ клиенту по «Заявкам» ([53a1657](https://lemarkllc///commit/53a16574dc9080a98444fb2c26638a88de776d76))
+* **leads:** вернуть заявку из стоп-листа в работу ([02f14a3](https://lemarkllc///commit/02f14a3e3e6d7762cf719584a5fec5f7c61fb4ce))
+* **leads:** ИИ-классификация «Заявок» — режим наблюдения (Yandex AI Studio) ([3c27970](https://lemarkllc///commit/3c2797016f3a7544990ea517986015523e957286))
+* push-уведомление и live-обновление для новых «Заявок» у SALES ([a906d64](https://lemarkllc///commit/a906d64fb8bf08a5a8a9269565993cb549653f30))
+* **web,api:** дата-фильтр и метрика "качественных" лидов на странице Заявки ([fad6729](https://lemarkllc///commit/fad6729a2b11f50d8822a67d3a838d96930a68ea))
+* **web:** дашборд «Обзор» под Lemark One ([543b6ba](https://lemarkllc///commit/543b6ba9c5206fd0054c1e388e4dad0b7920f1d3))
+* **web:** дизайн-система Lemark One — токены, шрифты, примитивы UI ([04d79a3](https://lemarkllc///commit/04d79a352899e0904b679ca59f36a6e7e0be0520))
+* **web:** единый тоггл темы в Topbar и профиле PWA ([59917e7](https://lemarkllc///commit/59917e7c54ac40b49f204132db6fa9ac73b4583c))
+* **web:** единый тред обращения вместо шести вкладок ([0634c06](https://lemarkllc///commit/0634c060ef8ff63e7afac4b8e5dce917db7b3866))
+* **web:** каркас Sidebar/Topbar под Lemark One ([ffbf771](https://lemarkllc///commit/ffbf771e25154a79a59b2a258d68c8e928064401))
+* **web:** мобильные/PWA экраны под Lemark One ([f984e7e](https://lemarkllc///commit/f984e7e94c65fb8ae875fb9280cb3f43f410ac7d)), closes [#2563](https://lemarkllc///issues/2563) [#EFF6](https://lemarkllc///issues/EFF6) [#F1F5F9](https://lemarkllc///issues/F1F5F9)
+* **web:** реестр и карточка «Заявок» под Lemark One ([b955044](https://lemarkllc///commit/b955044a8e81f7759c2ebf87af5947578de6870a))
+* **web:** реестр обращений, Kanban, экран «нет прав», лист компонентов ([c00ba58](https://lemarkllc///commit/c00ba58350f6032b069d8cf9814bb127b9c6c622))
+* **web:** экраны входа и 2FA под Lemark One ([7ae749d](https://lemarkllc///commit/7ae749d2a08d2579802aeb2749f312b4f0d046a4))
+
+
+### Исправления
+
+* **api,web:** PLAIN_PERMISSIONS, защита от пустых каналов, блокировка=увольнение, бейджи PENDING, фильтр статуса ([b97967d](https://lemarkllc///commit/b97967d7ffb75d2008feb2d0e131f774c4a4ba9c))
+* **api,web:** письмо о доступе к панели — битая картинка логотипа и название бота вместо панели ([ecf6107](https://lemarkllc///commit/ecf61072475853ec42f763223b756e4dc5516521))
+* **api:** "to" в фильтрах Заявок отсекал текущий день ([e4dd8cd](https://lemarkllc///commit/e4dd8cdc6a6e59606eb7700bcdcd6251bdb1b289))
+* **api:** createWebAccount жёстко выдавал канал EMPLOYEE любой роли, включая SALES ([69ee2b9](https://lemarkllc///commit/69ee2b9ef74eb11af8dfbf74c32c80126e360014))
+* **api:** SMTP-транспорт без таймаутов вешал отправку писем навечно ([a042229](https://lemarkllc///commit/a04222960855d96757727a453d103ec2652a6b8e))
+* **api:** дело в Bitrix24 не заводилось при конвертации лида без телефона ([214d873](https://lemarkllc///commit/214d873deb91c5fcedf88e91470a884ba404da68))
+* **api:** критический баг — Telegram-уведомления сотрудникам не доходили месяц ([69e00d7](https://lemarkllc///commit/69e00d70bf429439246150d4c6f0916238d61fea))
+* **api:** очередь «Оформление» увольнений не фильтровала deletedAt ([b970a79](https://lemarkllc///commit/b970a79a2fde0e4aba665716ed19bcb695382d60))
+* **api:** ссылка "Контакты" в шапке письма — /contacts/ вместо /kontakty/ ([931db59](https://lemarkllc///commit/931db596381c88029ed5c32d1276d794411ba502))
+* **api:** текст HTML-only писем без text/plain части не сохранялся в Lead ([363b450](https://lemarkllc///commit/363b450fab73cf23166d6943961b8bdc2b78522e))
+* **bot-employee:** раздел «Отпуска» недоступен из ☰-меню бота ([09af400](https://lemarkllc///commit/09af4007c2015afb9d570195a77dd3575c80cbb9))
+* **leads:** защита классификатора от prompt injection в теле письма ([14356e3](https://lemarkllc///commit/14356e3705569fb2298adfd4e7aa644762dbead2))
+* **leads:** заявка с формы сайта регистрировалась как "sales@ пишет сам себе" ([e1ae089](https://lemarkllc///commit/e1ae089a3edce53d798837853839916353dc41c6))
+* **web,api:** исправления по живой критике impeccable на странице Заявки ([e0f9ed0](https://lemarkllc///commit/e0f9ed0b52a26be48c5c851d69a77bc9203fa765))
+* **web:** «Активные» заявки не должны включать переданные в CRM ([a73fd95](https://lemarkllc///commit/a73fd9529e6bcbcba8f1d5c1a0e5ab1dfd07679d))
+* **web:** «Реестр» в мобильной навигации для «Продаж» вёл на чужие обращения HRD ([70ff38d](https://lemarkllc///commit/70ff38db625c0fe02dc154cec6a94bce1ae19c9c))
+* **web:** line-clamp вообще не работал — конфликт с классом block на том же элементе ([aae5c58](https://lemarkllc///commit/aae5c58e63765988a52cfbd79fa6dcc30b1c2834))
+* **web:** PWA не подхватывала новую версию после деплоя даже после закрытия ([2d0b687](https://lemarkllc///commit/2d0b687ef0db49b1486f0b11b1d8c3dfb2d37387))
+* **web:** безопасный дефолт роли EMPLOYEE вместо MANAGER при создании/правке пользователя ([2cb1508](https://lemarkllc///commit/2cb1508aace64d5778e49a2b2b0d248b142f398b))
+* **web:** вернуть просмотр вложений — прошлый фикс навигации сломал его ([a4ca5d1](https://lemarkllc///commit/a4ca5d17266218ad2710bca539ae27728e173992))
+* **web:** длинные статус-бейджи переносились на 2 строки и наезжали на соседние колонки ([663a906](https://lemarkllc///commit/663a9063d3830278fd593fda77870b2f69523cd9))
+* **web:** длинный неразрывный текст мог переполнять карточку в мобильном реестре ([1b3fbda](https://lemarkllc///commit/1b3fbda5b6c27a4784cd9a4c65405eafab374a97))
+* **web:** карточки мобильного реестра разной высоты из-за длины текста ([561fdb1](https://lemarkllc///commit/561fdb19e7648891a57d04189e7823632beecb73))
+* **web:** миграция админ-контура на Lemark One + устранены native-диалоги в UsersPage ([44d89c1](https://lemarkllc///commit/44d89c1836fc773d0fff1d9a7ecdbeb751e5718f))
+* **web:** мобильный таб-бар по правам вместо жёсткого выбора + карточки «Отпусков» ([7b44bc4](https://lemarkllc///commit/7b44bc474273474d2383d3538f2faecbef14fb52))
+* **web:** нет пути назад после открытия вложения (особенно в PWA) ([c875484](https://lemarkllc///commit/c875484db6835f628638ca6abe6a9509028908f9))
+* **web:** нижний блок Sidebar — только аватар с инициалами, имя в tooltip ([3c942d4](https://lemarkllc///commit/3c942d43c1b5d5349f2285983f91fe516fa8ba92))
+* **web:** Отчёты на дизайн-токенах + общий EmptyChartState + «Забыли пароль» на мобильном входе ([48a7ab1](https://lemarkllc///commit/48a7ab1ec224f69d34172d0d352d6b35a0c7c1b7))
+* **web:** усилить автообновление PWA — updateViaCache:none + периодическая проверка ([3c3e65c](https://lemarkllc///commit/3c3e65c0558de60b28f7a6967c20d52e4eda209f))
+* **web:** устранены находки redesign-skill аудита (стоп-лист/блокировка/переоткрытие без window.prompt) ([163e814](https://lemarkllc///commit/163e81482929b239b3b4a2448c311dc06d7a2f5b))
+* **web:** устранены находки прогона impeccable по обращениям и мобильной оболочке ([2d80d7b](https://lemarkllc///commit/2d80d7b65fb5f4c84359396861e1431af19a3979))
+* **web:** явная кнопка «Закрыть» в диалоге просмотра вложения ([1b66668](https://lemarkllc///commit/1b666689c21b0655985a4b11d54855be76e99507))
+* убрать реальные ID Telegram-чатов из .env.example ([bd6578c](https://lemarkllc///commit/bd6578cced3f522d7d7389ce9b174c99552d9dfc))
+
+
+### Документация
+
+* аудит роль↔канал всех пользователей завершён, расхождений нет ([46ce909](https://lemarkllc///commit/46ce909c112bc874f1962b71f860974c02d11be1))
+
 ## [0.4.0](///compare/v0.3.0...v0.4.0) (2026-08-06)
 
 
