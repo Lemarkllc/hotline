@@ -194,6 +194,40 @@ export class EmailLeadRepository {
     return prisma.emailLead.update({ where: { id }, data: { aiProcessedAt: new Date(), aiError: error } });
   }
 
+  /** SLA-эскалация (leadSlaService.ts) — та же зона, что и isOverdue() на фронте
+   * (LeadsPage.tsx): только OPEN_STATUSES и ни одного OUTBOUND-сообщения (ещё никто
+   * не ответил через нашу систему). thresholdAt — момент "createdAt + SLA - предупреждение"
+   * (warning) или "createdAt + SLA" (breach); *SentAt: null гарантирует однократность. */
+  findSlaWarningCandidates(thresholdAt: Date): Promise<EmailLead[]> {
+    return prisma.emailLead.findMany({
+      where: {
+        status: { in: OPEN_STATUSES },
+        slaWarningSentAt: null,
+        createdAt: { lte: thresholdAt },
+        messages: { none: { direction: "OUTBOUND" } },
+      },
+    });
+  }
+
+  findSlaBreachCandidates(thresholdAt: Date): Promise<EmailLead[]> {
+    return prisma.emailLead.findMany({
+      where: {
+        status: { in: OPEN_STATUSES },
+        slaBreachSentAt: null,
+        createdAt: { lte: thresholdAt },
+        messages: { none: { direction: "OUTBOUND" } },
+      },
+    });
+  }
+
+  markSlaWarningSent(id: string): Promise<EmailLead> {
+    return prisma.emailLead.update({ where: { id }, data: { slaWarningSentAt: new Date() } });
+  }
+
+  markSlaBreachSent(id: string): Promise<EmailLead> {
+    return prisma.emailLead.update({ where: { id }, data: { slaBreachSentAt: new Date() } });
+  }
+
   /** Для плиток конверсии на LeadsPage — созданные в периоде, без STOP_LISTED
    * (см. PLAN.md leadService.conversionStats). aiRelevant — вердикт ИИ-классификации
    * (leadAiService) на момент получения письма, а не дата перевода в CRM: по

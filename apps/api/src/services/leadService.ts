@@ -20,7 +20,7 @@ const AUTO_CONVERT_SETTING_KEY = "lead_auto_convert_enabled";
  * фиксированная политика, не настройка: как и остальные SLA-подобные величины в этой
  * кодовой базе (см. reopenDeadlineAt у Appeal), не вынесена в SystemSetting, пока
  * не появится второй потребитель с другим значением. */
-const LEAD_FIRST_RESPONSE_SLA_HOURS = 4;
+export const LEAD_FIRST_RESPONSE_SLA_HOURS = 4;
 
 /** Bitrix24 REST принимает файл как base64 прямо в JSON-теле запроса — большие
  * файлы так слать ненадёжно (может не долезть/оборваться), поэтому пересылаем

@@ -7,6 +7,7 @@ const { config } = await import("@/config/unifiedConfig.js");
 const { logger } = await import("@/lib/logger.js");
 const { attachmentService } = await import("@/services/attachmentService.js");
 const { emailIngestService } = await import("@/services/emailIngestService.js");
+const { leadSlaService } = await import("@/services/leadSlaService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 const { initRealtime } = await import("@/lib/realtime.js");
 
@@ -28,9 +29,16 @@ const emailPollInterval = setInterval(() => {
   emailIngestService.pollInbox().catch((error) => logger.error({ err: error }, "email poll failed"));
 }, config.email.pollIntervalMs);
 
+// SLA-эскалация «Заявок» (leadSlaService.ts) — 5 минут с запасом на часовое окно
+// предупреждения, точность до минуты тут не нужна.
+const leadSlaInterval = setInterval(() => {
+  leadSlaService.checkDeadlines().catch((error) => logger.error({ err: error }, "lead SLA check failed"));
+}, 5 * 60 * 1000);
+
 function shutdown(): void {
   clearInterval(cleanupInterval);
   clearInterval(emailPollInterval);
+  clearInterval(leadSlaInterval);
   server.close(() => process.exit(0));
 }
 
