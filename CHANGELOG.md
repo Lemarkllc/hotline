@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [2.2.0](https://lemarkllc///compare/v2.1.0...v2.2.0) (2026-09-12)
+
+
+### Новые возможности
+
+* **api,web:** «SLA Лиды» — мониторинг зависших лидов Bitrix24 ([80d8cac](https://lemarkllc///commit/80d8cacd255c37ab9ee1332c7de0acbd4f8e3618))
+* **api,web:** «Рейтинг менеджеров» по лидам Bitrix24 (lead-часть будущей аналитики) ([d555176](https://lemarkllc///commit/d5551765184b4700c9d44c700675f99ae14fbfc2))
+* **api,web:** SLA-эскалация просроченных «Заявок» уведомлениями ([234164d](https://lemarkllc///commit/234164da79dcc435c481d7068880d2179b266db4))
+* **api,web:** асимметричный авто-стоплист нерелевантных лидов от ИИ ([ff03f5a](https://lemarkllc///commit/ff03f5ab0cae117f86a5a6ef4637e32d99cf098e))
+* **api,web:** причина авто-назначения лида видна на карточке ([e476e9e](https://lemarkllc///commit/e476e9e92eb39f23bb2ccceecbeddf56a128077a))
+* **api,web:** честная воронка вместо тавтологичной "конверсии" + распределение по менеджерам ([d66e5dc](https://lemarkllc///commit/d66e5dcd5180e8d2774033fe4ed3754bbf99b046))
+* **api:** еженедельная email-сводка «Рейтинг менеджеров» на почту руководства ([6641de2](https://lemarkllc///commit/6641de21478ea500bff19c8a58c3f2b163e37100))
+
+
+### Исправления
+
+* **api,web:** пагинация listAllLeads молча резала выгрузку + нечитаемые графики ([e22ffd5](https://lemarkllc///commit/e22ffd587f30d29459422084bbd5268d49e8b669))
+* **api:** "Lemark HotLine" -> "Lemark One" в футере письма-сводки ([8928776](https://lemarkllc///commit/8928776d287f7b5c5d8fc8b677fd9dc64b0fc163))
+* **api:** убрать маркетинговый хидер/футер из письма-сводки менеджеров ([25e7388](https://lemarkllc///commit/25e7388e55dc7f42c91bbdc20be6b73a33355227))
+* **web:** «SLA Лиды» недостижима с телефона — добавить в мобильный таб-бар ([3f1309e](https://lemarkllc///commit/3f1309e120373ac104ed5bacda8358f94e458feb))
+* **web:** пояснения к столбцам «Рейтинга менеджеров» вместо перестройки таблицы ([81e8e3d](https://lemarkllc///commit/81e8e3da3e6a9623e0cbeb1dce194dea1eee8362))
+
 ## [2.1.0](https://lemarkllc///compare/v0.4.0...v2.1.0) (2026-09-12)
 
 
