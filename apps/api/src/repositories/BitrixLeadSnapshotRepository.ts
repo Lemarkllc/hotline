@@ -20,8 +20,9 @@ export class BitrixLeadSnapshotRepository {
             assignedById: lead.assignedById,
             dateCreate: new Date(lead.dateCreate),
             currentStatusId: lead.statusId,
+            sourceId: lead.sourceId,
           },
-          update: { assignedById: lead.assignedById, currentStatusId: lead.statusId },
+          update: { assignedById: lead.assignedById, currentStatusId: lead.statusId, sourceId: lead.sourceId },
         }),
       ),
     );
@@ -33,16 +34,22 @@ export class BitrixLeadSnapshotRepository {
    *
    * PROCESSED ("Передано дилеру/партнёру") ИСКЛЮЧЕНА (решение пользователя,
    * 2026-09-12) — не в сделке и не провал, но раздувала бы "Не в сделке" знаменателем,
-   * пока не решили отдельно, как эту категорию вообще учитывать. Сам снимок в
-   * BitrixLeadSnapshot по-прежнему хранит эти лиды (upsertAll ничего не фильтрует) —
-   * данные не теряются, просто не участвуют в отчёте до отдельного решения. */
+   * пока не решили отдельно, как эту категорию вообще учитывать.
+   *
+   * SOURCE_ID=CALL ИСКЛЮЧЁН (решение пользователя, 2026-09-13, живая проверка Павла
+   * Лякишева: 45 из 50 его лидов с 1 сентября — автоматически заведённые Bitrix
+   * записи на входящий звонок, 35 из них тут же JUNK/UC_UO10VU — шум телефонии, не
+   * слитые сделки, раздувал "Провалено" так, будто лучший продажник — худший.
+   *
+   * Оба исключения — только на уровне отчёта, сам снимок в BitrixLeadSnapshot по-
+   * прежнему хранит все лиды (upsertAll ничего не фильтрует) — данные не теряются. */
   async findStatsByAssignee(
     from: Date,
     to: Date,
   ): Promise<{ assignedById: string; total: number; converted: number; junk: number }[]> {
     const rows = await prisma.bitrixLeadSnapshot.groupBy({
       by: ["assignedById", "currentStatusId"],
-      where: { dateCreate: { gte: from, lte: to }, currentStatusId: { not: "PROCESSED" } },
+      where: { dateCreate: { gte: from, lte: to }, currentStatusId: { not: "PROCESSED" }, sourceId: { not: "CALL" } },
       _count: { _all: true },
     });
     const byAssignee = new Map<string, { total: number; converted: number; junk: number }>();
@@ -58,11 +65,11 @@ export class BitrixLeadSnapshotRepository {
 
   /** Для недельного тренда — сырые строки, бакетинг по неделям в JS (managerLeadRatingService),
    * тем же принципом, что и EmailLeadRepository.dailyStats — объём не оправдывает
-   * DATE_TRUNC в SQL. PROCESSED исключена тем же принципом, что и findStatsByAssignee
-   * выше — иначе тренд "Не в сделке" тоже был бы раздут. */
+   * DATE_TRUNC в SQL. PROCESSED/CALL исключены тем же принципом, что и
+   * findStatsByAssignee выше — иначе тренд был бы так же искажён. */
   findForTrend(from: Date, to: Date): Promise<{ assignedById: string; dateCreate: Date; currentStatusId: string }[]> {
     return prisma.bitrixLeadSnapshot.findMany({
-      where: { dateCreate: { gte: from, lte: to }, currentStatusId: { not: "PROCESSED" } },
+      where: { dateCreate: { gte: from, lte: to }, currentStatusId: { not: "PROCESSED" }, sourceId: { not: "CALL" } },
       select: { assignedById: true, dateCreate: true, currentStatusId: true },
     });
   }

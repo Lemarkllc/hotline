@@ -29,6 +29,10 @@ export interface BitrixAnyLeadDTO {
   statusId: string;
   assignedById: string;
   dateCreate: string;
+  /// Bitrix SOURCE_ID — managerLeadRatingService исключает CALL (автоматически
+  /// заведённые записи на входящий звонок, часто повторные — шум телефонии, не
+  /// слитые сделки, найдено вживую 2026-09-13 на примере Павла Лякишева).
+  sourceId: string;
 }
 
 interface BitrixApiResponse<T> {
@@ -204,12 +208,12 @@ export class BitrixService {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           filter: { ASSIGNED_BY_ID: assignedByIds },
-          select: ["ID", "STATUS_ID", "ASSIGNED_BY_ID", "DATE_CREATE"],
+          select: ["ID", "STATUS_ID", "ASSIGNED_BY_ID", "DATE_CREATE", "SOURCE_ID"],
           start,
         }),
       });
       const data = (await res.json()) as BitrixApiResponse<
-        { ID: string; STATUS_ID: string; ASSIGNED_BY_ID: string; DATE_CREATE: string }[]
+        { ID: string; STATUS_ID: string; ASSIGNED_BY_ID: string; DATE_CREATE: string; SOURCE_ID: string }[]
       > & { next?: number };
       if (data.error) {
         throw new ValidationError(`Bitrix24 (crm.lead.list): ${data.error_description ?? data.error}`);
@@ -220,6 +224,7 @@ export class BitrixService {
           statusId: lead.STATUS_ID,
           assignedById: lead.ASSIGNED_BY_ID,
           dateCreate: lead.DATE_CREATE,
+          sourceId: lead.SOURCE_ID,
         });
       }
       if (data.next == null) {

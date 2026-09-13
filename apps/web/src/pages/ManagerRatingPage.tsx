@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Wrench } from "lucide-react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DesktopDateRangePicker } from "@/components/ui/date-range-picker/DesktopDateRangePicker";
 import { useManagerLeadStats, useManagerLeadWeeklyTrend, type ManagerLeadStatsDTO } from "@/hooks/api";
+import { useAuthStore } from "@/lib/authStore";
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -96,6 +97,14 @@ function TrendChart({
  * снизу с текущими цифрами за весь выбранный период. Без композитного score
  * (решение пользователя) — три метрики рядом, сортировка на усмотрение смотрящего. */
 export function ManagerRatingPage() {
+  // Временно только Администратору (решение пользователя, 2026-09-13: методология
+  // отчёта дорабатывается — CALL-шум телефонии портил цифры, показывать это как
+  // готовые данные всей роли SALES преждевременно). Бэкенд тоже гейтит на
+  // user.manage (managerLeadRatingRoutes.ts) — это не единственная защита, а
+  // просто чтобы не дёргать API и не мигать пустым запросом для остальных.
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canView = hasPermission("user.manage");
+
   const resetRange = useMemo(
     () => ({ from: isoDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)), to: isoDate(new Date()) }),
     [],
@@ -105,8 +114,8 @@ export function ManagerRatingPage() {
   const [sortKey, setSortKey] = useState<SortKey>("slaViolations");
   const [sortDesc, setSortDesc] = useState(true);
 
-  const { data: stats, isLoading: statsLoading, isError: statsError } = useManagerLeadStats(from, to);
-  const { data: trend } = useManagerLeadWeeklyTrend(from, to);
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useManagerLeadStats(from, to, canView);
+  const { data: trend } = useManagerLeadWeeklyTrend(from, to, canView);
 
   const sortedStats = useMemo(() => {
     const rows = [...(stats ?? [])];
@@ -146,6 +155,18 @@ export function ManagerRatingPage() {
         {label}
         {active && (sortDesc ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />)}
       </button>
+    );
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
+        <Wrench className="size-10 text-text-3" />
+        <p className="text-ui font-medium text-text-1">Раздел на доработке</p>
+        <p className="max-w-sm text-meta text-text-3">
+          Уточняем методологию отчёта — скоро здесь появятся данные.
+        </p>
+      </div>
     );
   }
 

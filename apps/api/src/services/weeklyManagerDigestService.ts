@@ -6,10 +6,16 @@ import { renderWeeklyManagerDigestHtml } from "@/templates/weeklyManagerDigest.j
 
 /** Реальные получатели (пользователь назвал их явно, 2026-09-12) — руководство,
  * не пользуется панелью, поэтому пассивная email-рассылка вместо захода в систему.
- * НЕ включает тестовый адрес — тот только через sendTestDigest(), отдельно от
- * автоматики (решение пользователя: сначала проверить на себе, потом на прод). */
-const REAL_RECIPIENTS = ["a.zharikov@lemarkllc.ru", "g.smorchkov@lemarkllc.ru", "vkuzmenko@lemarkllc.ru"];
+ *
+ * ВРЕМЕННО ОТКЛЮЧЕНО (решение пользователя, 2026-09-13): методология отчёта ещё
+ * дорабатывается (CALL-шум телефонии портил цифры, см. BitrixLeadSnapshotRepository) —
+ * рассылать руководству данные, которым сам ещё не доверяешь, преждевременно.
+ * Рассылка идёт только на TEST_RECIPIENT, пока пользователь явно не попросит
+ * вернуть на LEADERSHIP_RECIPIENTS ниже. */
+const LEADERSHIP_RECIPIENTS = ["a.zharikov@lemarkllc.ru", "g.smorchkov@lemarkllc.ru", "vkuzmenko@lemarkllc.ru"];
 const TEST_RECIPIENT = "g.bogonos@lemarkllc.ru";
+const REAL_RECIPIENTS = [TEST_RECIPIENT];
+void LEADERSHIP_RECIPIENTS; // держим список наготове, не удаляем — вернётся в REAL_RECIPIENTS позже
 
 const LAST_SENT_WEEK_KEY = "weekly_manager_digest_last_sent_week";
 

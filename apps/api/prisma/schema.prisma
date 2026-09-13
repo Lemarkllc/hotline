@@ -578,7 +578,14 @@ model BitrixLeadSnapshot {
   assignedById    String
   dateCreate      DateTime
   currentStatusId String
-  updatedAt       DateTime @updatedAt
+  /// SOURCE_ID Bitrix — добавлено 2026-09-13, живая проверка отчёта: у Павла 45 из 50
+  /// лидов с 1 сентября оказались SOURCE_ID=CALL (автоматически заведённые Bitrix
+  /// записи на входящий звонок, часто повторные с одного номера), 35 из них тут же
+  /// помечены JUNK/UC_UO10VU — это шум телефонии, не слитые сделки, но раздувал
+  /// "Провалено" так, будто лучший продажник хуже всех. managerLeadRatingService
+  /// исключает SOURCE_ID=CALL из отчёта тем же принципом, что и PROCESSED.
+  sourceId String
+  updatedAt DateTime @updatedAt
 
   @@index([assignedById, dateCreate])
   @@map("bitrix_lead_snapshots")

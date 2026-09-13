@@ -809,17 +809,21 @@ export interface WeeklyTrendPointDTO {
   byManager: Record<string, { slaViolations: number; notConvertedRate: number | null; junkRate: number | null }>;
 }
 
-export function useManagerLeadStats(from: string, to: string) {
+/** enabled — временно только Администратору (user.manage), не всей роли SALES,
+ * см. managerLeadRatingRoutes.ts. Страница сама решает, передавать true/false. */
+export function useManagerLeadStats(from: string, to: string, enabled = true) {
   return useQuery({
     queryKey: ["manager-lead-rating-stats", from, to],
     queryFn: () => apiRequest<ManagerLeadStatsDTO[]>("/manager-lead-rating/stats", { query: { from, to } }),
+    enabled,
   });
 }
 
-export function useManagerLeadWeeklyTrend(from: string, to: string) {
+export function useManagerLeadWeeklyTrend(from: string, to: string, enabled = true) {
   return useQuery({
     queryKey: ["manager-lead-rating-trend", from, to],
     queryFn: () => apiRequest<WeeklyTrendPointDTO[]>("/manager-lead-rating/weekly-trend", { query: { from, to } }),
+    enabled,
   });
 }
 
