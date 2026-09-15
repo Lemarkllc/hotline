@@ -211,25 +211,26 @@ export class EmailLeadRepository {
 
   /** SLA-эскалация (leadSlaService.ts) — та же зона, что и isOverdue() на фронте
    * (LeadsPage.tsx): только OPEN_STATUSES и ни одного OUTBOUND-сообщения (ещё никто
-   * не ответил через нашу систему). thresholdAt — момент "createdAt + SLA - предупреждение"
-   * (warning) или "createdAt + SLA" (breach); *SentAt: null гарантирует однократность. */
-  findSlaWarningCandidates(thresholdAt: Date): Promise<EmailLead[]> {
+   * не ответил через нашу систему). Порог "прошло ли достаточно рабочих часов" не
+   * выразить одним SQL-условием (businessHours.ts считает по каждому лиду отдельно,
+   * ПН-ПТ 9-18 МСК) — сервис сам сравнивает addBusinessHours(createdAt, ...) с now
+   * по каждому кандидату из этой (заведомо небольшой) выборки. *SentAt: null
+   * гарантирует однократность каждого уведомления. */
+  findOpenUnwarnedLeads(): Promise<EmailLead[]> {
     return prisma.emailLead.findMany({
       where: {
         status: { in: OPEN_STATUSES },
         slaWarningSentAt: null,
-        createdAt: { lte: thresholdAt },
         messages: { none: { direction: "OUTBOUND" } },
       },
     });
   }
 
-  findSlaBreachCandidates(thresholdAt: Date): Promise<EmailLead[]> {
+  findOpenUnbreachedLeads(): Promise<EmailLead[]> {
     return prisma.emailLead.findMany({
       where: {
         status: { in: OPEN_STATUSES },
         slaBreachSentAt: null,
-        createdAt: { lte: thresholdAt },
         messages: { none: { direction: "OUTBOUND" } },
       },
     });
