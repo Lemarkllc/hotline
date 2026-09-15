@@ -102,6 +102,15 @@ export class VacationController extends BaseController {
     }
   }
 
+  async invite(req: Request, res: Response): Promise<void> {
+    try {
+      const request = await vacationService.invite(req.user!, pathParam(req, "id"));
+      this.handleSuccess(res, request);
+    } catch (error) {
+      this.handleError(error, res, "vacation.invite");
+    }
+  }
+
   async getAttachmentUrl(req: Request, res: Response): Promise<void> {
     try {
       const url = await vacationService.getAttachmentUrl(

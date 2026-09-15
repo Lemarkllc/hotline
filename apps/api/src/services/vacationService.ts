@@ -29,6 +29,10 @@ export interface VacationRequestDTO {
   applicationSigned: boolean;
   processedBy: { id: string; fullName: string } | null;
   processedAt: Date | null;
+  /** Кнопка HR «Пригласить» — invitedAt=null значит кнопка ещё активна (SlaLeadsPage-
+   * образным принципом disabled-состояния после отправки, см. VacationProcessingRow). */
+  invitedBy: { id: string; fullName: string } | null;
+  invitedAt: Date | null;
   attachments: { id: string; kind: string; mimeType: string; fileSize: number; createdAt: Date }[];
   createdAt: Date;
 }
@@ -50,6 +54,8 @@ function serialize(request: VacationRequestWithUsers): VacationRequestDTO {
     applicationSigned: request.applicationSigned,
     processedBy: request.processedBy ? { id: request.processedBy.id, fullName: request.processedBy.fullName } : null,
     processedAt: request.processedAt,
+    invitedBy: request.invitedBy ? { id: request.invitedBy.id, fullName: request.invitedBy.fullName } : null,
+    invitedAt: request.invitedAt,
     attachments: request.attachments.map((a) => ({
       id: a.id,
       kind: a.kind,
@@ -217,6 +223,30 @@ export class VacationService {
     await auditService.record({
       actorId: user.id,
       action: "vacation_request.processed",
+      objectType: "VacationRequest",
+      objectId: request.id,
+      result: "success",
+    });
+    return serialize(updated);
+  }
+
+  /** Кнопка HR «Пригласить» (по требованию пользователя, 2026-09-15) — раньше
+   * сообщение "подойдите в отдел персонала" уходило сотруднику автоматически сразу
+   * при апруве HRD (approve() выше), теперь это отдельное ручное действие HR:
+   * доступна с того же момента, что и чек-лист (APPROVED), без привязки к нему —
+   * HR может пригласить сотрудника ещё до того, как сама подготовит документы. */
+  async invite(user: AuthenticatedUser, id: string): Promise<VacationRequestDTO> {
+    this.requireProcess(user);
+    const request = await vacationRequestRepository.findById(id);
+    if (!request) throw new NotFoundError("Заявка не найдена");
+    if (request.status !== "APPROVED") throw new ValidationError("Приглашение доступно только для одобренных заявок");
+    if (request.invitedAt) throw new ValidationError("Приглашение уже отправлено");
+
+    const updated = await vacationRequestRepository.invite(id, user.id);
+    await notificationService.notifyVacationInvite(request.userId);
+    await auditService.record({
+      actorId: user.id,
+      action: "vacation_request.invited",
       objectType: "VacationRequest",
       objectId: request.id,
       result: "success",

@@ -159,3 +159,10 @@ appealRoutes.post(
   requireAnyPlainPermission("hr.process", "appeal.close"),
   asyncErrorWrapper((req, res) => appealController.processTermination(req, res)),
 );
+
+appealRoutes.post(
+  "/:id/termination-invite",
+  requireWebAuth,
+  requireAnyPlainPermission("hr.process", "appeal.close"),
+  asyncErrorWrapper((req, res) => appealController.inviteForTermination(req, res)),
+);

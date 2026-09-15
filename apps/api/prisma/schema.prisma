@@ -135,11 +135,13 @@ model User {
   vacationRequests            VacationRequest[]     @relation("VacationAuthor")
   decidedVacationRequests     VacationRequest[]     @relation("VacationDecidedBy")
   processedVacationRequests   VacationRequest[]     @relation("VacationProcessedBy")
+  invitedVacationRequests     VacationRequest[]     @relation("VacationInvitedBy")
   absenceRequests             AbsenceRequest[]      @relation("AbsenceAuthor")
   decidedAbsenceRequests      AbsenceRequest[]      @relation("AbsenceDecidedBy")
   businessTripRequests        BusinessTripRequest[] @relation("BusinessTripAuthor")
   decidedBusinessTripRequests BusinessTripRequest[] @relation("BusinessTripDecidedBy")
   processedAppeals            Appeal[]              @relation("AppealProcessedBy")
+  invitedAppeals              Appeal[]              @relation("AppealInvitedBy")
   vacationBalance             VacationBalance?
 
   @@index([status])
@@ -295,6 +297,13 @@ model Appeal {
   processedById                String?
   processedAt                  DateTime?
 
+  /// Кнопка HR «Пригласить» (по требованию пользователя, 2026-09-15) — тот же
+  /// принцип, что и VacationRequest.invitedAt: сообщение сотруднику "подойдите в
+  /// отдел кадров" теперь отдельное ручное действие HR на стадии «Оформление»,
+  /// не зависящее от обязательного финального комментария HRD при закрытии.
+  invitedById String?
+  invitedAt   DateTime?
+
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   closedAt         DateTime?
@@ -305,6 +314,7 @@ model Appeal {
   externalContact ExternalContact? @relation(fields: [externalContactId], references: [id])
   epic            Epic?            @relation(fields: [epicId], references: [id])
   processedBy     User?            @relation("AppealProcessedBy", fields: [processedById], references: [id])
+  invitedBy       User?            @relation("AppealInvitedBy", fields: [invitedById], references: [id])
 
   assignments   AppealAssignment[]
   comments      AppealComment[]
@@ -796,12 +806,20 @@ model VacationRequest {
   processedById      String?
   processedAt        DateTime?
 
+  /// Кнопка HR «Пригласить» (по требованию пользователя, 2026-09-15) — раньше
+  /// приглашение "подойдите в отдел персонала" уходило сотруднику автоматически
+  /// сразу при апруве HRD (notifyVacationDecision); теперь это отдельное, ручное
+  /// действие HR на стадии «Оформление». invitedAt=null — кнопка активна.
+  invitedById String?
+  invitedAt   DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user        User               @relation("VacationAuthor", fields: [userId], references: [id])
   decidedBy   User?              @relation("VacationDecidedBy", fields: [decidedById], references: [id])
   processedBy User?              @relation("VacationProcessedBy", fields: [processedById], references: [id])
+  invitedBy   User?              @relation("VacationInvitedBy", fields: [invitedById], references: [id])
   attachments AppealAttachment[]
 
   @@index([userId, status])

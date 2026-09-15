@@ -42,6 +42,10 @@ export interface AppealDTO {
   };
   processedBy: { id: string; fullName: string } | null;
   processedAt: Date | null;
+  /** Кнопка HR «Пригласить» — только type="RESIGNATION" && resignationOutcome=
+   * "TERMINATED", тот же принцип, что и VacationRequestDTO.invitedAt. */
+  invitedBy: { id: string; fullName: string } | null;
+  invitedAt: Date | null;
   epic: { id: string; name: string } | null;
   originalText: string;
   workingEdit: string | null;
@@ -335,6 +339,33 @@ export class AppealService {
     return this.serializeForStaff(updated, user, true);
   }
 
+  /** Кнопка HR «Пригласить» (по требованию пользователя, 2026-09-15) — раньше
+   * сообщение "подойдите в отдел кадров" долетало сотруднику неявно, внутри
+   * обязательного финального комментария HRD при закрытии обращения (см. changeStatus
+   * выше). Теперь это отдельное, явное и управляемое HR действие — тот же принцип,
+   * что и vacationService.invite. Доступна в том же окне, что и чек-лист/«Оформить»
+   * (assertAwaitingTerminationProcessing), но не требует его заполнения. */
+  async inviteForTermination(user: AuthenticatedUser, id: string): Promise<AppealDTO> {
+    this.requireTerminationProcess(user);
+    const appeal = await appealRepository.findById(id);
+    if (!appeal) throw new NotFoundError("Обращение не найдено");
+    this.assertAwaitingTerminationProcessing(appeal);
+    if (appeal.invitedAt) throw new ValidationError("Приглашение уже отправлено");
+
+    // appeal.authorUserId гарантированно есть — см. комментарий в processTermination выше.
+    await notificationService.notifyTerminationInvite(appeal.authorUserId!);
+    const updated = await appealRepository.inviteForTermination(id, user.id);
+    await auditService.record({
+      actorId: user.id,
+      action: "appeal.termination_invited",
+      objectType: "Appeal",
+      objectId: id,
+      appealId: id,
+      result: "success",
+    });
+    return this.serializeForStaff(updated, user, true);
+  }
+
   async assign(user: AuthenticatedUser, id: string, assigneeUserId: string): Promise<AppealDTO> {
     const appeal = await appealRepository.findById(id);
     if (!appeal) throw new NotFoundError("Обращение не найдено");
@@ -609,6 +640,8 @@ export class AppealService {
       },
       processedBy: appeal.processedBy ? { id: appeal.processedBy.id, fullName: appeal.processedBy.fullName } : null,
       processedAt: appeal.processedAt,
+      invitedBy: appeal.invitedBy ? { id: appeal.invitedBy.id, fullName: appeal.invitedBy.fullName } : null,
+      invitedAt: appeal.invitedAt,
       epic: appeal.epic ? { id: appeal.epic.id, name: appeal.epic.name } : null,
       originalText: appeal.originalText,
       workingEdit: appeal.workingEdit,
@@ -730,6 +763,8 @@ export class AppealService {
       },
       processedBy: null,
       processedAt: null,
+      invitedBy: null,
+      invitedAt: null,
       epic: appeal.epic ? { id: appeal.epic.id, name: appeal.epic.name } : null,
       originalText: appeal.originalText,
       workingEdit: null, // автору рабочая редакция не показывается — это внутренний инструмент HRD

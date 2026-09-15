@@ -477,6 +477,17 @@ export class NotificationService {
     );
   }
 
+  /** Кнопка HR «Пригласить» (по требованию пользователя, 2026-09-15) — раньше это
+   * был жёстко зашитый хвост notifyVacationDecision(approved=true), уходивший сразу
+   * при апруве HRD; теперь отдельное ручное действие HR (vacationService.invite). */
+  async notifyVacationInvite(userId: string): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: "vacation_invite" },
+    });
+  }
+
   /** Кнопка HR «Оформить» — финальное уведомление сотруднику. */
   async notifyVacationProcessed(userId: string): Promise<void> {
     await notificationRepository.create({
@@ -502,6 +513,18 @@ export class NotificationService {
         }),
       ),
     );
+  }
+
+  /** Кнопка HR «Пригласить» на увольнении (по требованию пользователя, 2026-09-15) —
+   * тот же принцип, что и notifyVacationInvite: раньше приглашение доходило неявно,
+   * внутри обязательного финального комментария HRD (см. appealService.changeStatus),
+   * теперь отдельное ручное действие HR (appealService.inviteForTermination). */
+  async notifyTerminationInvite(userId: string): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: "termination_invite" },
+    });
   }
 
   /** Кнопка HR «Оформить» на увольнении — отдельно от employee_terminated (та молча

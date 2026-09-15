@@ -137,6 +137,15 @@ export class AppealController extends BaseController {
     }
   }
 
+  async inviteForTermination(req: Request, res: Response): Promise<void> {
+    try {
+      const dto = await appealService.inviteForTermination(req.user!, pathParam(req, "id"));
+      this.handleSuccess(res, dto);
+    } catch (error) {
+      this.handleError(error, res, "inviteForTermination");
+    }
+  }
+
   async assign(req: Request, res: Response): Promise<void> {
     try {
       const { userId } = req.body as { userId: string };
