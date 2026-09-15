@@ -21,6 +21,8 @@ import {
   useAttachmentUrl,
   useBusinessTripRequests,
   useEmployeeBalances,
+  useInviteTermination,
+  useInviteVacation,
   useProcessTermination,
   useProcessVacation,
   useRejectAbsenceRequest,
@@ -731,6 +733,7 @@ function VacationProcessingRow({ request }: { request: VacationRequestDTO }) {
   const [open, setOpen] = useState(false);
   const updateChecklist = useUpdateVacationChecklist(request.id);
   const process = useProcessVacation(request.id);
+  const invite = useInviteVacation(request.id);
   const getAttachmentUrl = useVacationAttachmentUrl();
   const canProcess = request.applicationDrafted && request.applicationSigned;
 
@@ -799,6 +802,13 @@ function VacationProcessingRow({ request }: { request: VacationRequestDTO }) {
           </div>
           <DialogFooter>
             <Button
+              variant="outline"
+              disabled={!!request.invitedAt || invite.isPending}
+              onClick={() => invite.mutate()}
+            >
+              {request.invitedAt ? "Приглашение отправлено" : "Пригласить"}
+            </Button>
+            <Button
               disabled={!canProcess || process.isPending}
               onClick={() => {
                 process.mutate();
@@ -829,6 +839,7 @@ function TerminationProcessingRow({ appeal }: { appeal: AppealDTO }) {
   const [open, setOpen] = useState(false);
   const updateChecklist = useUpdateTerminationChecklist(appeal.id);
   const process = useProcessTermination(appeal.id);
+  const invite = useInviteTermination(appeal.id);
   const getAttachmentUrl = useAttachmentUrl();
   const c = appeal.terminationChecklist;
   const canProcess =
@@ -908,6 +919,13 @@ function TerminationProcessingRow({ appeal }: { appeal: AppealDTO }) {
             />
           </div>
           <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={!!appeal.invitedAt || invite.isPending}
+              onClick={() => invite.mutate()}
+            >
+              {appeal.invitedAt ? "Приглашение отправлено" : "Пригласить"}
+            </Button>
             <Button
               disabled={!canProcess || process.isPending}
               onClick={() => {

@@ -22,6 +22,7 @@ export const APPEAL_DETAIL_INCLUDE = {
   statusHistory: { orderBy: { createdAt: "asc" as const } },
   rating: true,
   processedBy: true,
+  invitedBy: true,
 } satisfies Prisma.AppealInclude;
 
 export type AppealWithDetails = Prisma.AppealGetPayload<{ include: typeof APPEAL_DETAIL_INCLUDE }>;
@@ -217,6 +218,15 @@ export class AppealRepository {
     return prisma.appeal.update({
       where: { id: appealId },
       data: { processedById, processedAt: new Date() },
+      include: APPEAL_DETAIL_INCLUDE,
+    });
+  }
+
+  /** Кнопка HR «Пригласить» на увольнении — независима от processTermination выше. */
+  inviteForTermination(appealId: string, invitedById: string): Promise<AppealWithDetails> {
+    return prisma.appeal.update({
+      where: { id: appealId },
+      data: { invitedById, invitedAt: new Date() },
       include: APPEAL_DETAIL_INCLUDE,
     });
   }

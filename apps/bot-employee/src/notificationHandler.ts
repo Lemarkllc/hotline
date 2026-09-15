@@ -76,12 +76,14 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         break;
       }
       case "vacation_approved": {
-        // Только у отпуска — требование ТК РФ про письменное заявление (PLAN.md §10,
-        // прямое решение пользователя: у "Отсутствия"/"Командировки" бумага не нужна).
-        await bot.api.sendMessage(
-          telegramId,
-          "Ваш отпуск согласован, подойдите в отдел персонала — подписать документы.",
-        );
+        // Приглашение "подойдите в отдел персонала" раньше уходило прямо здесь, сразу
+        // при апруве HRD — теперь отдельное ручное действие HR, кнопка «Пригласить»
+        // (по требованию пользователя, 2026-09-15, см. vacation_invite ниже).
+        await bot.api.sendMessage(telegramId, "Ваш отпуск согласован.");
+        break;
+      }
+      case "vacation_invite": {
+        await bot.api.sendMessage(telegramId, "Подойдите в отдел персонала — подписать документы.");
         break;
       }
       case "vacation_rejected": {
@@ -115,6 +117,10 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
       }
       case "termination_processed": {
         await bot.api.sendMessage(telegramId, "Процесс увольнения завершён. Всего доброго.");
+        break;
+      }
+      case "termination_invite": {
+        await bot.api.sendMessage(telegramId, "Подойдите в отдел кадров — оформить документы.");
         break;
       }
       case "absence_request_pending": {

@@ -6,6 +6,7 @@ export const VACATION_DETAIL_INCLUDE = {
   user: true,
   decidedBy: true,
   processedBy: true,
+  invitedBy: true,
   attachments: { where: { deletedAt: null } },
 } satisfies Prisma.VacationRequestInclude;
 
@@ -131,6 +132,15 @@ export class VacationRequestRepository {
     return prisma.vacationRequest.update({
       where: { id },
       data: { processedById, processedAt: new Date() },
+      include: VACATION_DETAIL_INCLUDE,
+    });
+  }
+
+  /** Кнопка HR «Пригласить» — независима от process() выше, не требует чек-листа. */
+  invite(id: string, invitedById: string): Promise<VacationRequestWithUsers> {
+    return prisma.vacationRequest.update({
+      where: { id },
+      data: { invitedById, invitedAt: new Date() },
       include: VACATION_DETAIL_INCLUDE,
     });
   }

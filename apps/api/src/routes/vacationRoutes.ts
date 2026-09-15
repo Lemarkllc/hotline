@@ -81,6 +81,13 @@ vacationRoutes.post(
   asyncErrorWrapper((req, res) => vacationController.process(req, res)),
 );
 
+vacationRoutes.post(
+  "/:id/invite",
+  requireWebAuth,
+  requireAnyPlainPermission("hr.process", "vacation.manage"),
+  asyncErrorWrapper((req, res) => vacationController.invite(req, res)),
+);
+
 vacationRoutes.get(
   "/:id/attachments/:attachmentId/url",
   requireWebAuth,

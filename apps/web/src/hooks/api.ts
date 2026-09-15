@@ -123,6 +123,9 @@ export interface AppealDTO {
   };
   processedBy: { id: string; fullName: string } | null;
   processedAt: string | null;
+  /** Кнопка HR «Пригласить» — только type="RESIGNATION" && resignationOutcome="TERMINATED". */
+  invitedBy: { id: string; fullName: string } | null;
+  invitedAt: string | null;
   epic: { id: string; name: string } | null;
   originalText: string;
   workingEdit: string | null;
@@ -232,6 +235,19 @@ export function useProcessTermination(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => apiRequest<AppealDTO>(`/appeals/${id}/termination-process`, { method: "POST" }),
+    onSuccess: () => {
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ["appeals-awaiting-termination-processing"] });
+    },
+  });
+}
+
+/** Кнопка HR «Пригласить» на увольнении. */
+export function useInviteTermination(id: string) {
+  const invalidate = useInvalidateAppeal(id);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest<AppealDTO>(`/appeals/${id}/termination-invite`, { method: "POST" }),
     onSuccess: () => {
       invalidate();
       void qc.invalidateQueries({ queryKey: ["appeals-awaiting-termination-processing"] });
@@ -847,6 +863,9 @@ export interface VacationRequestDTO {
   applicationSigned: boolean;
   processedBy: { id: string; fullName: string } | null;
   processedAt: string | null;
+  /** Кнопка HR «Пригласить» — invitedAt=null значит кнопка ещё активна. */
+  invitedBy: { id: string; fullName: string } | null;
+  invitedAt: string | null;
   attachments: { id: string; kind: string; mimeType: string; fileSize: number; createdAt: string }[];
   createdAt: string;
 }
@@ -882,6 +901,15 @@ export function useProcessVacation(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => apiRequest<VacationRequestDTO>(`/vacation-requests/${id}/process`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["vacation-requests"] }),
+  });
+}
+
+/** Кнопка HR «Пригласить» на отпуске. */
+export function useInviteVacation(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest<VacationRequestDTO>(`/vacation-requests/${id}/invite`, { method: "POST" }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["vacation-requests"] }),
   });
 }
