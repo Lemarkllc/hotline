@@ -4,6 +4,7 @@ import { downloadObject, getPresignedDownloadUrl } from "@/lib/storage.js";
 import { bitrixService, type BitrixUserDTO } from "@/services/bitrixService.js";
 import { emailSendService } from "@/services/emailSendService.js";
 import { auditService } from "@/services/auditService.js";
+import { addBusinessHours } from "@/utils/businessHours.js";
 import { emailLeadRepository, type EmailLeadWithMessages } from "@/repositories/EmailLeadRepository.js";
 import { emailBlocklistRepository } from "@/repositories/EmailBlocklistRepository.js";
 import { systemSettingRepository } from "@/repositories/SystemSettingRepository.js";
@@ -64,9 +65,11 @@ export interface LeadDTO {
    * которые реально прогоняются через авто-стоплист). */
   irrelevantCategory: LeadIrrelevantCategory | null;
   /** SLA на первый ответ клиенту (design_handoff_lemark_one/Leads.dc.html) — не поле в
-   * БД, вычисляется здесь из createdAt + LEAD_FIRST_RESPONSE_SLA_HOURS и первого
-   * OUTBOUND-сообщения; просрочку (isFirstResponseOverdue) считает фронт по этим двум
-   * датам плюс статусу, тем же принципом, что и Appeal (см. reopenDeadlineAt). */
+   * БД, вычисляется здесь из createdAt + LEAD_FIRST_RESPONSE_SLA_HOURS рабочих часов
+   * (ПН-ПТ 9-18 МСК, businessHours.ts — решение пользователя 2026-09-15: лид, пришедший
+   * в пятницу вечером, не должен "гореть" всю ночь и выходные) и первого OUTBOUND-
+   * сообщения; просрочку (isFirstResponseOverdue) считает фронт по этим двум датам
+   * плюс статусу, тем же принципом, что и Appeal (см. reopenDeadlineAt). */
   firstResponseDueAt: Date;
   firstRespondedAt: Date | null;
   messages: {
@@ -104,7 +107,7 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
     aiIsRelevant: lead.aiIsRelevant,
     aiReasoning: lead.aiReasoning,
     irrelevantCategory: lead.irrelevantCategory,
-    firstResponseDueAt: new Date(lead.createdAt.getTime() + LEAD_FIRST_RESPONSE_SLA_HOURS * 60 * 60 * 1000),
+    firstResponseDueAt: addBusinessHours(lead.createdAt, LEAD_FIRST_RESPONSE_SLA_HOURS),
     firstRespondedAt: firstOutbound?.receivedAt ?? null,
     messages: lead.messages.map((m) => ({
       id: m.id,

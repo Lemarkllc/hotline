@@ -4,6 +4,7 @@ import { bitrixLeadSlaEventRepository } from "@/repositories/BitrixLeadSlaEventR
 import { notificationService } from "@/services/notificationService.js";
 import { logger } from "@/lib/logger.js";
 import { SALES_ROSTER, SALES_ROSTER_KEYS } from "@/config/salesRoster.js";
+import { businessHoursElapsed, isWorkingTime } from "@/utils/businessHours.js";
 
 /** Порог "тишины" (по DATE_MODIFY, см. BitrixLeadAlert в schema.prisma) для каждого
  * активного статуса лида — grill-me допрос 2026-09-12. PROCESSED ("Передано дилеру/
@@ -54,11 +55,14 @@ export class BitrixLeadSlaService {
   private async findStalled(): Promise<StalledLeadDTO[]> {
     const assignedByIds = SALES_ROSTER_KEYS.map((k) => SALES_ROSTER[k].bitrixId);
     const leads = await bitrixService.listActiveLeads(assignedByIds);
-    const now = Date.now();
+    const now = new Date();
 
     return leads
       .map((lead) => {
-        const hoursStale = (now - new Date(lead.dateModify).getTime()) / (60 * 60 * 1000);
+        // Рабочие часы (ПН-ПТ 9-18 МСК), не календарные — лид, тихо пролежавший
+        // выходные, не должен мгновенно выглядеть таким же зависшим, как за два
+        // рабочих дня (решение пользователя 2026-09-15, businessHours.ts).
+        const hoursStale = businessHoursElapsed(new Date(lead.dateModify), now);
         return { lead, hoursStale };
       })
       .filter(({ lead, hoursStale }) => hoursStale > STALE_THRESHOLD_HOURS[lead.statusId])
@@ -81,8 +85,15 @@ export class BitrixLeadSlaService {
   }
 
   /** Дёргается поллером (server.ts). Уведомляет SALES по каждому зависшему лиду, но
-   * не чаще RE_ALERT_HOURS на (лид, статус) — см. bitrixLeadAlertRepository. */
+   * не чаще RE_ALERT_HOURS на (лид, статус) — см. bitrixLeadAlertRepository.
+   * Вне рабочего времени (ПН-ПТ 9-18 МСК) уведомления не шлём вообще — тик просто
+   * пропускается, alertedAt не трогаем, поэтому лид подхватится на первом же
+   * рабочем тике (решение пользователя 2026-09-15). Список зависших лидов для
+   * страницы «SLA Лиды» (getStalledLeads) от этого гейта не зависит — он живой
+   * всегда, гейтится только рассылка. */
   async checkStalled(): Promise<void> {
+    if (!isWorkingTime(new Date())) return;
+
     const stalled = await this.findStalled();
     for (const lead of stalled) {
       try {

@@ -2,6 +2,7 @@ import { logger } from "@/lib/logger.js";
 import { emailLeadRepository } from "@/repositories/EmailLeadRepository.js";
 import { notificationService } from "@/services/notificationService.js";
 import { LEAD_FIRST_RESPONSE_SLA_HOURS } from "@/services/leadService.js";
+import { addBusinessHours, isWorkingTime } from "@/utils/businessHours.js";
 
 /** За сколько до дедлайна слать "приближается" (см. grill-me допрос с пользователем,
  * 2026-09-12) — час оставляет реальное окно на реакцию, не создавая слишком раннего шума. */
@@ -15,21 +16,27 @@ const SLA_WARNING_LEAD_HOURS = 1;
  * шлёт РОП (роль SALES) ровно два разовых уведомления на лид — "приближается" и
  * "просрочено" (slaWarningSentAt/slaBreachSentAt гарантируют однократность каждого).
  *
+ * Дедлайн считается в рабочих часах (ПН-ПТ 9-18 МСК, businessHours.ts — решение
+ * пользователя 2026-09-15), и весь тик целиком пропускается вне рабочего времени —
+ * двойная защита от ночных/выходных пушей: даже если порог как-то оказался бы
+ * пройден не в рабочее время, отправка всё равно ждёт следующего рабочего тика.
+ *
  * Сконвертированные в CRM/стоп-лист лиды никогда сюда не попадают — ответ клиенту
  * после конвертации происходит в Bitrix, вне видимости нашей системы.
  */
 export class LeadSlaService {
   async checkDeadlines(): Promise<void> {
-    const now = Date.now();
-    const warningThreshold = new Date(now - (LEAD_FIRST_RESPONSE_SLA_HOURS - SLA_WARNING_LEAD_HOURS) * 60 * 60 * 1000);
-    const breachThreshold = new Date(now - LEAD_FIRST_RESPONSE_SLA_HOURS * 60 * 60 * 1000);
+    const now = new Date();
+    if (!isWorkingTime(now)) return;
 
     const [warningCandidates, breachCandidates] = await Promise.all([
-      emailLeadRepository.findSlaWarningCandidates(warningThreshold),
-      emailLeadRepository.findSlaBreachCandidates(breachThreshold),
+      emailLeadRepository.findOpenUnwarnedLeads(),
+      emailLeadRepository.findOpenUnbreachedLeads(),
     ]);
 
     for (const lead of warningCandidates) {
+      const warnAt = addBusinessHours(lead.createdAt, LEAD_FIRST_RESPONSE_SLA_HOURS - SLA_WARNING_LEAD_HOURS);
+      if (warnAt > now) continue;
       try {
         await notificationService.notifySalesLeadSlaWarning(lead);
         await emailLeadRepository.markSlaWarningSent(lead.id);
@@ -39,6 +46,8 @@ export class LeadSlaService {
     }
 
     for (const lead of breachCandidates) {
+      const breachAt = addBusinessHours(lead.createdAt, LEAD_FIRST_RESPONSE_SLA_HOURS);
+      if (breachAt > now) continue;
       try {
         await notificationService.notifySalesLeadSlaBreach(lead);
         await emailLeadRepository.markSlaBreachSent(lead.id);
