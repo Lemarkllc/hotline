@@ -165,7 +165,14 @@ export function MobileLeadDetail({
                 <p className="mt-0.5 text-meta text-text-3">Авто-назначение: {lead.autoAssignReason}</p>
               )}
               {lead.bitrixLeadUrl && (
-                <a href={lead.bitrixLeadUrl} target="_blank" rel="noreferrer" className="mt-2 block text-meta text-text-1 underline">
+                // БЕЗ target="_blank" — эксперимент (2026-09-17, живой баг-репорт с
+                // iPhone): открытие "в новой вкладке" изнутри standalone-PWA на iOS не
+                // даёт настоящего перехода в Safari (Universal Link на Bitrix24 не
+                // срабатывает, тап уводит на дефолтный экран приложения); прямая
+                // навигация верхнего окна иногда ведёт себя иначе. Гарантии нет — если
+                // не поможет, единственный полноценный путь — bitrix24:// URL-scheme
+                // (см. bitrixService.getLeadUrl), пока не подтверждён поддержкой Bitrix.
+                <a href={lead.bitrixLeadUrl} className="mt-2 block text-meta text-text-1 underline">
                   Посмотреть в Bitrix24
                 </a>
               )}
