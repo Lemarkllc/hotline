@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { setupWebPush } from "@/lib/webPush";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useLastRoutePersistence } from "@/hooks/useLastRoutePersistence";
 import { MobileShell } from "@/components/mobile/MobileShell";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -12,6 +13,8 @@ export function AppShell() {
   useEffect(() => {
     void setupWebPush();
   }, []);
+
+  useLastRoutePersistence();
 
   // Мобильная оболочка — принципиально другая структура навигации (bottom tab bar +
   // полноэкранные оверлеи вместо Sidebar/Topbar), не просто reflow тех же панелей —

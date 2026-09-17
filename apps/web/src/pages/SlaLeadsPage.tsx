@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { KpiCard } from "@/components/dashboard/KpiCard";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useStalledBitrixLeads, type StalledLeadDTO } from "@/hooks/api";
 
 const PAGE_SIZE = 20;
@@ -24,11 +25,19 @@ function formatStale(hours: number): string {
 }
 
 function StalledLeadRow({ lead }: { lead: StalledLeadDTO }) {
+  const isMobile = useIsMobile();
+  // На десктопе — обычная новая вкладка. На мобильном (эксперимент, 2026-09-17,
+  // живой баг-репорт с iPhone) — БЕЗ target="_blank": открытие "в новой вкладке"
+  // изнутри standalone-PWA на iOS не даёт настоящего перехода в Safari (Universal
+  // Link на Bitrix24 не срабатывает, тап уводит на дефолтный экран приложения);
+  // прямая навигация верхнего окна иногда ведёт себя иначе. Гарантии нет — если
+  // не поможет, единственный полноценный путь — bitrix24:// URL-scheme (см.
+  // bitrixService.getLeadUrl), пока не подтверждён поддержкой Bitrix.
   return (
     <a
       href={lead.url}
-      target="_blank"
-      rel="noopener noreferrer"
+      target={isMobile ? undefined : "_blank"}
+      rel={isMobile ? undefined : "noopener noreferrer"}
       className="flex items-center justify-between gap-4 border-b border-rule px-4 py-3 last:border-b-0 hover:bg-surface-sunk"
     >
       <div className="min-w-0 flex-1">
