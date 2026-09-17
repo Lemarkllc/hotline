@@ -235,6 +235,23 @@ export class NotificationService {
     );
   }
 
+  /** Тот же путь отката, что и notifySalesAiRelevantLead выше, но для заявок с
+   * сайта (websiteLeadService.ts) — там нет ИИ-вердикта/reasoning, поэтому текст
+   * без упоминания ИИ. */
+  async notifySalesWebsiteLeadAwaitingConversion(lead: { id: string; publicNumber: string }): Promise<void> {
+    const recipients = await userRepository.findByRole("SALES");
+    await Promise.all(
+      recipients.map((r) =>
+        this.createLeadWebNotification(
+          r.id,
+          lead.id,
+          { type: "website_lead_awaiting_conversion", publicNumber: lead.publicNumber },
+          { title: "Заявка с сайта", body: `Заявка ${lead.publicNumber} — передайте в CRM вручную` },
+        ),
+      ),
+    );
+  }
+
   /** Успешная авто-передача (leadService.autoConvertToCrm) — информационное
    * уведомление всем SALES, ничего делать не нужно (в отличие от notifySalesAiRelevantLead
    * выше), просто видимость происходящего без захода в Bitrix. */

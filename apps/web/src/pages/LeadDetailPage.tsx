@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, ExternalLink } from "lucide-react";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@hotline/shared";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -256,7 +256,8 @@ export function LeadDetailPage() {
           <div className="mt-1.5 flex items-center gap-2">
             <Badge variant={STATUS_VARIANT[lead.status]}>{LEAD_STATUS_LABELS[lead.status]}</Badge>
             <span className="font-mono text-meta text-text-3">
-              Почта · {lead.fromEmail} · {new Date(lead.createdAt).toLocaleString("ru-RU")}
+              {lead.origin === "WEBSITE" ? "Сайт" : "Почта"} · {lead.fromEmail} ·{" "}
+              {new Date(lead.createdAt).toLocaleString("ru-RU")}
             </span>
           </div>
         </div>
@@ -382,7 +383,19 @@ export function LeadDetailPage() {
               {lead.status === "CONVERTED" && lead.bitrixLeadId && (
                 <div className="flex justify-between gap-2">
                   <span className="text-text-3">Лид Bitrix24</span>
-                  <span className="text-text-1">#{lead.bitrixLeadId}</span>
+                  {lead.bitrixLeadUrl ? (
+                    <a
+                      href={lead.bitrixLeadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-text-1 hover:underline"
+                    >
+                      #{lead.bitrixLeadId}
+                      <ExternalLink className="size-3.5" />
+                    </a>
+                  ) : (
+                    <span className="text-text-1">#{lead.bitrixLeadId}</span>
+                  )}
                 </div>
               )}
               {lead.status === "STOP_LISTED" && lead.stopListReason && (

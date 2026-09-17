@@ -1,4 +1,4 @@
-import type { EmailLead, LeadIrrelevantCategory, LeadStatus, Prisma } from "@prisma/client";
+import type { EmailLead, EmailLeadOrigin, LeadIrrelevantCategory, LeadStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma.js";
 import { nextSequence } from "@/utils/sequence.js";
 
@@ -29,6 +29,7 @@ export class EmailLeadRepository {
    * Appeal (utils/sequence.ts), но отдельный ключ "LEAD:{год}", не переиспользует
    * EMPLOYEE/CUSTOMER ключи Appeal. */
   async create(data: {
+    origin?: EmailLeadOrigin;
     fromEmail: string;
     fromName?: string | null;
     extractedPhone?: string | null;
@@ -46,6 +47,7 @@ export class EmailLeadRepository {
       const lead = await tx.emailLead.create({
         data: {
           publicNumber,
+          origin: data.origin ?? "EMAIL",
           fromEmail: data.fromEmail,
           fromName: data.fromName,
           extractedPhone: data.extractedPhone,

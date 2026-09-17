@@ -40,6 +40,20 @@ export function requireBotService(channel: Channel) {
   };
 }
 
+/**
+ * Форма lemarkllc.ru (внешний сайт, вне этого репозитория) — тот же принцип, что и
+ * requireBotService выше, но без канала: общий секрет в заголовке, сверяется с
+ * config.websiteLead.webhookToken.
+ */
+export function requireWebsiteWebhook(req: Request, _res: Response, next: NextFunction): void {
+  const token = req.header("x-website-webhook-token");
+  if (!token || token !== config.websiteLead.webhookToken) {
+    next(new UnauthorizedError("Недействительный webhook-token формы сайта"));
+    return;
+  }
+  next();
+}
+
 export function requireAnyAuth(req: Request, _res: Response, next: NextFunction): void {
   if (req.user || req.botService) {
     next();

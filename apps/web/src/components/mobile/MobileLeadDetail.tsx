@@ -107,7 +107,7 @@ export function MobileLeadDetail({
             >
               {LEAD_STATUS_LABELS[lead.status]}
             </span>
-            <span className="text-meta text-text-3">Почта</span>
+            <span className="text-meta text-text-3">{lead.origin === "WEBSITE" ? "Сайт" : "Почта"}</span>
           </div>
         </div>
       </div>
@@ -163,6 +163,11 @@ export function MobileLeadDetail({
               {lead.bitrixAssignee.email && <p className="mt-0.5 text-meta text-text-3">{lead.bitrixAssignee.email}</p>}
               {lead.autoAssignReason && (
                 <p className="mt-0.5 text-meta text-text-3">Авто-назначение: {lead.autoAssignReason}</p>
+              )}
+              {lead.bitrixLeadUrl && (
+                <a href={lead.bitrixLeadUrl} target="_blank" rel="noreferrer" className="mt-2 block text-meta text-text-1 underline">
+                  Посмотреть в Bitrix24
+                </a>
               )}
             </div>
           </div>
