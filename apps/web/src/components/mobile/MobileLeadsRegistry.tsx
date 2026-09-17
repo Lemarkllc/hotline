@@ -167,6 +167,11 @@ export function MobileLeadsRegistry({
                     {LEAD_STATUS_LABELS[lead.status]}
                   </span>
                 )}
+                {lead.origin === "WEBSITE" && (
+                  <span className="inline-block rounded-full bg-status-review px-2.5 py-1 text-label font-semibold text-white">
+                    Сайт
+                  </span>
+                )}
                 {lead.bitrixAssignee && (
                   <span className="truncate text-meta text-text-3">{lead.bitrixAssignee.name}</span>
                 )}

@@ -612,6 +612,11 @@ enum LeadStatus {
   STOP_LISTED
 }
 
+enum EmailLeadOrigin {
+  EMAIL
+  WEBSITE
+}
+
 /// Грубая категория нерелевантности (leadAiService.classify, только при is_relevant:
 /// false) — используется leadAutoStopListService для асимметричного авто-стоплиста
 /// (grill-me допрос 2026-09-12): SPAM/COURSE_OR_TRAINING/VACANCY/SUPPLIER_PITCH —
@@ -641,6 +646,13 @@ enum EmailLeadMessageDirection {
 model EmailLead {
   id           String @id @default(uuid())
   publicNumber String @unique
+
+  /// Канал поступления — EMAIL (почта sales@, форма-с-письмом) или WEBSITE (прямой
+  /// хук с формы сайта, websiteLeadIngestService.ts). Одна таблица/список "Заявки"
+  /// для обоих (решение пользователя, 2026-09-17) — WEBSITE только пропускает шаг
+  /// ИИ-оценки релевантности (целевые обращения, релевантны по определению) и сразу
+  /// уходит в авто-назначение/авто-передачу, остальной жизненный цикл общий.
+  origin EmailLeadOrigin @default(EMAIL)
 
   fromEmail      String
   fromName       String?

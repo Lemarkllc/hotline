@@ -1,12 +1,5 @@
 import { bitrixService } from "@/services/bitrixService.js";
-import {
-  NEWCOMERS,
-  NEW_LEAD_THRESHOLD,
-  OVERFLOW,
-  REST,
-  SALES_ROSTER,
-  type SalesRosterKey,
-} from "@/config/salesRoster.js";
+import { NEWCOMERS, NEW_LEAD_THRESHOLD, REST, SALES_ROSTER, type SalesRosterKey } from "@/config/salesRoster.js";
 
 export interface PickedAssignee {
   bitrixId: string;
@@ -27,12 +20,15 @@ function pick(key: SalesRosterKey, reason: string): PickedAssignee {
 /**
  * Алгоритм авто-назначения релевантного лида (решён через grill-me-сессию с
  * пользователем, PLAN.md-обсуждение не заведено — решение зафиксировано только тут
- * и в комментариях): приоритет —
+ * и в комментариях; тир "переполнение" убран 2026-09-17 — Мила уволилась, Архипова
+ * заняла её место в приоритетной паре, отдельный нижний тир стал бы пустым):
+ * приоритет —
  *   1. Явно упомянутый в письме менеджер (любой из ростера) — абсолютный приоритет.
- *   2. Роман/Мила (новички) — индивидуальная проверка "Не обработан" < 10 у каждого;
- *      если оба прошли порог — тому, у кого сейчас меньше (самобалансировка, ничья → Роман).
- *   3. Архипова Анастасия — тот же порог, ниже приоритетом, чем у новичков.
- *   4. Случайный выбор среди REST (сегодня — Павел/Татьяна/Александр), если и переполнение занято.
+ *   2. Архипова/Роман (приоритетная пара) — индивидуальная проверка "Не обработан" < 10
+ *      у каждого; если оба прошли порог — тому, у кого сейчас меньше (самобалансировка,
+ *      ничья → Архипова, см. порядок NEWCOMERS в salesRoster.ts).
+ *   3. Случайный выбор среди REST (сегодня — Павел/Татьяна/Александр), если и
+ *      приоритетная пара занята.
  */
 export async function pickAssignee(mentionedManager: SalesRosterKey | null): Promise<PickedAssignee> {
   if (mentionedManager) {
@@ -48,16 +44,11 @@ export async function pickAssignee(mentionedManager: SalesRosterKey | null): Pro
   const eligibleNewcomers = newcomerCounts.filter((c) => c.count < NEW_LEAD_THRESHOLD);
   if (eligibleNewcomers.length > 0) {
     // Самобалансировка: у кого сейчас меньше — тому и лид. Ничья (или единственный
-    // прошедший порог) — берём первого в порядке NEWCOMERS (детерминированно, не важно кто).
+    // прошедший порог) — берём первого в порядке NEWCOMERS, то есть Архипову.
     const chosen = eligibleNewcomers.reduce((min, c) => (c.count < min.count ? c : min));
-    return pick(chosen.key, `новичок, нагрузка ${chosen.count}/${NEW_LEAD_THRESHOLD}`);
-  }
-
-  const overflowCount = await bitrixService.countLeadsByStatus(SALES_ROSTER[OVERFLOW].bitrixId, NEW_STATUS_ID);
-  if (overflowCount < NEW_LEAD_THRESHOLD) {
-    return pick(OVERFLOW, `переполнение, нагрузка ${overflowCount}/${NEW_LEAD_THRESHOLD}`);
+    return pick(chosen.key, `приоритетная пара, нагрузка ${chosen.count}/${NEW_LEAD_THRESHOLD}`);
   }
 
   const restKey = REST[Math.floor(Math.random() * REST.length)]!;
-  return pick(restKey, "случайный выбор среди опытных — новички и переполнение заняты");
+  return pick(restKey, "случайный выбор среди опытных — приоритетная пара занята");
 }

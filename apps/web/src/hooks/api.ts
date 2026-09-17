@@ -582,6 +582,8 @@ export function useAuditLog(filters: { action?: string; appealId?: string } = {}
 export interface LeadDTO {
   id: string;
   publicNumber: string;
+  /** EMAIL (sales@) или WEBSITE (форма lemarkllc.ru) — бейдж "Сайт" в списке. */
+  origin: "EMAIL" | "WEBSITE";
   fromEmail: string;
   fromName: string | null;
   extractedPhone: string | null;
@@ -591,6 +593,8 @@ export interface LeadDTO {
   bitrixAssignee: { name: string; email: string | null } | null;
   autoAssignReason: string | null;
   bitrixLeadId: string | null;
+  /** Кнопка «Посмотреть в Bitrix» — null пока не сконвертирована. */
+  bitrixLeadUrl: string | null;
   stopListReason: string | null;
   isAiStopListed: boolean;
   aiIsRelevant: boolean | null;

@@ -475,7 +475,8 @@ export function LeadsPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 px-3 text-ui text-text-2">
-                    <span className="size-1.5 rounded-full bg-text-3" /> Почта
+                    <span className={cn("size-1.5 rounded-full", lead.origin === "WEBSITE" ? "bg-status-review" : "bg-text-3")} />
+                    {lead.origin === "WEBSITE" ? "Сайт" : "Почта"}
                   </div>
                   <div className="truncate px-3 text-ui">
                     {lead.bitrixAssignee ? (

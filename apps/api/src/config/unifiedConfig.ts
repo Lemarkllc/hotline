@@ -104,6 +104,14 @@ export const config = {
     webhookUrl: optional("BITRIX_WEBHOOK_URL", ""),
   },
 
+  /** «Заявки» с сайта (websiteLeadRoutes.ts) — раньше форма lemarkllc.ru слала лид
+   * прямо в Bitrix своим хуком, теперь стучится сюда (2026-09-17, решение
+   * пользователя). webhookToken — общий секрет в заголовке x-website-webhook-token,
+   * тот же принцип, что и auth.botServiceToken у ботов (requireBotService). */
+  websiteLead: {
+    webhookToken: optional("WEBSITE_LEAD_WEBHOOK_TOKEN", "dev-website-lead-token"),
+  },
+
   /** Классификация «Заявок» (режим наблюдения — leadAiService, не меняет поведение
    * системы, только пишет вердикт на заявку). Пусто = отключено (best-effort, см.
    * leadAiService.classify). */

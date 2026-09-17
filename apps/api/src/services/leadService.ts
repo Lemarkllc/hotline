@@ -40,6 +40,9 @@ const MAX_BITRIX_FORWARD_SIZE_BYTES = 10 * 1024 * 1024;
 export interface LeadDTO {
   id: string;
   publicNumber: string;
+  /** EMAIL (sales@) или WEBSITE (форма lemarkllc.ru, websiteLeadRoutes.ts) — бейдж
+   * "Сайт" на карточке/в списке, единственное видимое пользователю отличие каналов. */
+  origin: "EMAIL" | "WEBSITE";
   fromEmail: string;
   fromName: string | null;
   extractedPhone: string | null;
@@ -53,6 +56,8 @@ export interface LeadDTO {
    * денормализованная копия из момента autoConvertToCrm — null у ручной convertToCrm. */
   autoAssignReason: string | null;
   bitrixLeadId: string | null;
+  /** Кнопка «Посмотреть в Bitrix» на карточке — null пока не сконвертирована. */
+  bitrixLeadUrl: string | null;
   stopListReason: string | null;
   /** stopListedByUserId=null отличает авто-стоплист (leadService.autoStopList, нет
    * человека-актора) от ручного — тот же принцип, что и convertedByUserId=null у
@@ -91,6 +96,7 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
   return {
     id: lead.id,
     publicNumber: lead.publicNumber,
+    origin: lead.origin,
     fromEmail: lead.fromEmail,
     fromName: lead.fromName,
     extractedPhone: lead.extractedPhone,
@@ -102,6 +108,7 @@ function serialize(lead: EmailLeadWithMessages): LeadDTO {
       : null,
     autoAssignReason: lead.autoAssignReason,
     bitrixLeadId: lead.bitrixLeadId,
+    bitrixLeadUrl: lead.bitrixLeadId ? bitrixService.getLeadUrl(lead.bitrixLeadId) : null,
     stopListReason: lead.stopListReason,
     isAiStopListed: lead.status === "STOP_LISTED" && lead.stopListedByUserId === null,
     aiIsRelevant: lead.aiIsRelevant,
