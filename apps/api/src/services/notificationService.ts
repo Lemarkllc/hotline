@@ -348,10 +348,19 @@ export class NotificationService {
 
   /** «SLA Лиды» (bitrixLeadSlaService.ts) — лид Bitrix завис (не двигался дольше
    * порога для своего статуса). Не через createLeadWebNotification — это чужая
-   * сущность (Bitrix lead, не наш EmailLead), appealId/emailLeadId оба null, ссылка
-   * ведёт прямо в Bitrix, не на наш /leads/:id. Повторяется раз в 24ч, пока лид не
-   * сдвинется (см. bitrixLeadAlertRepository) — решение пользователя, "народ ленивый,
-   * одного алерта мало". */
+   * сущность (Bitrix lead, не наш EmailLead), appealId/emailLeadId оба null.
+   * Notification.payload.url ведёт прямо в Bitrix (для колокольчика — NotificationsPage/
+   * Topbar открывают его через window.open() по реальному тапу пользователя внутри
+   * уже загруженной страницы, это работает и триггерит открытие мобильного
+   * приложения Bitrix24 корректно). Пуш (см. ниже) — ДРУГОЙ url: ведёт на нашу
+   * страницу /sla-leads, не напрямую в Bitrix — программный clients.openWindow() из
+   * service worker'а (sw.js, notificationclick) не получает того же OS-уровневого
+   * распознавания Universal Link, что тап по <a> на странице, поэтому вместо
+   * запуска приложения Bitrix открывался голый браузер без сессии Bitrix (найдено
+   * вживую пользователем, 2026-09-17). На /sla-leads пользователь уже залогинен в
+   * Lemark One и может тапнуть ту же ссылку на Bitrix уже как обычный тап по <a>.
+   * Повторяется раз в 24ч, пока лид не сдвинется (см. bitrixLeadAlertRepository) —
+   * решение пользователя, "народ ленивый, одного алерта мало". */
   async notifySalesBitrixLeadStalled(lead: { id: string; title: string; url: string }): Promise<void> {
     const recipients = await userRepository.findByRole("SALES");
     await Promise.all(
@@ -364,7 +373,7 @@ export class NotificationService {
         await pushService.sendToUser(r.id, {
           title: "Лид завис в Bitrix",
           body: lead.title,
-          url: lead.url,
+          url: "/sla-leads",
         });
       }),
     );
