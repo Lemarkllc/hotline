@@ -26,8 +26,18 @@ export interface WebsiteLeadInput {
  * Отбивка клиенту и тред заявки — общие с email-каналом (leadService/emailSendService).
  */
 export class WebsiteLeadService {
-  async submit(input: WebsiteLeadInput): Promise<void> {
-    const lead = await emailLeadRepository.create({
+  /**
+   * Только создание заявки — быстро, только локальная БД, ничего по сети.
+   * Контроллер отвечает сайту сразу после этого шага, не дожидаясь письма/Bitrix
+   * ниже (processAfterCreate) — реальный баг, найденный пользователем 2026-09-18:
+   * форма на сайте висела секундами, пока хук синхронно ждал SMTP (best-effort,
+   * но само подключение может тянуться до таймаута) и несколько REST-вызовов
+   * Bitrix подряд (countLeadsByStatus x2, createLead, createCallActivity/
+   * createEmailActivity, findUserById) — посетитель сайта расплачивался своим
+   * временем ожидания за нашу внутреннюю обработку лида.
+   */
+  async createLead(input: WebsiteLeadInput): Promise<{ id: string; publicNumber: string }> {
+    return emailLeadRepository.create({
       origin: "WEBSITE",
       fromEmail: input.email.toLowerCase().trim(),
       fromName: input.name ?? null,
@@ -37,27 +47,41 @@ export class WebsiteLeadService {
       originalBody: input.message?.trim() || "(без сообщения)",
       receivedAt: new Date(),
     });
+  }
 
-    await emailSendService.sendConfirmation(lead);
-    await notificationService.notifySalesNewLead(lead);
-    broadcastNewLead({ id: lead.id, publicNumber: lead.publicNumber, subject: lead.subject, fromEmail: lead.fromEmail });
-
-    const autoEnabled = await leadService.getAutoConvertSetting();
-    if (!autoEnabled) {
-      await notificationService.notifySalesWebsiteLeadAwaitingConversion(lead);
-      return;
-    }
-
+  /** Всё, что не обязано блокировать ответ хуку сайту — отбивка клиенту,
+   * уведомления SALES, авто-назначение и передача в Bitrix. Вызывается без
+   * await из контроллера (fire-and-forget), поэтому сама оборачивает всё в
+   * try/catch — необработанное исключение здесь иначе ушло бы как
+   * unhandled rejection, а не как ответ на запрос (запроса уже нет). */
+  async processAfterCreate(lead: { id: string; publicNumber: string }): Promise<void> {
     try {
-      // mentionedManager всегда null — в отличие от письма, тут нет свободного
-      // текста, в котором клиент мог бы упомянуть конкретного менеджера.
-      const assignee = await pickAssignee(null);
-      await leadService.autoConvertToCrm(lead.id, assignee);
-      await notificationService.notifySalesLeadAutoConverted(lead, assignee.fullName);
-      broadcastLeadUpdated({ id: lead.id, publicNumber: lead.publicNumber });
+      const full = await emailLeadRepository.findById(lead.id);
+      if (!full) return; // не должно происходить — только что создали
+
+      await emailSendService.sendConfirmation(full);
+      await notificationService.notifySalesNewLead(full);
+      broadcastNewLead({ id: full.id, publicNumber: full.publicNumber, subject: full.subject, fromEmail: full.fromEmail });
+
+      const autoEnabled = await leadService.getAutoConvertSetting();
+      if (!autoEnabled) {
+        await notificationService.notifySalesWebsiteLeadAwaitingConversion(full);
+        return;
+      }
+
+      try {
+        // mentionedManager всегда null — в отличие от письма, тут нет свободного
+        // текста, в котором клиент мог бы упомянуть конкретного менеджера.
+        const assignee = await pickAssignee(null);
+        await leadService.autoConvertToCrm(full.id, assignee);
+        await notificationService.notifySalesLeadAutoConverted(full, assignee.fullName);
+        broadcastLeadUpdated({ id: full.id, publicNumber: full.publicNumber });
+      } catch (error) {
+        logger.error({ err: error, leadId: full.id }, "websiteLeadService: авто-передача в CRM упала, откат к ручному режиму");
+        await notificationService.notifySalesWebsiteLeadAwaitingConversion(full);
+      }
     } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, "websiteLeadService: авто-передача в CRM упала, откат к ручному режиму");
-      await notificationService.notifySalesWebsiteLeadAwaitingConversion(lead);
+      logger.error({ err: error, leadId: lead.id }, "websiteLeadService: обработка заявки с сайта после создания упала");
     }
   }
 }
