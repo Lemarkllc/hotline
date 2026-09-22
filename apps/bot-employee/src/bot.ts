@@ -9,7 +9,7 @@ import { newAppeal } from "./conversations/newAppeal.js";
 import { vacation } from "./conversations/vacation.js";
 import { absence } from "./conversations/absence.js";
 import { businessTrip } from "./conversations/businessTrip.js";
-import { attachmentsKeyboard, hrMenuKeyboard, MAIN_MENU_KEYBOARD, MAX_ATTACHMENTS } from "./keyboards.js";
+import { attachmentsKeyboard, hrMenuKeyboard, MAIN_MENU_KEYBOARD, MAX_ATTACHMENTS, vpnKeyboard } from "./keyboards.js";
 import { renderAppealDetail, renderMyAppealsMenu, renderMyAppealsPage } from "./myAppeals.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
 import { downloadTelegramMedia } from "./telegramFile.js";
@@ -201,6 +201,26 @@ export function createBot(): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     if (!(await requireActiveUser(ctx))) return;
     await ctx.conversation.enter("businessTrip");
+  });
+
+  // Кнопка «Получить VPN» в ☰-меню (index.ts). Внешний сетевой вызов (панель
+  // 3X-UI) — в отличие от остальных команд этого файла явный try/catch, а не
+  // bot.catch() внизу: без ответа пользователь просто увидит "зависший" бот.
+  bot.command("vpn", async (ctx) => {
+    if (!(await requireActiveUser(ctx))) return;
+    try {
+      const { subscriptionUrl, alreadyExisted } = await apiClient.getVpnAccess(String(ctx.from!.id));
+      const intro = alreadyExisted ? "Ваша ссылка на VPN:" : "VPN-профиль создан. Ваша ссылка на подписку:";
+      await ctx.reply(
+        `${intro}\n${subscriptionUrl}\n\n` +
+          "Нажмите кнопку ниже, чтобы подключить автоматически в Happ или Incy. " +
+          "Если не сработает — скопируйте ссылку и вставьте её в приложении вручную (кнопка «+» → добавить по ссылке).",
+        { reply_markup: vpnKeyboard(subscriptionUrl) },
+      );
+    } catch (error) {
+      console.error("Ошибка получения VPN-доступа:", error);
+      await ctx.reply("Не получилось получить VPN-доступ. Попробуйте ещё раз позже или обратитесь к администратору.");
+    }
   });
 
   bot.command("my", async (ctx) => {

@@ -186,6 +186,23 @@ export function businessTripTransportKeyboard(): InlineKeyboard {
     .text("Отменить", "cancel");
 }
 
+/** «Получить VPN» — диплинки на Happ/Incy не подтверждены официальной документацией
+ * этих приложений (проверено 2026-09-22, публичных спецификаций формата импорта
+ * подписки нет), формат "<scheme>://add/<url-encoded-ссылка>" — лучшее предположение
+ * по аналогии с остальными Xray-клиентами этого класса, требует проверки вживую.
+ * copyText — гарантированно рабочий запасной вариант (нативная кнопка Telegram
+ * "скопировать в буфер", grammy InlineKeyboard.copyText) на случай, если диплинк не
+ * сработает — тогда сотрудник вставляет ссылку в приложении вручную (кнопка "+"). */
+export function vpnKeyboard(subscriptionUrl: string): InlineKeyboard {
+  const encoded = encodeURIComponent(subscriptionUrl);
+  return new InlineKeyboard()
+    .url("📲 Подключить в Happ", `happ://add/${encoded}`)
+    .row()
+    .url("📲 Подключить в Incy", `incy://add/${encoded}`)
+    .row()
+    .copyText("📋 Скопировать ссылку", subscriptionUrl);
+}
+
 export function businessTripHotelKeyboard(): InlineKeyboard {
   return new InlineKeyboard().text("Да", "hotel:true").text("Нет", "hotel:false").row().text("Отменить", "cancel");
 }

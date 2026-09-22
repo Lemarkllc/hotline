@@ -112,6 +112,18 @@ export const config = {
     webhookToken: optional("WEBSITE_LEAD_WEBHOOK_TOKEN", "dev-website-lead-token"),
   },
 
+  /** «Получить VPN» (боковое меню бота-сотрудника, vpnService.ts) — панель 3X-UI
+   * (Xray), развёрнута отдельно от остальной инфраструктуры HotLine. panelBaseUrl —
+   * до секретного URI-пути включительно (например ".../omnv8...LTh", без хвостового
+   * слэша), apiToken — Bearer-токен со scope=admin (Settings → API Tokens в панели,
+   * создан отдельно под HotLine, не общий admin-токен). subBaseUrl — до "/sub/"
+   * включительно, к нему просто дописывается subId клиента. */
+  vpn: {
+    panelBaseUrl: optional("VPN_PANEL_BASE_URL", ""),
+    apiToken: optional("VPN_PANEL_API_TOKEN", ""),
+    subBaseUrl: optional("VPN_SUB_BASE_URL", ""),
+  },
+
   /** Классификация «Заявок» (режим наблюдения — leadAiService, не меняет поведение
    * системы, только пишет вердикт на заявку). Пусто = отключено (best-effort, см.
    * leadAiService.classify). */
