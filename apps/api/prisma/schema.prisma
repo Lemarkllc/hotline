@@ -143,6 +143,7 @@ model User {
   processedAppeals            Appeal[]              @relation("AppealProcessedBy")
   invitedAppeals              Appeal[]              @relation("AppealInvitedBy")
   vacationBalance             VacationBalance?
+  vpnProfile                  VpnProfile?
 
   @@index([status])
   @@map("users")
@@ -903,4 +904,32 @@ model BusinessTripRequest {
 
   @@index([userId, status])
   @@map("business_trip_requests")
+}
+
+/// «Получить VPN» (боковое меню бота-сотрудника, vpnService.ts) — снимок профиля на
+/// стороннем 3X-UI (Xray) — сам UUID/пароль клиента живёт только в панели, мы держим
+/// только то, что нужно для повторного показа ссылки и отзыва при увольнении: не
+/// заводим локальную копию учётных данных подключения (нет смысла дублировать
+/// источник истины, и меньше поверхность утечки). userId уникален — один активный
+/// профиль на сотрудника (решение пользователя 2026-09-22: повторное "Получить VPN"
+/// просто показывает существующую ссылку, не создаёт второй профиль).
+model VpnProfile {
+  id         String    @id @default(uuid())
+  userId     String    @unique
+  /// Email-идентификатор клиента в 3X-UI ("и.фамилия" транслитом) — не наш email,
+  /// см. utils/transliterate.ts. Уникален и на нашей стороне, и в панели.
+  panelEmail String    @unique
+  /// 3X-UI subId — из него строится ссылка подписки (config.vpn.subBaseUrl + subId),
+  /// см. vpnService.getSubscriptionUrl.
+  subId      String    @unique
+  createdAt  DateTime  @default(now())
+  /// Отзыв при увольнении (userService.blockUser) — профиль в 3X-UI удаляется по-
+  /// настоящему (не отключается), эта запись остаётся как исторический след с
+  /// revokedAt, а не удаляется физически — тот же принцип audit-трейла, что и у
+  /// остальных подобных решений в этой кодовой базе.
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("vpn_profiles")
 }

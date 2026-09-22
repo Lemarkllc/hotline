@@ -5,6 +5,7 @@ import { authService } from "@/services/authService.js";
 import { auditService } from "@/services/auditService.js";
 import { emailSendService } from "@/services/emailSendService.js";
 import { notificationService } from "@/services/notificationService.js";
+import { vpnService } from "@/services/vpnService.js";
 import type { AuthenticatedUser } from "@/types/index.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/types/index.js";
 import { generateTemporaryPassword } from "@/utils/generatePassword.js";
@@ -152,6 +153,10 @@ export class UserService {
     if (!user) throw new NotFoundError("Пользователь не найден");
     await userRepository.blockUser(userId, reason);
     await notificationService.notifyEmployeeTerminated(userId);
+    // Единственная точка блокировки — срабатывает и при ручной блокировке, и при
+    // appealService.processTermination (увольнение), поэтому отзыв VPN-профиля
+    // здесь, а не дублируется в обоих местах вызова.
+    await vpnService.revokeProfile(userId);
     await auditService.record({
       actorId: admin.id,
       action: "user.blocked",

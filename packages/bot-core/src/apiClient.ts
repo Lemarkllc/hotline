@@ -94,6 +94,15 @@ export class ApiClient {
     );
   }
 
+  /** Кнопка «Получить VPN» в боковом меню — создаёт профиль при первом обращении,
+   * при повторном возвращает ту же ссылку (см. vpnService.getOrCreateProfile). */
+  getVpnAccess(telegramId: string) {
+    return this.request<{ subscriptionUrl: string; alreadyExisted: boolean }>(
+      "GET",
+      `/vpn/access?telegramId=${telegramId}`,
+    );
+  }
+
   /** «Отсутствие» (было TIME_OFF внутри Appeal, PLAN.md §10). */
   createAbsenceRequest(input: {
     telegramId: string;

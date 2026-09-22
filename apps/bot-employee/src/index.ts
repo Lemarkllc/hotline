@@ -15,6 +15,7 @@ await bot.api.setMyCommands([
   // отпуск/отсутствие/командировку нельзя было найти иначе, кроме как случайно
   // наткнуться на них после отмены /new (баг, найденный пользователем вживую).
   { command: "absence", description: "Отпуск / Отсутствие / Командировка" },
+  { command: "vpn", description: "Получить VPN" },
   { command: "my", description: "Мои обращения" },
   { command: "privacy", description: "О конфиденциальности" },
   { command: "cancel", description: "Отменить текущее действие" },
