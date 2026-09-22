@@ -215,7 +215,7 @@ export function createBot(): Bot<BotContext> {
         `${intro}\n${subscriptionUrl}\n\n` +
           "Нажмите кнопку ниже, чтобы подключить автоматически в Happ или Incy. " +
           "Если не сработает — скопируйте ссылку и вставьте её в приложении вручную (кнопка «+» → добавить по ссылке).",
-        { reply_markup: vpnKeyboard(subscriptionUrl) },
+        { reply_markup: vpnKeyboard(config.webAppPublicUrl, subscriptionUrl) },
       );
     } catch (error) {
       console.error("Ошибка получения VPN-доступа:", error);
