@@ -188,12 +188,19 @@ export function businessTripTransportKeyboard(): InlineKeyboard {
 
 /** «Получить VPN» — кнопки на happ:// и incy:// СНЯТЫ (реальный краш вживую,
  * 2026-09-22): Telegram Bot API отклоняет inline-кнопку url целиком, если схема не
- * http/https/tg — sendMessage падает с 400 "Unsupported URL protocol", сообщение не
- * доходит вообще. copyText — нативная кнопка Telegram "скопировать в буфер"
- * (grammy InlineKeyboard.copyText), единственный гарантированно рабочий вариант,
- * которым располагаем прямо сейчас; сама ссылка также есть в тексте сообщения. */
-export function vpnKeyboard(subscriptionUrl: string): InlineKeyboard {
-  return new InlineKeyboard().copyText("📋 Скопировать ссылку", subscriptionUrl);
+ * http/https/tg — sendMessage падал с 400 "Unsupported URL protocol", сообщение не
+ * доходило вообще. Вместо прямой ссылки на happ:// — кнопка ведёт на нашу
+ * веб-страницу /vpn-connect (обычный https, Telegram пропускает), а уже ОТТУДА
+ * обычный тап по <a href="happ://..."> открывает приложение — тот же механизм, что
+ * подтверждён вживую на ссылке Bitrix в этой сессии (тап из настоящей веб-страницы
+ * триггерит диплинк, в отличие от кнопки самого Telegram). copyText — запасной
+ * вариант прямо здесь же, на случай проблем с самой страницей. */
+export function vpnKeyboard(webAppPublicUrl: string, subscriptionUrl: string): InlineKeyboard {
+  const connectUrl = `${webAppPublicUrl}/vpn-connect?url=${encodeURIComponent(subscriptionUrl)}`;
+  return new InlineKeyboard()
+    .url("📲 Подключить", connectUrl)
+    .row()
+    .copyText("📋 Скопировать ссылку", subscriptionUrl);
 }
 
 export function businessTripHotelKeyboard(): InlineKeyboard {

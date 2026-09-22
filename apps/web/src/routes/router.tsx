@@ -19,6 +19,7 @@ import { DirectoriesPage } from "@/pages/DirectoriesPage";
 import { AuditPage } from "@/pages/AuditPage";
 import { VacationsPage } from "@/pages/VacationsPage";
 import { ComponentLibraryPage } from "@/pages/ComponentLibraryPage";
+import { VpnConnectPage } from "@/pages/VpnConnectPage";
 import { RequireAuth } from "./RequireAuth";
 import { RequirePermission } from "./RequirePermission";
 import { RequireRole } from "./RequireRole";
@@ -26,6 +27,7 @@ import { RequireRole } from "./RequireRole";
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
+  { path: "/vpn-connect", element: <VpnConnectPage /> },
   {
     element: <RequireAuth />,
     children: [
