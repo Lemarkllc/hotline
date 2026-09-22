@@ -44,14 +44,20 @@ export class VpnPanelService {
   /** Создаёт клиента и сразу прикрепляет к переданным inbound'ам одним вызовом
    * (POST /panel/api/clients/add) — ответ панели не содержит сгенерированный subId,
    * его нужно забрать отдельным getByEmail() сразу после (см. vpnService). */
-  async createClient(params: { email: string; tgId: number; limitIp: number; inboundIds: readonly number[] }): Promise<void> {
+  async createClient(params: {
+    email: string;
+    tgId: number;
+    limitIp: number;
+    limitHwid: number;
+    inboundIds: readonly number[];
+  }): Promise<void> {
     await this.call("POST", "/clients/add", {
       Client: {
         email: params.email,
         totalGB: 0,
         tgId: params.tgId,
         limitIp: params.limitIp,
-        limitHwid: 0,
+        limitHwid: params.limitHwid,
         enable: true,
       },
       inboundIds: [...params.inboundIds],

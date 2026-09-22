@@ -1,6 +1,6 @@
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
-import { VPN_PROFILE_IP_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
+import { VPN_PROFILE_HWID_LIMIT, VPN_PROFILE_IP_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
 import { vpnPanelService } from "@/services/vpnPanelService.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
@@ -61,6 +61,7 @@ export class VpnService {
       email: panelEmail,
       tgId: Number(user.telegramId),
       limitIp: VPN_PROFILE_IP_LIMIT,
+      limitHwid: VPN_PROFILE_HWID_LIMIT,
       inboundIds: VPN_STANDARD_INBOUND_IDS,
     });
 
