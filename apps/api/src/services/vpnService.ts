@@ -42,12 +42,21 @@ export class VpnService {
    * VLESS/Hysteria2 и т.д.) от панели не меняется, только эта одна шапка.
    * X-HWID пробрасываем как есть — панель сама решает по нему лимит устройств
    * (см. vpnConfig.ts, найдено вживую 2026-09-23), проксирование не должно
-   * это ломать. */
-  async proxySubscription(subId: string, incomingHwid: string | undefined): Promise<VpnSubscriptionProxyResult> {
+   * это ломать. User-Agent тоже пробрасываем как есть — панель отдаёт РАЗНЫЙ
+   * формат ответа по нему: обычному клиенту (без User-Agent конкретного
+   * приложения) — простой base64-список ссылок, а Happ — расширенный JSON с
+   * авто-выбором сервера (burstObservatory/pingConfig) — без проброса Happ
+   * получал урезанный формат и терял авто-выбор, подтверждено вживую 2026-09-23. */
+  async proxySubscription(
+    subId: string,
+    incomingHwid: string | undefined,
+    incomingUserAgent: string | undefined,
+  ): Promise<VpnSubscriptionProxyResult> {
     const upstreamUrl = `${config.vpn.subBaseUrl.replace(/\/$/, "")}/${subId}`;
-    const upstreamRes = await fetch(upstreamUrl, {
-      headers: incomingHwid ? { "X-HWID": incomingHwid } : undefined,
-    });
+    const upstreamHeaders: Record<string, string> = {};
+    if (incomingHwid) upstreamHeaders["X-HWID"] = incomingHwid;
+    if (incomingUserAgent) upstreamHeaders["User-Agent"] = incomingUserAgent;
+    const upstreamRes = await fetch(upstreamUrl, { headers: upstreamHeaders });
     const body = await upstreamRes.arrayBuffer();
     const headers = new Headers(upstreamRes.headers);
 

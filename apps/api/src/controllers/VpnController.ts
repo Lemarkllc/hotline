@@ -24,7 +24,8 @@ export class VpnController extends BaseController {
     try {
       const subId = req.params.subId as string;
       const incomingHwid = req.header("X-HWID");
-      const { status, headers, body } = await vpnService.proxySubscription(subId, incomingHwid);
+      const incomingUserAgent = req.header("User-Agent");
+      const { status, headers, body } = await vpnService.proxySubscription(subId, incomingHwid, incomingUserAgent);
 
       // content-encoding: fetch() уже разжал тело перед тем, как оно попало сюда —
       // проброс заголовка "gzip" при фактически несжатом теле сломал бы клиентов,
