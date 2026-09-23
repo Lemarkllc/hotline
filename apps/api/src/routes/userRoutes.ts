@@ -84,6 +84,12 @@ userRoutes.post(
   asyncErrorWrapper((req, res) => userController.resetPassword(req, res)),
 );
 userRoutes.post(
+  "/:id/request-data-confirmation",
+  requireWebAuth,
+  requirePlainPermission("user.manage"),
+  asyncErrorWrapper((req, res) => userController.requestDataConfirmation(req, res)),
+);
+userRoutes.post(
   "/:id/block",
   requireWebAuth,
   requirePlainPermission("user.manage"),

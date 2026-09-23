@@ -448,6 +448,20 @@ export class NotificationService {
     });
   }
 
+  /** «Подтвердить данные» (кнопка Администратора на странице «Пользователи»,
+   * 2026-09-23) — просит сотрудника прислать ФИО заново, следующий текстовый
+   * ответ применяется автоматически (см. bot-employee notificationHandler.ts
+   * "confirm_data_request" и session.awaitingFullNameCorrection). Выросло из
+   * разового инцидента (несколько сотрудников ввели "/vpn" вместо имени при
+   * регистрации, HR одобрил не заметив) в постоянный инструмент проверки. */
+  async notifyConfirmDataRequest(userId: string): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: "confirm_data_request" },
+    });
+  }
+
   async notifyAccessDecision(userId: string, approved: boolean): Promise<void> {
     await notificationRepository.create({
       userId,

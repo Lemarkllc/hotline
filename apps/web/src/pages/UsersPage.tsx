@@ -20,6 +20,7 @@ import { ReasonDialog } from "@/components/ui/reason-dialog";
 import {
   useBlockUser,
   useCreateWebAccount,
+  useRequestDataConfirmation,
   useResetPassword,
   useUnblockUser,
   useUpdateUser,
@@ -301,9 +302,13 @@ export function UsersPage() {
   const block = useBlockUser();
   const unblock = useUnblockUser();
   const resetPassword = useResetPassword();
+  const requestDataConfirmation = useRequestDataConfirmation();
   const [blockTarget, setBlockTarget] = useState<UserDTO | null>(null);
   const [unblockTarget, setUnblockTarget] = useState<UserDTO | null>(null);
   const [resetResult, setResetResult] = useState<TempPasswordResult | null>(null);
+  // Разово подсвечиваем строку после отправки запроса на подтверждение данных —
+  // своего тост-компонента в проекте нет, этого достаточно для обратной связи.
+  const [dataConfirmationSentId, setDataConfirmationSentId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -352,6 +357,20 @@ export function UsersPage() {
                       }}
                     >
                       Сбросить пароль
+                    </Button>
+                  )}
+                  {u.telegramId && u.status === "ACTIVE" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={requestDataConfirmation.isPending}
+                      onClick={async () => {
+                        await requestDataConfirmation.mutateAsync(u.id);
+                        setDataConfirmationSentId(u.id);
+                        setTimeout(() => setDataConfirmationSentId((id) => (id === u.id ? null : id)), 3000);
+                      }}
+                    >
+                      {dataConfirmationSentId === u.id ? "Отправлено ✓" : "Подтвердить данные"}
                     </Button>
                   )}
                   {u.status === "ACTIVE" && (

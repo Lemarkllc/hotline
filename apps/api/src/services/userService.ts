@@ -259,6 +259,25 @@ export class UserService {
     });
   }
 
+  /** Кнопка «Подтвердить данные» на странице «Пользователи» (Администратор,
+   * user.manage) — просит сотрудника через бота прислать ФИО заново, применяется
+   * автоматически (см. notificationService.notifyConfirmDataRequest). Только для
+   * тех, у кого привязан Telegram — иначе некому слать сообщение. */
+  async requestDataConfirmation(admin: AuthenticatedUser, userId: string): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new NotFoundError("Пользователь не найден");
+    if (!user.telegramId) throw new ValidationError("У пользователя не привязан Telegram");
+
+    await notificationService.notifyConfirmDataRequest(userId);
+    await auditService.record({
+      actorId: admin.id,
+      action: "user.requested_data_confirmation",
+      objectType: "User",
+      objectId: userId,
+      result: "success",
+    });
+  }
+
   /**
    * Ручная корректировка канала после создания — см. PLAN.md "Найден и закрыт
    * пробел 10.08.2026". Полная замена набора (как setRoles), не точечный grant/

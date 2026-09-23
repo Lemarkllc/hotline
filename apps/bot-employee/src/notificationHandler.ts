@@ -46,6 +46,18 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         }
         break;
       }
+      case "confirm_data_request": {
+        await bot.api.sendMessage(
+          telegramId,
+          "Просьба администратора: проверьте корректность ваших данных в системе.\n\n" +
+            "Пожалуйста, ответьте на это сообщение вашими настоящими Фамилией, Именем и Отчеством " +
+            "одним сообщением — данные обновятся автоматически. Без корректного ФИО доступ может быть заблокирован.",
+        );
+        await patchSession<SessionData>(redis, SESSION_PREFIX, telegramId, {
+          awaitingFullNameCorrection: true,
+        });
+        break;
+      }
       case "access_approved": {
         await bot.api.sendMessage(
           telegramId,

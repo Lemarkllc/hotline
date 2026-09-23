@@ -488,6 +488,12 @@ export function useResetPassword() {
   });
 }
 
+export function useRequestDataConfirmation() {
+  return useMutation({
+    mutationFn: (id: string) => apiRequest<{ ok: true }>(`/users/${id}/request-data-confirmation`, { method: "POST" }),
+  });
+}
+
 export function useCreateWebAccount() {
   const qc = useQueryClient();
   return useMutation({

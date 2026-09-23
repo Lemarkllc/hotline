@@ -112,6 +112,16 @@ export class UserController extends BaseController {
     }
   }
 
+  /** Кнопка «Подтвердить данные» — см. userService.requestDataConfirmation. */
+  async requestDataConfirmation(req: Request, res: Response): Promise<void> {
+    try {
+      await userService.requestDataConfirmation(req.user!, pathParam(req, "id"));
+      this.handleSuccess(res, { ok: true });
+    } catch (error) {
+      this.handleError(error, res, "requestDataConfirmation");
+    }
+  }
+
   async block(req: Request, res: Response): Promise<void> {
     try {
       const { reason } = req.body as { reason: string };
