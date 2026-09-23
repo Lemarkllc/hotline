@@ -13,3 +13,7 @@ vpnRoutes.get(
   validate(getVpnAccessBotSchema, "query"),
   asyncErrorWrapper((req, res) => vpnController.getAccessFromBot(req, res)),
 );
+
+/** Публичный — без requireBotService, бьёт сюда напрямую VPN-приложение
+ * сотрудника, а не бот (см. VpnController.getSubscription). */
+vpnRoutes.get("/sub/:subId", asyncErrorWrapper((req, res) => vpnController.getSubscription(req, res)));

@@ -19,9 +19,47 @@ export interface VpnAccessDTO {
  * 3X-UI (vpnPanelService), даёт ссылку подписки. Отзыв — при увольнении
  * (userService.blockUser вызывает revokeProfile).
  */
+/** Ответ upstream-панели на /sub/<subId>, который проксируем как есть, кроме
+ * Profile-Title (см. VpnService.proxySubscription). */
+export interface VpnSubscriptionProxyResult {
+  status: number;
+  headers: Headers;
+  body: ArrayBuffer;
+}
+
 export class VpnService {
+  /** Ссылка, которую получают сотрудники, — НАШ домен, не панель напрямую
+   * (config.vpn.subBaseUrl остаётся только upstream-адресом для proxySubscription).
+   * Нужно, чтобы подменять Profile-Title на персональный (решение пользователя
+   * 2026-09-23: у каждого сотрудника своё имя вместо общего "LEMARK LLC" — иначе
+   * не отличить свой профиль среди старых одноимённых в приложении). */
   getSubscriptionUrl(subId: string): string {
-    return `${config.vpn.subBaseUrl}${subId}`;
+    return `${config.vpn.subPublicBaseUrl}${subId}`;
+  }
+
+  /** Проксирует запрос подписки на реальную панель (config.vpn.subBaseUrl) и
+   * подменяет заголовок Profile-Title на персональный — сама подписка (конфиги
+   * VLESS/Hysteria2 и т.д.) от панели не меняется, только эта одна шапка.
+   * X-HWID пробрасываем как есть — панель сама решает по нему лимит устройств
+   * (см. vpnConfig.ts, найдено вживую 2026-09-23), проксирование не должно
+   * это ломать. */
+  async proxySubscription(subId: string, incomingHwid: string | undefined): Promise<VpnSubscriptionProxyResult> {
+    const upstreamUrl = `${config.vpn.subBaseUrl.replace(/\/$/, "")}/${subId}`;
+    const upstreamRes = await fetch(upstreamUrl, {
+      headers: incomingHwid ? { "X-HWID": incomingHwid } : undefined,
+    });
+    const body = await upstreamRes.arrayBuffer();
+    const headers = new Headers(upstreamRes.headers);
+
+    if (upstreamRes.ok) {
+      const profile = await vpnProfileRepository.findActiveBySubId(subId);
+      if (profile) {
+        const title = `LEMARK — ${profile.user.fullName}`;
+        headers.set("profile-title", `base64:${Buffer.from(title, "utf-8").toString("base64")}`);
+      }
+    }
+
+    return { status: upstreamRes.status, headers, body };
   }
 
   /** Email в панели уникален (там уже 130+ клиентов, часть заведена вручную задолго

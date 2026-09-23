@@ -121,7 +121,12 @@ export const config = {
   vpn: {
     panelBaseUrl: optional("VPN_PANEL_BASE_URL", ""),
     apiToken: optional("VPN_PANEL_API_TOKEN", ""),
+    /// Настоящий адрес 3X-UI, откуда подписка реально отдаётся (upstream для
+    /// vpnService.proxySubscription) — не показываем сотрудникам напрямую.
     subBaseUrl: optional("VPN_SUB_BASE_URL", ""),
+    /// Адрес, который получают сотрудники (наш домен) — проксирует subBaseUrl и
+    /// подменяет Profile-Title на персональный, см. vpnService.proxySubscription.
+    subPublicBaseUrl: optional("VPN_SUB_PUBLIC_BASE_URL", ""),
   },
 
   /** Классификация «Заявок» (режим наблюдения — leadAiService, не меняет поведение
