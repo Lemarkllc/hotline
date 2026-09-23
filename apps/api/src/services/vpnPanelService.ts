@@ -1,12 +1,29 @@
+import { randomBytes } from "node:crypto";
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
 import { ValidationError } from "@/types/index.js";
+
+const SUBID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+/** Панель, если не передать свой subId, генерирует его сама — на этом сервере
+ * (после миграции 2026-09-23) её собственный генератор отдаёт полноценный UUID
+ * (с дефисами, 36 символов) вместо короткой alnum-строки старых клиентов
+ * (например "ghot5eq6xiilbdx1"). На выдачу подписки формат subId не влияет
+ * (проверено вживую) — генерируем сами просто чтобы не зависеть от недокументированного
+ * поведения панели и не делать лишний getByEmail сразу после create. */
+function generateSubId(): string {
+  const bytes = randomBytes(16);
+  let result = "";
+  for (const byte of bytes) {
+    result += SUBID_ALPHABET[byte % SUBID_ALPHABET.length];
+  }
+  return result;
+}
 
 export interface VpnPanelClientDTO {
   email: string;
   subId: string;
   tgId: number;
-  limitIp: number;
   enable: boolean;
 }
 
@@ -42,36 +59,39 @@ export class VpnPanelService {
   }
 
   /** Создаёт клиента и сразу прикрепляет к переданным inbound'ам одним вызовом
-   * (POST /panel/api/clients/add) — ответ панели не содержит сгенерированный subId,
-   * его нужно забрать отдельным getByEmail() сразу после (см. vpnService). */
+   * (POST /panel/api/clients/add). subId генерируем сами (generateSubId) и
+   * возвращаем его вызывающей стороне — панели явно не доверяем сгенерировать
+   * рабочий формат (см. комментарий у generateSubId). */
   async createClient(params: {
     email: string;
     tgId: number;
-    limitIp: number;
     limitHwid: number;
     inboundIds: readonly number[];
-  }): Promise<void> {
+  }): Promise<{ subId: string }> {
+    const subId = generateSubId();
     await this.call("POST", "/clients/add", {
       Client: {
         email: params.email,
         totalGB: 0,
         tgId: params.tgId,
-        limitIp: params.limitIp,
+        limitIp: 0,
         limitHwid: params.limitHwid,
         enable: true,
+        subId,
       },
       inboundIds: [...params.inboundIds],
     });
+    return { subId };
   }
 
   async getByEmail(email: string): Promise<VpnPanelClientDTO | null> {
     try {
-      const obj = await this.call<{ client: { email: string; subId: string; tgId: number; limitIp: number; enable: boolean } }>(
+      const obj = await this.call<{ client: { email: string; subId: string; tgId: number; enable: boolean } }>(
         "GET",
         `/clients/get/${encodeURIComponent(email)}`,
       );
       const c = obj.client;
-      return { email: c.email, subId: c.subId, tgId: c.tgId, limitIp: c.limitIp, enable: c.enable };
+      return { email: c.email, subId: c.subId, tgId: c.tgId, enable: c.enable };
     } catch (error) {
       logger.warn({ err: error, email }, "vpnPanelService: getByEmail failed");
       return null;

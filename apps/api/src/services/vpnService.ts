@@ -1,11 +1,11 @@
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
-import { VPN_PROFILE_HWID_LIMIT, VPN_PROFILE_IP_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
+import { VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
 import { vpnPanelService } from "@/services/vpnPanelService.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { transliterateToLogin } from "@/utils/transliterate.js";
-import { ForbiddenError, ValidationError } from "@/types/index.js";
+import { ForbiddenError } from "@/types/index.js";
 
 export interface VpnAccessDTO {
   subscriptionUrl: string;
@@ -57,26 +57,16 @@ export class VpnService {
     const baseEmail = transliterateToLogin(user.fullName);
     const panelEmail = await this.findFreePanelEmail(baseEmail);
 
-    await vpnPanelService.createClient({
+    const { subId } = await vpnPanelService.createClient({
       email: panelEmail,
       tgId: Number(user.telegramId),
-      limitIp: VPN_PROFILE_IP_LIMIT,
       limitHwid: VPN_PROFILE_HWID_LIMIT,
       inboundIds: VPN_STANDARD_INBOUND_IDS,
     });
 
-    // /clients/add не возвращает сгенерированный subId — забираем отдельным вызовом
-    // сразу после (см. vpnPanelService.createClient).
-    const client = await vpnPanelService.getByEmail(panelEmail);
-    if (!client) {
-      throw new ValidationError(
-        "VPN-профиль создан в панели, но не удалось получить ссылку — обратитесь к администратору",
-      );
-    }
+    await vpnProfileRepository.create({ userId: user.id, panelEmail, subId });
 
-    await vpnProfileRepository.create({ userId: user.id, panelEmail, subId: client.subId });
-
-    return { subscriptionUrl: this.getSubscriptionUrl(client.subId), alreadyExisted: false };
+    return { subscriptionUrl: this.getSubscriptionUrl(subId), alreadyExisted: false };
   }
 
   /** Best-effort, тем же принципом, что и остальные вторичные внешние вызовы в этой
