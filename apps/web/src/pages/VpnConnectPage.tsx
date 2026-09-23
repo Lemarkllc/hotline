@@ -23,14 +23,14 @@ function buildDeepLink(app: AppKey, subscriptionUrl: string): string {
   }
 }
 
-/** Порядок попыток по устройству — та же логика, что и в connect.php: на
- * Android/iOS первым идёт V2rayTun (следом INCY, затем Happ как общий запасной
- * вариант), на остальных — сразу Happ. */
+/** Порядок попыток — Happ всегда первым (решение пользователя 2026-09-23, это
+ * основное приложение компании), на Android/iOS следом V2rayTun и INCY как
+ * запасные варианты, на остальных — только Happ. */
 function detectAttemptOrder(): AppKey[] {
   const ua = navigator.userAgent;
   const isAndroid = /Android/i.test(ua);
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
-  return isAndroid || isIOS ? ["v2raytun", "incy", "happ"] : ["happ"];
+  return isAndroid || isIOS ? ["happ", "v2raytun", "incy"] : ["happ"];
 }
 
 /**

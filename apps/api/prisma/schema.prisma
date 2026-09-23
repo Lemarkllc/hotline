@@ -143,7 +143,7 @@ model User {
   processedAppeals            Appeal[]              @relation("AppealProcessedBy")
   invitedAppeals              Appeal[]              @relation("AppealInvitedBy")
   vacationBalance             VacationBalance?
-  vpnProfile                  VpnProfile?
+  vpnProfiles                 VpnProfile[]
 
   @@index([status])
   @@map("users")
@@ -395,21 +395,21 @@ model AppealMessage {
 /// при отправке (FR-DRF-006: вложения черновика удаляются по истечении срока,
 /// поэтому uploadedByUserId/draftExpiresAt нужны независимо от appealId).
 model AppealAttachment {
-  id               String         @id @default(uuid())
-  appealId         String?
+  id                String         @id @default(uuid())
+  appealId          String?
   /// Параллельно appealId — то же самое nullable-FK-после-драфта решение, но для
   /// заявки на отпуск (фото заявления, обязательное вложение — прямое решение
   /// пользователя). Ровно одно из двух (appealId/vacationRequestId) заполнено на
   /// строку, никогда оба сразу.
   vacationRequestId String?
-  uploadedByUserId String?
-  storageKey       String
-  mimeType         String
-  fileSize         Int
-  kind             AttachmentKind
-  createdAt        DateTime       @default(now())
-  draftExpiresAt   DateTime?
-  deletedAt        DateTime?
+  uploadedByUserId  String?
+  storageKey        String
+  mimeType          String
+  fileSize          Int
+  kind              AttachmentKind
+  createdAt         DateTime       @default(now())
+  draftExpiresAt    DateTime?
+  deletedAt         DateTime?
 
   appeal          Appeal?          @relation(fields: [appealId], references: [id], onDelete: Cascade)
   vacationRequest VacationRequest? @relation(fields: [vacationRequestId], references: [id], onDelete: Cascade)
@@ -595,8 +595,8 @@ model BitrixLeadSnapshot {
   /// помечены JUNK/UC_UO10VU — это шум телефонии, не слитые сделки, но раздувал
   /// "Провалено" так, будто лучший продажник хуже всех. managerLeadRatingService
   /// исключает SOURCE_ID=CALL из отчёта тем же принципом, что и PROCESSED.
-  sourceId String
-  updatedAt DateTime @updatedAt
+  sourceId        String
+  updatedAt       DateTime @updatedAt
 
   @@index([assignedById, dateCreate])
   @@map("bitrix_lead_snapshots")
@@ -915,7 +915,13 @@ model BusinessTripRequest {
 /// просто показывает существующую ссылку, не создаёт второй профиль).
 model VpnProfile {
   id         String    @id @default(uuid())
-  userId     String    @unique
+  /// Не @unique: один пользователь может иметь НЕСКОЛЬКО строк за свою историю —
+  /// старая отзывается (revokedAt) и создаётся новая, если панель сменилась
+  /// (миграция сервера) и старый профиль на ней больше не найден — самовосстановление,
+  /// см. vpnService.getOrCreateProfile. "Активный" профиль — только один за раз,
+  /// это гарантируется на уровне запроса (findActiveByUserId: revokedAt IS NULL),
+  /// не схемой.
+  userId     String
   /// Email-идентификатор клиента в 3X-UI ("и.фамилия" транслитом) — не наш email,
   /// см. utils/transliterate.ts. Уникален и на нашей стороне, и в панели.
   panelEmail String    @unique
@@ -931,5 +937,6 @@ model VpnProfile {
 
   user User @relation(fields: [userId], references: [id])
 
+  @@index([userId])
   @@map("vpn_profiles")
 }

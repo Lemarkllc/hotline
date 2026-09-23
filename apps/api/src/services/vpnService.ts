@@ -51,7 +51,21 @@ export class VpnService {
   async getOrCreateProfile(user: { id: string; fullName: string; telegramId: bigint }): Promise<VpnAccessDTO> {
     const existing = await vpnProfileRepository.findActiveByUserId(user.id);
     if (existing) {
-      return { subscriptionUrl: this.getSubscriptionUrl(existing.subId), alreadyExisted: true };
+      // Профиль считается активным локально, но панель могла смениться (как при
+      // миграции сервера 2026-09-23) — тогда клиент на НОВОЙ панели не существует,
+      // и старая ссылка подписки мертва навсегда. Проверяем перед тем, как отдать
+      // ту же ссылку повторно; если клиента на панели нет — тихо самовосстанавливаемся
+      // (отзываем локально и создаём заново), вместо того чтобы годами отдавать
+      // сотруднику неработающую ссылку.
+      const stillOnPanel = await vpnPanelService.getByEmail(existing.panelEmail);
+      if (stillOnPanel) {
+        return { subscriptionUrl: this.getSubscriptionUrl(existing.subId), alreadyExisted: true };
+      }
+      logger.warn(
+        { userId: user.id, panelEmail: existing.panelEmail },
+        "vpnService: локальный профиль есть, но на панели клиента не нашли (сменился сервер?) — пересоздаём",
+      );
+      await vpnProfileRepository.revoke(existing.id);
     }
 
     const baseEmail = transliterateToLogin(user.fullName);
