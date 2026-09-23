@@ -54,12 +54,14 @@ export class VpnService {
     if (upstreamRes.ok) {
       const profile = await vpnProfileRepository.findActiveBySubId(subId);
       if (profile) {
-        // Полное имя целиком было слишком длинным в приложении (решение
-        // пользователя 2026-09-23) — только фамилия. В этой БД fullName хранится
-        // как "Фамилия Имя Отчество" (первое слово — фамилия), тот же порядок,
-        // на котором уже строится login в панели, см. transliterateToLogin.
-        const surname = profile.user.fullName.trim().split(/\s+/)[0] ?? profile.user.fullName;
-        const title = `LEMARK — ${surname}`;
+        // Итоговый формат после двух правок по обратной связи 2026-09-23:
+        // сначала "LEMARK — Полное Имя" (длинно), потом "LEMARK — Фамилия"
+        // (всё ещё длинно), сейчас — просто "Фамилия И." без префикса бренда.
+        // В этой БД fullName хранится как "Фамилия Имя Отчество" (первое слово —
+        // фамилия), тот же порядок, на котором уже строится login в панели,
+        // см. transliterateToLogin.
+        const [surname, firstName] = profile.user.fullName.trim().split(/\s+/);
+        const title = firstName ? `${surname} ${firstName[0]!.toUpperCase()}.` : (surname ?? profile.user.fullName);
         headers.set("profile-title", `base64:${Buffer.from(title, "utf-8").toString("base64")}`);
       }
     }
