@@ -327,6 +327,19 @@ export function createBot(): Bot<BotContext> {
       await ctx.reply("Сообщение передано.");
       return;
     }
+    if (ctx.session.awaitingFullNameCorrection) {
+      const candidate = ctx.message.text.trim();
+      // Минимальная защита от повторения той же ошибки (например, снова "/vpn") —
+      // просим настоящее ФИО, минимум фамилия и имя, без слэша команды в начале.
+      if (candidate.startsWith("/") || candidate.split(/\s+/).filter(Boolean).length < 2) {
+        await ctx.reply("Это не похоже на ФИО. Пришлите, пожалуйста, Фамилию Имя (и Отчество) настоящим текстом.");
+        return;
+      }
+      ctx.session.awaitingFullNameCorrection = undefined;
+      await apiClient.fixFullNameSelf(String(ctx.from!.id), candidate);
+      await ctx.reply("Спасибо, ФИО обновлено.");
+      return;
+    }
     if (!(await requireActiveUser(ctx))) return;
     await ctx.reply(
       "Чтобы создать обращение, используйте /new. Чтобы посмотреть свои обращения — /my.",

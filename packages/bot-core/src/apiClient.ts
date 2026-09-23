@@ -103,6 +103,13 @@ export class ApiClient {
     );
   }
 
+  /** Самостоятельная правка своего же ФИО (разовая история 2026-09-23: несколько
+   * сотрудников случайно ввели "/vpn" вместо имени при регистрации, HR одобрил не
+   * заметив — см. bot.ts, флаг session.awaitingFullNameCorrection). */
+  fixFullNameSelf(telegramId: string, fullName: string) {
+    return this.request<{ ok: true }>("POST", "/users/fix-full-name-bot", { telegramId, fullName });
+  }
+
   /** «Отсутствие» (было TIME_OFF внутри Appeal, PLAN.md §10). */
   createAbsenceRequest(input: {
     telegramId: string;

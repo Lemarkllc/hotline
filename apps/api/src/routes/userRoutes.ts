@@ -9,6 +9,7 @@ import {
   botDecideAccessRequestSchema,
   createWebAccountSchema,
   decideAccessRequestSchema,
+  fixFullNameBotSchema,
   updateChannelAccessSchema,
   updateUserSchema,
 } from "@/validators/user.schema.js";
@@ -28,6 +29,12 @@ userRoutes.post(
   requireBotService("EMPLOYEE"),
   validate(botDecideAccessRequestSchema),
   asyncErrorWrapper((req, res) => userController.rejectFromBot(req, res)),
+);
+userRoutes.post(
+  "/fix-full-name-bot",
+  requireBotService("EMPLOYEE"),
+  validate(fixFullNameBotSchema),
+  asyncErrorWrapper((req, res) => userController.fixFullNameFromBot(req, res)),
 );
 
 // --- web (Администратор, user.manage) ---

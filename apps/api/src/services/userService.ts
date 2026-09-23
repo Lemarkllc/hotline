@@ -239,6 +239,26 @@ export class UserService {
     };
   }
 
+  /** Самостоятельная правка ФИО из бота (разовая история 2026-09-23: несколько
+   * сотрудников при регистрации случайно ввели "/vpn" вместо имени, HR одобрил
+   * не заметив — см. bot-employee/bot.ts, флаг session.awaitingFullNameCorrection).
+   * actorId в аудит-логе — сам пользователь, действие полностью самостоятельное,
+   * без участия HRD/Администратора. */
+  async fixFullNameSelf(telegramId: bigint, fullName: string): Promise<void> {
+    const user = await userRepository.findByTelegramId(telegramId);
+    if (!user) throw new NotFoundError("Пользователь не найден");
+
+    await userRepository.updateProfile(user.id, { fullName });
+    await auditService.record({
+      actorId: user.id,
+      action: "user.fixed_full_name_self",
+      objectType: "User",
+      objectId: user.id,
+      result: "success",
+      metadata: { previousFullName: user.fullName, newFullName: fullName },
+    });
+  }
+
   /**
    * Ручная корректировка канала после создания — см. PLAN.md "Найден и закрыт
    * пробел 10.08.2026". Полная замена набора (как setRoles), не точечный grant/

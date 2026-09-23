@@ -101,6 +101,17 @@ export class UserController extends BaseController {
     }
   }
 
+  /** Самостоятельная правка ФИО из бота — см. userService.fixFullNameSelf. */
+  async fixFullNameFromBot(req: Request, res: Response): Promise<void> {
+    try {
+      const { telegramId, fullName } = req.body as { telegramId: string; fullName: string };
+      await userService.fixFullNameSelf(BigInt(telegramId), fullName);
+      this.handleSuccess(res, { ok: true });
+    } catch (error) {
+      this.handleError(error, res, "fixFullNameFromBot");
+    }
+  }
+
   async block(req: Request, res: Response): Promise<void> {
     try {
       const { reason } = req.body as { reason: string };

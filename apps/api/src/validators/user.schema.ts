@@ -42,3 +42,8 @@ export const botDecideAccessRequestSchema = z.object({
   telegramId: z.union([z.string(), z.number()]).transform(String),
   reason: z.string().trim().max(500).optional(),
 });
+
+export const fixFullNameBotSchema = z.object({
+  telegramId: z.union([z.string(), z.number()]).transform(String),
+  fullName: z.string().trim().min(3).max(200),
+});
