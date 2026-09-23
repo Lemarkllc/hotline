@@ -923,8 +923,11 @@ model VpnProfile {
   /// не схемой.
   userId     String
   /// Email-идентификатор клиента в 3X-UI ("и.фамилия" транслитом) — не наш email,
-  /// см. utils/transliterate.ts. Уникален и на нашей стороне, и в панели.
-  panelEmail String    @unique
+  /// см. utils/transliterate.ts. Не @unique по той же причине, что и userId: после
+  /// самовосстановления (см. выше) новый активный профиль может занять тот же
+  /// email, что уже держит отозванная историческая строка — актуальную занятость
+  /// email проверяем на живой панели (findFreePanelEmail), не по этой таблице.
+  panelEmail String
   /// 3X-UI subId — из него строится ссылка подписки (config.vpn.subBaseUrl + subId),
   /// см. vpnService.getSubscriptionUrl.
   subId      String    @unique
