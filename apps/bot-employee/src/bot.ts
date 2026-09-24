@@ -14,6 +14,7 @@ import { renderAppealDetail, renderMyAppealsMenu, renderMyAppealsPage } from "./
 import { redis, SESSION_PREFIX } from "./redis.js";
 import { downloadTelegramMedia } from "./telegramFile.js";
 import type { BotContext, SessionData } from "./types.js";
+import { FULL_NAME_FORMAT_HINT, isValidFullName } from "./validators/fullName.js";
 
 const WELCOME_TEXT =
   "Добро пожаловать в HotLineBot 👋\n" +
@@ -30,7 +31,10 @@ const PRIVACY_TEXT =
 
 const NON_ACTIVE_STATUS_MESSAGES: Record<string, string> = {
   PENDING: "Ваша заявка на подтверждение всё ещё рассматривается администратором.",
-  REJECTED: "Ваша заявка была отклонена. За подробностями обратитесь к HRD.",
+  // REJECTED (мягкий отказ) отдельно обрабатывается в handleStart — там же
+  // показывается причина и запускается повторная регистрация. Этот текст —
+  // только запасной путь для остальных команд (/new и т.п.), не /start.
+  REJECTED: "Ваша прошлая заявка отклонена. Чтобы подать заявку заново, отправьте /start.",
   BLOCKED: "Ваш доступ заблокирован администратором.",
 };
 
@@ -124,6 +128,16 @@ export function createBot(): Bot<BotContext> {
       const result = await apiClient.identifyTelegramUser(telegramId);
       if (result.status === "ACTIVE") {
         await ctx.reply(WELCOME_TEXT, { reply_markup: MAIN_MENU_KEYBOARD });
+        return;
+      }
+      // Мягкий отказ (REJECTED) — не тупик: показываем причину и сразу пускаем
+      // в повторную регистрацию (та же заявка пересоздаётся с новым ФИО, см.
+      // authService.telegramIdentify). BLOCKED (окончательный отказ) сюда не
+      // попадает — остаётся терминальным сообщением ниже.
+      if (result.status === "REJECTED") {
+        const reasonText = result.rejectionReason ? `\n\nПричина: ${result.rejectionReason}` : "";
+        await ctx.reply(`Ваша предыдущая заявка была отклонена.${reasonText}\n\nПодадим заявку заново.`);
+        await ctx.conversation.enter("registration");
         return;
       }
       await ctx.reply(
@@ -329,10 +343,10 @@ export function createBot(): Bot<BotContext> {
     }
     if (ctx.session.awaitingFullNameCorrection) {
       const candidate = ctx.message.text.trim();
-      // Минимальная защита от повторения той же ошибки (например, снова "/vpn") —
-      // просим настоящее ФИО, минимум фамилия и имя, без слэша команды в начале.
-      if (candidate.startsWith("/") || candidate.split(/\s+/).filter(Boolean).length < 2) {
-        await ctx.reply("Это не похоже на ФИО. Пришлите, пожалуйста, Фамилию Имя (и Отчество) настоящим текстом.");
+      // Тот же формат, что и при первичной регистрации (см. validators/fullName.ts,
+      // registration.ts) — защита от повторения той же ошибки (снова "/vpn" и т.п.).
+      if (!isValidFullName(candidate)) {
+        await ctx.reply(FULL_NAME_FORMAT_HINT);
         return;
       }
       ctx.session.awaitingFullNameCorrection = undefined;

@@ -38,6 +38,16 @@ export class AccessRequestRepository {
       },
     });
   }
+
+  /** Повторная подача после мягкого отклонения (см. authService.telegramIdentify) —
+   * та же заявка возвращается в PENDING с новым ФИО, решение по старой попытке
+   * очищается, а не создаётся вторая строка (userId в AccessRequest уникален). */
+  resubmit(id: string, fullName: string): Promise<AccessRequest> {
+    return prisma.accessRequest.update({
+      where: { id },
+      data: { fullName, status: "PENDING", decidedById: null, decisionReason: null, decidedAt: null },
+    });
+  }
 }
 
 export const accessRequestRepository = new AccessRequestRepository();

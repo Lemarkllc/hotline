@@ -66,7 +66,13 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         break;
       }
       case "access_rejected": {
-        await bot.api.sendMessage(telegramId, "Ваша заявка отклонена администратором.");
+        const reason = typeof payload.reason === "string" ? payload.reason : undefined;
+        const permanent = payload.permanent === true;
+        const reasonText = reason ? `\n\nПричина: ${reason}` : "";
+        const retryText = permanent
+          ? ""
+          : "\n\nМожно подать заявку заново — отправьте /start и укажите корректные данные.";
+        await bot.api.sendMessage(telegramId, `Ваша заявка отклонена администратором.${reasonText}${retryText}`);
         break;
       }
       case "access_request_pending": {

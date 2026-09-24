@@ -120,7 +120,22 @@ export class UserService {
     });
   }
 
-  async rejectAccessRequest(admin: AuthenticatedUser, requestId: string, reason?: string): Promise<void> {
+  /**
+   * Два разных исхода отказа (решение пользователя 2026-09-24, реальный кейс —
+   * заявки с "/vpn" вместо ФИО): мягкий (permanent=false, по умолчанию) — статус
+   * REJECTED, сотрудник может подать заявку заново через /start (см.
+   * authService.telegramIdentify, bot-employee/bot.ts handleStart); окончательный
+   * (permanent=true, для спама/не-сотрудников) — статус BLOCKED, повторная
+   * регистрация недоступна, тот же смысл, что и обычная блокировка. Причина в
+   * обоих случаях уходит сотруднику в Telegram (notificationHandler.ts
+   * "access_rejected") — раньше собиралась, но никогда не отправлялась.
+   */
+  async rejectAccessRequest(
+    admin: AuthenticatedUser,
+    requestId: string,
+    reason?: string,
+    permanent = false,
+  ): Promise<void> {
     this.requireHrdOrAdmin(admin);
     const request = await accessRequestRepository.findById(requestId);
     if (!request) throw new NotFoundError("Заявка не найдена");
@@ -129,8 +144,8 @@ export class UserService {
       decidedById: admin.id,
       decisionReason: reason,
     });
-    await userRepository.updateStatus(request.userId, "REJECTED");
-    await notificationService.notifyAccessDecision(request.userId, false);
+    await userRepository.updateStatus(request.userId, permanent ? "BLOCKED" : "REJECTED");
+    await notificationService.notifyAccessDecision(request.userId, false, reason, permanent);
     await auditService.record({
       actorId: admin.id,
       action: "user.access_rejected",
@@ -138,6 +153,7 @@ export class UserService {
       objectId: request.userId,
       result: "success",
       reason,
+      metadata: { permanent },
     });
   }
 

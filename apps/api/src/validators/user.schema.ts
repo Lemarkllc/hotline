@@ -3,6 +3,11 @@ import { CHANNELS, ROLE_NAMES } from "@hotline/shared";
 
 export const decideAccessRequestSchema = z.object({
   reason: z.string().trim().max(500).optional(),
+  /** true — окончательный отказ (спам/не сотрудник): статус BLOCKED, повторная
+   * регистрация недоступна. false/не указано — мягкий отказ (например, ошибка в
+   * ФИО): статус REJECTED, можно подать заявку заново через /start (см.
+   * authService.telegramIdentify, bot-employee/bot.ts). */
+  permanent: z.boolean().optional(),
 });
 
 export const blockUserSchema = z.object({

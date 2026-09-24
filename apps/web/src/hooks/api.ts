@@ -431,9 +431,12 @@ export function useApproveAccessRequest() {
 export function useRejectAccessRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
-      apiRequest(`/users/access-requests/${id}/reject`, { method: "POST", body: { reason } }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["access-requests"] }),
+    mutationFn: ({ id, reason, permanent }: { id: string; reason?: string; permanent?: boolean }) =>
+      apiRequest(`/users/access-requests/${id}/reject`, { method: "POST", body: { reason, permanent } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["access-requests"] });
+      void qc.invalidateQueries({ queryKey: ["users"] });
+    },
   });
 }
 

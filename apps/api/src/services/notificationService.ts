@@ -462,11 +462,16 @@ export class NotificationService {
     });
   }
 
-  async notifyAccessDecision(userId: string, approved: boolean): Promise<void> {
+  /** reason/permanent — только для отказа (решение пользователя 2026-09-24: причина
+   * должна доходить до сотрудника, а мягкий отказ должен явно говорить, что можно
+   * подать заявку заново через /start, см. bot-employee notificationHandler.ts). */
+  async notifyAccessDecision(userId: string, approved: boolean, reason?: string, permanent?: boolean): Promise<void> {
     await notificationRepository.create({
       userId,
       channel: "TELEGRAM",
-      payload: { type: approved ? "access_approved" : "access_rejected" },
+      payload: approved
+        ? { type: "access_approved" }
+        : { type: "access_rejected", reason, permanent: Boolean(permanent) },
     });
   }
 

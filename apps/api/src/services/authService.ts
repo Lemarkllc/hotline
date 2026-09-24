@@ -262,9 +262,32 @@ export class AuthService {
   async telegramIdentify(params: {
     telegramId: bigint;
     fullName?: string;
-  }): Promise<{ status: string; userId: string; isNew: boolean }> {
+  }): Promise<{ status: string; userId: string; isNew: boolean; rejectionReason?: string }> {
     const existing = await userRepository.findByTelegramId(params.telegramId);
     if (existing) {
+      // Мягкий отказ (REJECTED, не BLOCKED — см. userService.rejectAccessRequest)
+      // допускает повторную подачу: с fullName — сразу пересоздаём заявку (та же
+      // строка AccessRequest, новое ФИО, обратно в PENDING); без fullName — просто
+      // отдаём причину прошлого отказа, чтобы бот показал её перед тем, как начать
+      // регистрацию заново (см. bot-employee/bot.ts handleStart).
+      if (existing.status === "REJECTED") {
+        if (params.fullName) {
+          const request = await accessRequestRepository.findByUserId(existing.id);
+          if (!request) throw new ConflictError("Заявка на доступ не найдена");
+          await userRepository.updateProfile(existing.id, { fullName: params.fullName });
+          await userRepository.updateStatus(existing.id, "PENDING");
+          await accessRequestRepository.resubmit(request.id, params.fullName);
+          await notificationService.notifyHrdNewAccessRequest(request.id, params.fullName);
+          return { status: "PENDING", userId: existing.id, isNew: false };
+        }
+        const request = await accessRequestRepository.findByUserId(existing.id);
+        return {
+          status: existing.status,
+          userId: existing.id,
+          isNew: false,
+          rejectionReason: request?.decisionReason ?? undefined,
+        };
+      }
       return { status: existing.status, userId: existing.id, isNew: false };
     }
     if (!params.fullName) {

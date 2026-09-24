@@ -45,8 +45,8 @@ export class UserController extends BaseController {
 
   async reject(req: Request, res: Response): Promise<void> {
     try {
-      const { reason } = req.body as { reason?: string };
-      await userService.rejectAccessRequest(req.user!, pathParam(req, "id"), reason);
+      const { reason, permanent } = req.body as { reason?: string; permanent?: boolean };
+      await userService.rejectAccessRequest(req.user!, pathParam(req, "id"), reason, permanent);
       this.handleSuccess(res, { ok: true });
     } catch (error) {
       this.handleError(error, res, "reject");

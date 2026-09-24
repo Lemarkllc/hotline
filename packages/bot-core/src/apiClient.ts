@@ -55,10 +55,11 @@ export class ApiClient {
   }
 
   identifyTelegramUser(telegramId: string, fullName?: string) {
-    return this.request<{ status: string; userId: string; isNew: boolean }>("POST", "/auth/telegram", {
-      telegramId,
-      fullName,
-    });
+    return this.request<{ status: string; userId: string; isNew: boolean; rejectionReason?: string }>(
+      "POST",
+      "/auth/telegram",
+      { telegramId, fullName },
+    );
   }
 
   createAppeal(input: {
