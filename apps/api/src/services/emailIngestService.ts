@@ -20,6 +20,7 @@ import {
   extractPhone,
   extractWebsiteFormContact,
 } from "@/utils/contactExtraction.js";
+import { stripEmbeddedDataUris, truncateForAi } from "@/utils/sanitizeEmailBody.js";
 
 const MAX_ATTACHMENTS_PER_MESSAGE = 10;
 const MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024;
@@ -140,7 +141,12 @@ export class EmailIngestService {
     // Реальный кейс: Л-2026-00151 — originalBody сохранился пустым, хотя в
     // письме был текст, просто без text/plain-альтернативы.
     const plainText = parsed.text?.trim();
-    const body = plainText || (parsed.html ? htmlToText(parsed.html, { wordwrap: false }).trim() : "");
+    const rawBody = plainText || (parsed.html ? htmlToText(parsed.html, { wordwrap: false }).trim() : "");
+    // Реальный инцидент 2026-09-23/24: картинка, вставленная клиентом прямо в тело
+    // HTML-письма (не как вложение), долетает сюда как data:...;base64,... блок в
+    // сотни КБ — единицы МБ и без вырезания улетает целиком в AI-классификацию
+    // (см. sanitizeEmailBody.ts).
+    const body = stripEmbeddedDataUris(rawBody);
     const receivedAt = parsed.date ?? new Date();
 
     // Уведомления формы сайта приходят на sales@ ОТ ИМЕНИ sales@ (сайт, не клиент) —
@@ -199,7 +205,10 @@ export class EmailIngestService {
       // не должен задерживать то, что реально важно клиенту/SALES. Ключ не задан —
       // тихо пропускаем, не отмечая это как "ошибку" на каждой заявке.
       if (config.yandexAi.apiKey && config.yandexAi.folderId) {
-        const aiResult = await leadAiService.classify({ subject, body, fromEmail });
+        // Подстраховка сверх stripEmbeddedDataUris выше — на случай иного источника
+        // раздутия тела (например, огромная цитируемая переписка), не только
+        // вставленных картинок.
+        const aiResult = await leadAiService.classify({ subject, body: truncateForAi(body), fromEmail });
         if (aiResult) {
           await emailLeadRepository.markAiClassified(lead.id, aiResult);
           broadcastLeadUpdated({ id: lead.id, publicNumber: lead.publicNumber });
