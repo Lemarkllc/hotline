@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import type { z } from "zod";
 import { BaseController } from "@/controllers/BaseController.js";
 import { vpnService } from "@/services/vpnService.js";
+import { vpnGeoDataService, type GeoDataKind } from "@/services/vpnGeoDataService.js";
 import type { getVpnAccessBotSchema } from "@/validators/vpn.schema.js";
 
 export class VpnController extends BaseController {
@@ -45,6 +46,28 @@ export class VpnController extends BaseController {
     } catch (error) {
       this.handleError(error, res, "vpn.getSubscription");
     }
+  }
+
+  /** Зеркало geoip.dat/geosite.dat через наш домен (см. vpnGeoDataService,
+   * vpnService.rewriteRoutingGeoUrls) — публично, без requireBotService, бьёт
+   * сюда напрямую VPN-приложение сотрудника. */
+  private async getGeoData(kind: GeoDataKind, res: Response): Promise<void> {
+    try {
+      const body = await vpnGeoDataService.get(kind);
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.send(Buffer.from(body));
+    } catch (error) {
+      this.handleError(error, res, `vpn.get${kind}`);
+    }
+  }
+
+  async getGeoIp(_req: Request, res: Response): Promise<void> {
+    await this.getGeoData("geoip", res);
+  }
+
+  async getGeoSite(_req: Request, res: Response): Promise<void> {
+    await this.getGeoData("geosite", res);
   }
 }
 

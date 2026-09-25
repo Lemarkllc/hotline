@@ -73,9 +73,34 @@ export class VpnService {
         const title = firstName ? `${surname} ${firstName[0]!.toUpperCase()}.` : (surname ?? profile.user.fullName);
         headers.set("profile-title", `base64:${Buffer.from(title, "utf-8").toString("base64")}`);
       }
+      this.rewriteRoutingGeoUrls(headers);
     }
 
     return { status: upstreamRes.status, headers, body };
+  }
+
+  /** Реальная жалоба 2026-09-25: Routing-заголовок (happ://routing/add/<base64 JSON>)
+   * несёт Geoipurl/Geositeurl на github.com — приложение качает их напрямую, до
+   * установки VPN, и у многих российских провайдеров это виснет. Подменяем на
+   * наши же /vpn/geoip.dat и /vpn/geosite.dat (см. vpnGeoDataService) — тот же
+   * домен, что уже и так отдаёт клиенту подписку, значит заведомо доступен без
+   * VPN. Best-effort: любая неожиданность в формате заголовка — оставляем как
+   * пришло от панели, не ломаем остальную подписку ради этой правки. */
+  private rewriteRoutingGeoUrls(headers: Headers): void {
+    const routing = headers.get("routing");
+    if (!routing) return;
+    const prefix = "happ://routing/add/";
+    if (!routing.startsWith(prefix)) return;
+
+    try {
+      const decoded = JSON.parse(Buffer.from(routing.slice(prefix.length), "base64").toString("utf-8"));
+      const origin = new URL(config.vpn.subPublicBaseUrl).origin;
+      decoded.Geoipurl = `${origin}/api/v1/vpn/geoip.dat`;
+      decoded.Geositeurl = `${origin}/api/v1/vpn/geosite.dat`;
+      headers.set("routing", `${prefix}${Buffer.from(JSON.stringify(decoded), "utf-8").toString("base64")}`);
+    } catch (error) {
+      logger.warn({ err: error }, "vpnService: не удалось переписать Geoipurl/Geositeurl в Routing-заголовке");
+    }
   }
 
   /** Email в панели уникален (там уже 130+ клиентов, часть заведена вручную задолго

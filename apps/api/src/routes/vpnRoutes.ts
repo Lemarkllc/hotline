@@ -17,3 +17,8 @@ vpnRoutes.get(
 /** Публичный — без requireBotService, бьёт сюда напрямую VPN-приложение
  * сотрудника, а не бот (см. VpnController.getSubscription). */
 vpnRoutes.get("/sub/:subId", asyncErrorWrapper((req, res) => vpnController.getSubscription(req, res)));
+
+/** Зеркало geoip.dat/geosite.dat (см. vpnGeoDataService, vpnService.rewriteRoutingGeoUrls) —
+ * публичные, VPN-приложение качает их напрямую, ещё до установки туннеля. */
+vpnRoutes.get("/geoip.dat", asyncErrorWrapper((req, res) => vpnController.getGeoIp(req, res)));
+vpnRoutes.get("/geosite.dat", asyncErrorWrapper((req, res) => vpnController.getGeoSite(req, res)));
