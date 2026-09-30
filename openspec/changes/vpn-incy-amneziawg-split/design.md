@@ -89,4 +89,4 @@
 
 ## Open Questions
 
-- Отдаёт ли панель Routing-профиль для INCY тем же заголовком `routing` со схемой `happ://routing/...` (и нужна ли ему наша подмена `add/`→`onadd/` и geo-URL) — проверить после включения `subIncyEnableRouting`, на спецификацию не влияет.
+- ~~Отдаёт ли панель Routing-профиль для INCY тем же заголовком `routing`~~ — да (проверено 2026-09-30): INCY получает `routing` со схемой `happ://routing/...` и `routing-enable` даже при `subIncyEnableRouting: false`; наша подмена `add/`→`onadd/` и geo-URL применяется и к нему. Применяет ли INCY этот профиль — проверка на устройстве (tasks 7.4).
