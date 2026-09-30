@@ -11,7 +11,7 @@ const SUBID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
  * (например "ghot5eq6xiilbdx1"). На выдачу подписки формат subId не влияет
  * (проверено вживую) — генерируем сами просто чтобы не зависеть от недокументированного
  * поведения панели и не делать лишний getByEmail сразу после create. */
-function generateSubId(): string {
+export function generateSubId(): string {
   const bytes = randomBytes(16);
   let result = "";
   for (const byte of bytes) {
@@ -95,6 +95,31 @@ export class VpnPanelService {
    * в туннеле — проверено вживую на тестовом клиенте. */
   async attachInbounds(email: string, inboundIds: readonly number[]): Promise<void> {
     await this.call("POST", `/clients/${encodeURIComponent(email)}/attach`, { inboundIds: [...inboundIds] });
+  }
+
+  /** Массовые операции для бэкфилла (scripts/backfillVpnAwg.ts): по OpenAPI панели
+   * bulk-вызовы перезапускают Xray ОДИН раз в конце, а одиночные attach/add на
+   * десятках клиентов могли бы дёргать соединения всех сотрудников много раз. */
+  async bulkAttach(emails: readonly string[], inboundIds: readonly number[]): Promise<{ attached: string[]; skipped: string[]; errors: unknown[] }> {
+    const obj = await this.call<{ attached?: string[]; skipped?: string[]; errors?: unknown[] }>("POST", "/clients/bulkAttach", {
+      emails: [...emails],
+      inboundIds: [...inboundIds],
+    });
+    return { attached: obj?.attached ?? [], skipped: obj?.skipped ?? [], errors: obj?.errors ?? [] };
+  }
+
+  async bulkCreate(
+    items: readonly { email: string; subId: string; tgId: number; limitHwid: number; comment?: string; inboundIds: readonly number[] }[],
+  ): Promise<{ created: number; skipped: { email: string; reason: string }[] }> {
+    const obj = await this.call<{ created?: number; skipped?: { email: string; reason: string }[] }>(
+      "POST",
+      "/clients/bulkCreate",
+      items.map((i) => ({
+        client: { email: i.email, subId: i.subId, tgId: i.tgId, totalGB: 0, limitIp: 0, limitHwid: i.limitHwid, enable: true, ...(i.comment ? { comment: i.comment } : {}) },
+        inboundIds: [...i.inboundIds],
+      })),
+    );
+    return { created: obj?.created ?? 0, skipped: obj?.skipped ?? [] };
   }
 
   /** Сырая подписка клиента (не JSON): нейтральный User-Agent не совпадает с
