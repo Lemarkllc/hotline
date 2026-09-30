@@ -16,7 +16,7 @@ const GEOSITE_URL = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/la
  * с похожей частотой, а geoip/geosite не требуют мгновенной свежести. */
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-interface CachedFile {
+export interface CachedFile {
   body: ArrayBuffer;
   fetchedAt: number;
 }
@@ -33,18 +33,24 @@ export class VpnGeoDataService {
   private inFlight = new Map<GeoDataKind, Promise<CachedFile>>();
 
   async get(kind: GeoDataKind): Promise<ArrayBuffer> {
+    return (await this.getWithFetchedAt(kind)).body;
+  }
+
+  /** То же, что get(), плюс момент загрузки — по нему vpnAwgRoutingService понимает,
+   * что файл обновился и AllowedIPs для AmneziaWG пора пересчитать. */
+  async getWithFetchedAt(kind: GeoDataKind): Promise<CachedFile> {
     const cached = this.cache.get(kind);
     if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-      return cached.body;
+      return cached;
     }
 
     const pending = this.inFlight.get(kind);
-    if (pending) return (await pending).body;
+    if (pending) return pending;
 
     const fetchPromise = this.fetchAndCache(kind, cached);
     this.inFlight.set(kind, fetchPromise);
     try {
-      return (await fetchPromise).body;
+      return await fetchPromise;
     } finally {
       this.inFlight.delete(kind);
     }

@@ -127,6 +127,9 @@ export const config = {
     /// Адрес, который получают сотрудники (наш домен) — проксирует subBaseUrl и
     /// подменяет Profile-Title на персональный, см. vpnService.proxySubscription.
     subPublicBaseUrl: optional("VPN_SUB_PUBLIC_BASE_URL", ""),
+    /// AmneziaWG в подписке для INCY (vpnService.proxySubscription) — выключено, пока
+    /// не проверено на реальных устройствах; выключение = откат к одним Xray-серверам.
+    awgEnabled: optional("VPN_AWG_ENABLED", "false") === "true",
   },
 
   /** Классификация «Заявок» (режим наблюдения — leadAiService, не меняет поведение

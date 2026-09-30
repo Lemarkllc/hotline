@@ -25,6 +25,9 @@ export interface VpnPanelClientDTO {
   subId: string;
   tgId: number;
   enable: boolean;
+  /** Inbound'ы, к которым привязан клиент — по нему бэкфилл AmneziaWG
+   * (scripts/backfillVpnAwg.ts) понимает, привязан ли уже AmneziaWG-inbound. */
+  inboundIds: number[];
 }
 
 interface VpnPanelApiResponse<T> {
@@ -67,6 +70,7 @@ export class VpnPanelService {
     tgId: number;
     limitHwid: number;
     inboundIds: readonly number[];
+    comment?: string;
   }): Promise<{ subId: string }> {
     const subId = generateSubId();
     await this.call("POST", "/clients/add", {
@@ -78,20 +82,42 @@ export class VpnPanelService {
         limitHwid: params.limitHwid,
         enable: true,
         subId,
+        ...(params.comment ? { comment: params.comment } : {}),
       },
       inboundIds: [...params.inboundIds],
     });
     return { subId };
   }
 
+  /** Привязывает существующего клиента к дополнительным inbound'ам
+   * (POST /panel/api/clients/{email}/attach, найдено в /panel/api/openapi.json
+   * 2026-09-30). Для WireGuard/AmneziaWG панель сама выделяет клиенту свободный /32
+   * в туннеле — проверено вживую на тестовом клиенте. */
+  async attachInbounds(email: string, inboundIds: readonly number[]): Promise<void> {
+    await this.call("POST", `/clients/${encodeURIComponent(email)}/attach`, { inboundIds: [...inboundIds] });
+  }
+
+  /** Сырая подписка клиента (не JSON): нейтральный User-Agent не совпадает с
+   * subJsonUserAgentRegex панели, поэтому она отдаёт список ссылок, где AmneziaWG
+   * идёт как vpn://… — в JSON для Happ/INCY его нет. X-HWID передаём только для
+   * клиента под лимитом устройств (слот 1), вспомогательному (слот 2) он не нужен. */
+  async fetchRawSubscription(subId: string, hwid?: string): Promise<string> {
+    const url = `${config.vpn.subBaseUrl.replace(/\/$/, "")}/${subId}`;
+    const headers: Record<string, string> = { "User-Agent": "HotLineMergeFetcher/1.0" };
+    if (hwid) headers["X-HWID"] = hwid;
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new ValidationError(`VPN-панель: сырая подписка вернула ${res.status}`);
+    return res.text();
+  }
+
   async getByEmail(email: string): Promise<VpnPanelClientDTO | null> {
     try {
-      const obj = await this.call<{ client: { email: string; subId: string; tgId: number; enable: boolean } }>(
-        "GET",
-        `/clients/get/${encodeURIComponent(email)}`,
-      );
+      const obj = await this.call<{
+        client: { email: string; subId: string; tgId: number; enable: boolean };
+        inboundIds?: number[];
+      }>("GET", `/clients/get/${encodeURIComponent(email)}`);
       const c = obj.client;
-      return { email: c.email, subId: c.subId, tgId: c.tgId, enable: c.enable };
+      return { email: c.email, subId: c.subId, tgId: c.tgId, enable: c.enable, inboundIds: obj.inboundIds ?? [] };
     } catch (error) {
       logger.warn({ err: error, email }, "vpnPanelService: getByEmail failed");
       return null;
