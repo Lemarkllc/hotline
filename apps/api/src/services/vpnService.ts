@@ -177,14 +177,21 @@ export class VpnService {
       // ту же ссылку повторно; если клиента на панели нет — тихо самовосстанавливаемся
       // (отзываем локально и создаём заново), вместо того чтобы годами отдавать
       // сотруднику неработающую ссылку.
-      const stillOnPanel = await vpnPanelService.getByEmail(existing.panelEmail);
-      if (stillOnPanel) {
+      // Сверяем именно subId, не только email: реальный случай 2026-09-30 (Комлик В.) —
+      // после миграции панели её логин "k.yurevna" занял другой сотрудник с тем же
+      // инициалом и отчеством (см. transliterateToLogin до исправления), проверка
+      // "email есть на панели" проходила по ЧУЖОМУ клиенту, и ей вечно отдавалась
+      // мёртвая ссылка со старым UUID-subId.
+      const onPanel = await vpnPanelService.getByEmail(existing.panelEmail);
+      if (onPanel && onPanel.subId === existing.subId) {
         return { subscriptionUrl: this.getSubscriptionUrl(existing.subId), alreadyExisted: true };
       }
       logger.warn(
-        { userId: user.id, panelEmail: existing.panelEmail },
-        "vpnService: локальный профиль есть, но на панели клиента не нашли (сменился сервер?) — пересоздаём",
+        { userId: user.id, panelEmail: existing.panelEmail, reason: onPanel ? "subId на панели другой (чужой клиент)" : "клиента на панели нет" },
+        "vpnService: локальный профиль не совпадает с панелью (сменился сервер?) — пересоздаём",
       );
+      // Только локально: клиент на панели либо отсутствует, либо принадлежит другому сотруднику.
+      await vpnAwgSlotRepository.deleteAllForProfile(existing.id);
       await vpnProfileRepository.revoke(existing.id);
     }
 
@@ -243,9 +250,22 @@ export class VpnService {
     const profile = await vpnProfileRepository.findActiveByUserId(userId);
     if (!profile) return;
 
+    // Удаляем на панели, только если основной клиент — действительно ЭТОГО профиля
+    // (subId совпадает). Иначе профиль устаревший (панель сменилась, логин занял другой
+    // сотрудник — см. getOrCreateProfile): удаление по email снесло бы VPN чужому
+    // человеку, в том числе его -AWG2. Такой профиль отзываем только у себя.
+    const onPanel = await vpnPanelService.getByEmail(profile.panelEmail);
+    const ownsPanelClient = !!onPanel && onPanel.subId === profile.subId;
+    if (onPanel && !ownsPanelClient) {
+      logger.warn(
+        { userId, panelEmail: profile.panelEmail },
+        "vpnService: клиент панели с этим email принадлежит другому профилю — на панели ничего не удаляем",
+      );
+    }
+
     // Вспомогательный AmneziaWG-клиент (слот 2) — тоже рабочий ключ, удаляем первым:
     // иначе у уволенного остался бы доступ со второго устройства.
-    const emails = [profile.awgAuxPanelEmail, profile.panelEmail].filter((e): e is string => !!e);
+    const emails = ownsPanelClient ? [profile.awgAuxPanelEmail, profile.panelEmail].filter((e): e is string => !!e) : [];
     for (const panelEmail of emails) {
       try {
         await vpnPanelService.deleteClient(panelEmail);
