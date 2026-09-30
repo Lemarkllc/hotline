@@ -1,21 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { transliterateToLogin } from "@/utils/transliterate.js";
 
-describe("transliterateToLogin (vpnService — \"и.фамилия\" транслитом)", () => {
-  it("имя + фамилия -> и.фамилия", () => {
-    expect(transliterateToLogin("Иван Иванов")).toBe("i.ivanov");
+describe("transliterateToLogin (vpnService — \"и.фамилия\" транслитом, fullName = \"Фамилия Имя [Отчество]\")", () => {
+  it("фамилия + имя + отчество -> и.фамилия", () => {
+    expect(transliterateToLogin("Иванов Иван Иванович")).toBe("i.ivanov");
   });
 
-  it("составная фамилия -> берёт последнее слово как фамилию, дефис не переносится", () => {
-    expect(transliterateToLogin("Анна Ковалёва-Петрова")).toBe("a.kovalevapetrova");
+  it("фамилия + имя -> и.фамилия", () => {
+    expect(transliterateToLogin("Фазилов Александр")).toBe("a.fazilov");
+  });
+
+  it("реальный случай коллизии: разные фамилии с одним отчеством дают разные логины", () => {
+    expect(transliterateToLogin("Комлик Виктория Юрьевна")).toBe("v.komlik");
+    expect(transliterateToLogin("Кохштейн Татьяна Юрьевна")).toBe("t.kohshteyn");
+  });
+
+  it("составная фамилия -> дефис не переносится", () => {
+    expect(transliterateToLogin("Ковалёва-Петрова Анна")).toBe("a.kovalevapetrova");
   });
 
   it("ё транслитерируется как e", () => {
-    expect(transliterateToLogin("Пётр Ёлкин")).toBe("p.elkin");
+    expect(transliterateToLogin("Ёлкин Пётр")).toBe("p.elkin");
   });
 
   it("ъ и ь выпадают, не переносятся в латиницу", () => {
-    expect(transliterateToLogin("Пётр Подъячев")).toBe("p.podyachev");
+    expect(transliterateToLogin("Подъячев Пётр")).toBe("p.podyachev");
   });
 
   it("одно слово (нет фамилии) -> первые две буквы", () => {
@@ -23,7 +32,7 @@ describe("transliterateToLogin (vpnService — \"и.фамилия\" транс�
   });
 
   it("лишние пробелы схлопываются", () => {
-    expect(transliterateToLogin("  Иван   Иванов  ")).toBe("i.ivanov");
+    expect(transliterateToLogin("  Иванов   Иван  ")).toBe("i.ivanov");
   });
 
   it("пустая строка -> запасное значение, не падает", () => {

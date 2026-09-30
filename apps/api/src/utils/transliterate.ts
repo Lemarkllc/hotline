@@ -14,8 +14,13 @@ function translitWord(word: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-/** "Иван Иванов" -> "i.ivanov" (VPN-профиль, vpnService.ts — тот же формат, что и
- * ручные записи в панели: и.фамилия, решение пользователя 2026-09-22). Не
+/** "Иванов Иван Иванович" -> "i.ivanov" (VPN-профиль, vpnService.ts — тот же формат,
+ * что и ручные записи в панели: и.фамилия, решение пользователя 2026-09-22).
+ * В БД fullName хранится как "Фамилия Имя [Отчество]" — фамилия ПЕРВОЕ слово, имя
+ * второе. До 2026-09-30 здесь брались первое слово как инициал и последнее как
+ * фамилия — выходило "первая буква фамилии + отчество" ("Комлик Виктория Юрьевна"
+ * -> "k.yurevna"), и люди с одинаковым отчеством сталкивались логинами. Уже
+ * выданные логины не переименовываются — правка только для новых профилей. Не
  * ISO 9/ГОСТ-транслитерация — практическая, читаемая, тем же принципом, что и
  * остальные "для людей" идентификаторы в этой кодовой базе (publicNumber и т.п.).
  * Одно слово в имени (нет фамилии/пробела) — используются первые две буквы вместо
@@ -27,8 +32,8 @@ export function transliterateToLogin(fullName: string): string {
     const word = translitWord(parts[0]!);
     return word.slice(0, 2) || "user";
   }
-  const [first, ...rest] = parts;
-  const initial = translitWord(first!).slice(0, 1);
-  const surname = translitWord(rest[rest.length - 1]!);
+  const [surnameWord, nameWord] = parts;
+  const initial = translitWord(nameWord!).slice(0, 1);
+  const surname = translitWord(surnameWord!);
   return `${initial}.${surname}` || "user";
 }
