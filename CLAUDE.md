@@ -111,6 +111,16 @@ There's also a "who can this appeal be assigned to" endpoint (`GET /appeals/assi
 
 Not pushed directly — written as `Notification` rows (`status: PENDING`) and *pulled*: the bot polls `GET /notifications/pending` (TELEGRAM channel) and acks per-item after successful Telegram delivery (`packages/bot-core/notificationPoller.ts`); the web panel polls `GET /notifications` (WEB channel) every 15s. This keeps retry semantics simple (`attempts`/`lastError` columns) and matches the architecture diagram (bot → API, never the reverse). If you add a new notification type, decide its channel (TELEGRAM → employee-facing via bot, WEB → staff-facing via panel) and add a case to `notificationHandler.ts` (bot) or the relevant web page's payload-type switch.
 
+## VPN (Get VPN → 3X-UI panel)
+
+Employees get a personal subscription link to **our** domain (`GET /api/v1/vpn/sub/:subId`), which `vpnService.proxySubscription` proxies to the real 3X-UI panel (`VPN_SUB_BASE_URL`). The proxy personalizes `Profile-Title`, rewrites the Happ `Routing` header (`add/`→`onadd/` + geo URLs to our `/vpn/geoip.dat`/`geosite.dat` mirror), and — for the **INCY** app only, behind `VPN_AWG_ENABLED` — appends AmneziaWG configs as a `{"type":"amneziawg"}` element. The panel's OpenAPI is at `<VPN_PANEL_BASE_URL>/panel/api/openapi.json`.
+
+- **AmneziaWG split routing** ("RU direct") lives in each config's `AllowedIPs`, computed from the mirrored `geoip.dat` (`vpnAwgRoutingService`, cached per geo download; RU IPv4 widened to /19 to fit iOS; Telegram forced into the tunnel). Constants and their source are in `config/vpnConfig.ts`. Xray servers get RU-direct from the panel's Routing profile instead.
+- **One WireGuard key per device**: slot 1 = the employee's main panel client, slot 2 = a hidden aux client `<panelEmail>-AWG2` (AmneziaWG inbound only). `VpnAwgSlot` maps SHA-256(X-HWID) → slot; a slot is assigned only after the panel accepted that HWID under its device limit.
+- AmneziaWG is **optional**: any failure returns the subscription without it — never a full-tunnel config.
+- Revocation on termination (`revokeProfile`) must delete the aux client too. Existing profiles are migrated with `apps/api/src/scripts/backfillVpnAwg.ts` (`--dry-run` first).
+- This replaces the neighbour provider's `incy_merge.py` approach (reads the panel's SQLite directly) — we only have the panel's HTTP API, so don't reintroduce panel-disk access.
+
 ## Testing
 
 `apps/api/src/tests/` has unit tests only so far (no DB): `authz.test.ts` (the confidentiality invariant — treat this as the one test file that must never be weakened), `appealNumber.test.ts`, `statusTransitions.test.ts`. There is no integration/e2e test suite yet against a real Postgres — the full create→assign→confidentiality→close→rate lifecycle and the RBAC-per-role screens have been manually verified end-to-end (curl + a real Chromium session) but not automated. Adding a supertest-based integration suite against the docker-compose Postgres is the natural next step before this goes further than MVP.

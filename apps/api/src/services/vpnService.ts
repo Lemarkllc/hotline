@@ -1,11 +1,23 @@
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
-import { VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
+import { VPN_AWG_INBOUND_ID, VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
+import { vpnAwgSlotRepository } from "@/repositories/VpnAwgSlotRepository.js";
 import { vpnPanelService } from "@/services/vpnPanelService.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { transliterateToLogin } from "@/utils/transliterate.js";
+import { rewriteHappRoutingHeader } from "@/utils/happRouting.js";
+import { applyAllowedIps } from "@/utils/awgAllowedIps.js";
+import {
+  appendAmneziaWgElement,
+  buildAmneziaWgServers,
+  extractAmneziaWgConfigs,
+  isIncyUserAgent,
+} from "@/utils/amneziaWgSubscription.js";
+import { AwgUnavailableError, vpnAwgSlotService } from "@/services/vpnAwgSlotService.js";
+import { vpnAwgRoutingService } from "@/services/vpnAwgRoutingService.js";
 import { ForbiddenError } from "@/types/index.js";
+import type { VpnProfile } from "@prisma/client";
 
 export interface VpnAccessDTO {
   subscriptionUrl: string;
@@ -17,7 +29,9 @@ export interface VpnAccessDTO {
 /**
  * «Получить VPN» (боковое меню бота-сотрудника) — создаёт персональный профиль на
  * 3X-UI (vpnPanelService), даёт ссылку подписки. Отзыв — при увольнении
- * (userService.blockUser вызывает revokeProfile).
+ * (userService.blockUser вызывает revokeProfile) — вместе с вспомогательным
+ * AmneziaWG-клиентом слота 2. Для INCY подписка дополняется AmneziaWG с
+ * раздельной маршрутизацией (withAmneziaWg, флаг VPN_AWG_ENABLED).
  */
 /** Ответ upstream-панели на /sub/<subId>, который проксируем как есть, кроме
  * Profile-Title (см. VpnService.proxySubscription). */
@@ -57,7 +71,7 @@ export class VpnService {
     if (incomingHwid) upstreamHeaders["X-HWID"] = incomingHwid;
     if (incomingUserAgent) upstreamHeaders["User-Agent"] = incomingUserAgent;
     const upstreamRes = await fetch(upstreamUrl, { headers: upstreamHeaders });
-    const body = await upstreamRes.arrayBuffer();
+    let body = await upstreamRes.arrayBuffer();
     const headers = new Headers(upstreamRes.headers);
 
     if (upstreamRes.ok) {
@@ -72,34 +86,61 @@ export class VpnService {
         const [surname, firstName] = profile.user.fullName.trim().split(/\s+/);
         const title = firstName ? `${surname} ${firstName[0]!.toUpperCase()}.` : (surname ?? profile.user.fullName);
         headers.set("profile-title", `base64:${Buffer.from(title, "utf-8").toString("base64")}`);
+
+        if (config.vpn.awgEnabled && isIncyUserAgent(incomingUserAgent)) {
+          body = await this.withAmneziaWg(body, profile, incomingHwid);
+        }
       }
-      this.rewriteRoutingGeoUrls(headers);
+      this.rewriteRoutingHeader(headers);
     }
 
     return { status: upstreamRes.status, headers, body };
   }
 
-  /** Реальная жалоба 2026-09-25: Routing-заголовок (happ://routing/add/<base64 JSON>)
-   * несёт Geoipurl/Geositeurl на github.com — приложение качает их напрямую, до
-   * установки VPN, и у многих российских провайдеров это виснет. Подменяем на
-   * наши же /vpn/geoip.dat и /vpn/geosite.dat (см. vpnGeoDataService) — тот же
-   * домен, что уже и так отдаёт клиенту подписку, значит заведомо доступен без
-   * VPN. Best-effort: любая неожиданность в формате заголовка — оставляем как
-   * пришло от панели, не ломаем остальную подписку ради этой правки. */
-  private rewriteRoutingGeoUrls(headers: Headers): void {
+  /** AmneziaWG для INCY (openspec vpn-incy-amneziawg-split): панель кладёт его только
+   * в сырой список ссылок, не в JSON — берём конфиг слота этого устройства, ставим
+   * AllowedIPs «RU напрямую» и дописываем элементом {"type":"amneziawg"} в JSON-массив.
+   * Слот выделяется здесь, уже ПОСЛЕ успешного ответа панели на основной запрос, —
+   * значит, лимит устройств панель для этого X-HWID уже проверила.
+   * Опционально: любой сбой — лог (без HWID и ключей) и подписка как пришла от панели,
+   * без AmneziaWG; полнотуннельный конфиг без split-routing не выдаётся никогда. */
+  private async withAmneziaWg(body: ArrayBuffer, profile: VpnProfile, hwid: string | undefined): Promise<ArrayBuffer> {
+    try {
+      const json: unknown = JSON.parse(Buffer.from(body).toString("utf-8"));
+      const slot = await vpnAwgSlotService.assignSlot(profile.id, hwid, VPN_PROFILE_HWID_LIMIT);
+      const slotSubId = slot === 1 ? profile.subId : slot === 2 ? profile.awgAuxSubId : null;
+      if (!slotSubId) throw new AwgUnavailableError(`слот ${slot}: вспомогательный клиент ещё не создан`);
+
+      // X-HWID нужен только основному клиенту (слот 1, под лимитом устройств).
+      const raw = await vpnPanelService.fetchRawSubscription(slotSubId, slot === 1 ? hwid : undefined);
+      const configs = extractAmneziaWgConfigs(raw);
+      if (configs.length === 0) throw new AwgUnavailableError(`слот ${slot}: в подписке нет AmneziaWG`);
+
+      const allowedIps = await vpnAwgRoutingService.getAllowedIps();
+      const servers = buildAmneziaWgServers(configs.map((c) => ({ name: c.name, conf: applyAllowedIps(c.conf, allowedIps) })));
+      const merged = Buffer.from(JSON.stringify(appendAmneziaWgElement(json, servers)), "utf-8");
+      return merged.buffer.slice(merged.byteOffset, merged.byteOffset + merged.byteLength) as ArrayBuffer;
+    } catch (error) {
+      logger.warn(
+        { profileId: profile.id, reason: error instanceof Error ? error.message : String(error) },
+        "vpnService: AmneziaWG для INCY не выдан, отдаём подписку без него",
+      );
+      return body;
+    }
+  }
+
+  /** Routing-заголовок: add/ → onadd/ (профиль активируется, даже если у сотрудника
+   * уже активен чужой) + Geoipurl/Geositeurl на наше зеркало — см. rewriteHappRoutingHeader.
+   * Best-effort: неожиданный формат — оставляем как пришло от панели. */
+  private rewriteRoutingHeader(headers: Headers): void {
     const routing = headers.get("routing");
     if (!routing) return;
-    const prefix = "happ://routing/add/";
-    if (!routing.startsWith(prefix)) return;
 
-    try {
-      const decoded = JSON.parse(Buffer.from(routing.slice(prefix.length), "base64").toString("utf-8"));
-      const origin = new URL(config.vpn.subPublicBaseUrl).origin;
-      decoded.Geoipurl = `${origin}/api/v1/vpn/geoip.dat`;
-      decoded.Geositeurl = `${origin}/api/v1/vpn/geosite.dat`;
-      headers.set("routing", `${prefix}${Buffer.from(JSON.stringify(decoded), "utf-8").toString("base64")}`);
-    } catch (error) {
-      logger.warn({ err: error }, "vpnService: не удалось переписать Geoipurl/Geositeurl в Routing-заголовке");
+    const rewritten = rewriteHappRoutingHeader(routing, new URL(config.vpn.subPublicBaseUrl).origin);
+    if (rewritten) {
+      headers.set("routing", rewritten);
+    } else {
+      logger.warn({ routingPrefix: routing.slice(0, 32) }, "vpnService: неожиданный формат Routing-заголовка, оставлен как есть");
     }
   }
 
@@ -157,9 +198,40 @@ export class VpnService {
       inboundIds: VPN_STANDARD_INBOUND_IDS,
     });
 
-    await vpnProfileRepository.create({ userId: user.id, panelEmail, subId });
+    const profile = await vpnProfileRepository.create({ userId: user.id, panelEmail, subId });
+    await this.ensureAwgAuxClient(profile, Number(user.telegramId));
 
     return { subscriptionUrl: this.getSubscriptionUrl(subId), alreadyExisted: false };
+  }
+
+  /** Вспомогательный клиент слота 2 AmneziaWG ("<panelEmail>-AWG2", см. VpnProfile.awgAuxSubId):
+   * второе устройство сотрудника не может делить WireGuard-ключ с первым. Только
+   * AmneziaWG-inbound, limitHwid 0 — его подписку запрашивает лишь наш сервер.
+   * Best-effort: сбой не должен ломать выдачу VPN — без него просто не будет AmneziaWG
+   * на втором устройстве, бэкфилл (scripts/backfillVpnAwg.ts) досоздаст. Возвращает
+   * true, если клиент есть (уже был или создан). */
+  async ensureAwgAuxClient(profile: VpnProfile, tgId: number): Promise<boolean> {
+    if (profile.awgAuxSubId) return true;
+    const auxEmail = `${profile.panelEmail}-AWG2`;
+    try {
+      const existing = await vpnPanelService.getByEmail(auxEmail);
+      const auxSubId = existing
+        ? existing.subId
+        : (
+            await vpnPanelService.createClient({
+              email: auxEmail,
+              tgId,
+              limitHwid: 0,
+              inboundIds: [VPN_AWG_INBOUND_ID],
+              comment: "HotLine: AmneziaWG слот 2, скрытый — не выдавать сотруднику",
+            })
+          ).subId;
+      await vpnProfileRepository.setAwgAux(profile.id, auxEmail, auxSubId);
+      return true;
+    } catch (error) {
+      logger.error({ err: error, profileId: profile.id, auxEmail }, "vpnService: не удалось создать AmneziaWG-клиента слота 2");
+      return false;
+    }
   }
 
   /** Best-effort, тем же принципом, что и остальные вторичные внешние вызовы в этой
@@ -171,16 +243,24 @@ export class VpnService {
     const profile = await vpnProfileRepository.findActiveByUserId(userId);
     if (!profile) return;
 
-    try {
-      await vpnPanelService.deleteClient(profile.panelEmail);
-    } catch (error) {
-      logger.error(
-        { err: error, userId, panelEmail: profile.panelEmail },
-        "vpnService: не удалось удалить VPN-профиль при увольнении — требуется ручная проверка",
-      );
-      return;
+    // Вспомогательный AmneziaWG-клиент (слот 2) — тоже рабочий ключ, удаляем первым:
+    // иначе у уволенного остался бы доступ со второго устройства.
+    const emails = [profile.awgAuxPanelEmail, profile.panelEmail].filter((e): e is string => !!e);
+    for (const panelEmail of emails) {
+      try {
+        await vpnPanelService.deleteClient(panelEmail);
+      } catch (error) {
+        // Клиента на панели уже нет (удалён руками, сменилась панель) — цель достигнута.
+        if (!(await vpnPanelService.getByEmail(panelEmail))) continue;
+        logger.error(
+          { err: error, userId, panelEmail },
+          "vpnService: не удалось удалить VPN-профиль при увольнении — требуется ручная проверка",
+        );
+        return;
+      }
     }
 
+    await vpnAwgSlotRepository.deleteAllForProfile(profile.id);
     await vpnProfileRepository.revoke(profile.id);
   }
 }

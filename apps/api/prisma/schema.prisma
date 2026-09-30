@@ -937,9 +937,36 @@ model VpnProfile {
   /// revokedAt, а не удаляется физически — тот же принцип audit-трейла, что и у
   /// остальных подобных решений в этой кодовой базе.
   revokedAt  DateTime?
+  /// Вспомогательный клиент панели для слота 2 AmneziaWG ("<panelEmail>-AWG2", только
+  /// AmneziaWG-inbound, limitHwid 0): один WireGuard-ключ нельзя делить между двумя
+  /// устройствами. subId скрытый — сотруднику не показывается, его запрашивает
+  /// только наш сервер (vpnService.proxySubscription). Null — ещё не создан (бэкфилл).
+  awgAuxPanelEmail String?
+  awgAuxSubId      String?
 
-  user User @relation(fields: [userId], references: [id])
+  user     User         @relation(fields: [userId], references: [id])
+  awgSlots VpnAwgSlot[]
 
   @@index([userId])
   @@map("vpn_profiles")
+}
+
+/// Какое устройство сотрудника (по X-HWID) получает какой ключ AmneziaWG: слот 1 —
+/// основной клиент, слот 2 — вспомогательный (VpnProfile.awgAuxSubId). У панели нет
+/// удобного способа сопоставить свои HWID с нашими слотами, поэтому храним сами;
+/// сам HWID не храним — только SHA-256 (как и incy_merge.py).
+model VpnAwgSlot {
+  id         String   @id @default(uuid())
+  profileId  String
+  slot       Int
+  hwidHash   String
+  assignedAt DateTime @default(now())
+  /// По нему при сбросе устройств на панели переназначается самый давно неактивный слот.
+  lastSeenAt DateTime @default(now())
+
+  profile VpnProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, slot])
+  @@unique([profileId, hwidHash])
+  @@map("vpn_awg_slots")
 }

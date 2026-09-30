@@ -1,0 +1,81 @@
+schema: spec-driven
+
+context: |
+  Language: write all OpenSpec artifacts (proposal, design, specs, tasks) in Russian.
+  Keep code identifiers, file paths, requirement IDs (FR-*) and technical terms in their original form.
+
+  ## Проект
+  Lemark HotLineBot — внутренняя система обратной связи сотрудников (до 200 человек, рост до 2 000 / 100k обращений).
+  Сотрудник подаёт «обращение» через Telegram-бота (типы: жалоба / предложение / нарушение / вопрос / благодарность,
+  плюс RESIGNATION и заявки на отпуск) — открыто или конфиденциально. HRD разбирает, классифицирует, назначает
+  менеджерам и закрывает обращения в веб-панели; менеджеры работают по канбану; роль HR оформляет документы
+  после одобрения (отпуск, увольнение).
+
+  ## Источники истины
+  - `Lemark_HotLineBot_SRS_v1.0.md` — требования и поведение (ID требований `FR-AUTH-###`, `FR-CONF-###` и т.д., каталог в §33).
+  - `PLAN.md` — как требования ложатся на архитектуру; принятые допущения — SRS §42, затем PLAN.md §9. Не пересматривать их без новой информации от пользователя.
+  - `CLAUDE.md` — рабочие правила репозитория.
+
+  ## Стек и структура (pnpm monorepo)
+  - `apps/api` — Express + TypeScript + Prisma + PostgreSQL. Строго routes → controllers (BaseController) → services → repositories, без пропуска слоёв.
+    Весь внешний ввод валидируется Zod (`validators/*.schema.ts`); env — только через `config/unifiedConfig.ts`.
+  - `apps/bot-employee` — grammy + @grammyjs/conversations.
+  - `apps/web` — React + Vite + TS + Tailwind, shadcn-style компоненты (панель HRD / менеджер / админ / HR).
+  - `packages/shared` — enum'ы, RBAC-константы, общие Zod-схемы; `packages/bot-core` — ApiClient, Redis-сессии, поллер уведомлений.
+  - Инфраструктура: Postgres, Redis, MinIO (docker compose).
+
+  ## Инварианты, которые спецификации обязаны соблюдать
+  - Конфиденциальность автора обеспечивается на бэкенде в слое сериализации, никогда только в UI. Единственное место правила —
+    `canSeeAuthor()` в `apps/api/src/utils/authz.ts` (тесты `authz.test.ts` нельзя ослаблять). Каждый просмотр
+    конфиденциального обращения пишется в аудит.
+  - Права проверяются только через `hasChannelPermission(user, permission, channel)` (фронт: `useAuthStore().hasPermission`).
+    Разрешение без `UserChannelAccess` для канала не даёт ничего. Проверка есть и на уровне маршрута, и в сервисе —
+    сервис является реальной авторитетной проверкой.
+  - Каналы `EMPLOYEE | CUSTOMER` заложены в схему и RBAC; CUSTOMER (Phase 7) ещё не реализован — не упрощать `channel` / `UserChannelAccess`.
+  - Жизненный цикл обращения: OPEN → UNDER_REVIEW → IN_PROGRESS → CLOSED, повторное открытие только CLOSED → IN_PROGRESS.
+    Переходы — `APPEAL_STATUS_TRANSITIONS` в `packages/shared`, проверяются на сервере. Закрытие требует `finalAnswer`,
+    переоткрытие — `reason`. `AppealStatusHistory` и `AuditLog` — только append.
+  - `Appeal.originalText` неизменяем после подачи; `workingEdit` — отдельная обезличенная редакция HRD.
+  - Увольнение и отпуск: этап оформления (HR, чек-лист) отделён от статуса; блокировка пользователя при увольнении — только
+    после выполнения чек-листа (`processTermination`). Не складывать этап оформления в `status` отпуска (ломает расчёт баланса).
+  - Уведомления не пушатся: пишутся строки `Notification` (PENDING), бот и веб их опрашивают. Для нового типа уведомления
+    указывать канал (TELEGRAM / WEB) и обработчик.
+  - Сроки хранения данных (SRS §38) предварительные — не фиксировать как окончательные.
+
+  ## Процесс
+  - Каждая фича — в отдельной ветке с понятным именем, слияние в main только после завершения.
+  - Conventional Commits (`feat:` / `fix:` / `refactor:` / `perf:` / `docs:` / `chore:` …), сообщения на русском,
+    со ссылками на ID требований `FR-*`. Версия и CHANGELOG — через commit-and-tag-version.
+  - Тесты: vitest в `apps/api` (пока только unit, без БД). Для изменений в authz/конфиденциальности/переходах статусов —
+    обязательно покрывать unit-тестами.
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
