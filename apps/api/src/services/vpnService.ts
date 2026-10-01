@@ -2,7 +2,7 @@ import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
 import { VPN_AWG_INBOUND_ID, VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
 import { vpnAwgSlotRepository } from "@/repositories/VpnAwgSlotRepository.js";
-import { vpnPanelService } from "@/services/vpnPanelService.js";
+import { MERGE_FETCHER_UA, vpnPanelService, type VpnPanelDeviceDTO } from "@/services/vpnPanelService.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { transliterateToLogin } from "@/utils/transliterate.js";
@@ -16,7 +16,8 @@ import {
 } from "@/utils/amneziaWgSubscription.js";
 import { AwgUnavailableError, vpnAwgSlotService } from "@/services/vpnAwgSlotService.js";
 import { vpnAwgRoutingService } from "@/services/vpnAwgRoutingService.js";
-import { ForbiddenError } from "@/types/index.js";
+import { ForbiddenError, NotFoundError } from "@/types/index.js";
+import { selectStaleDevices } from "@/utils/vpnStaleDevices.js";
 import type { VpnProfile } from "@prisma/client";
 
 export interface VpnAccessDTO {
@@ -39,6 +40,39 @@ export interface VpnSubscriptionProxyResult {
   status: number;
   headers: Headers;
   body: ArrayBuffer;
+}
+
+/** Устройство подписки для бота — без fingerprint и прочих внутренностей панели. */
+export interface VpnDeviceView {
+  id: number;
+  app: string;
+  os: string | null;
+  model: string | null;
+  lastSeen: string;
+}
+
+export interface VpnDevicesDTO {
+  limit: number;
+  devices: VpnDeviceView[];
+}
+
+/** "INCY/2.6.2/ios …" → "INCY"; служебный "HotLineMergeFetcher (INCY/2.6.2/…)" → "INCY". */
+function appName(userAgent: string | undefined): string {
+  let ua = (userAgent ?? "").trim();
+  const wrapped = ua.match(new RegExp(`^${MERGE_FETCHER_UA} \\((.+)\\)$`));
+  if (wrapped) ua = wrapped[1]!;
+  return ua.split("/")[0]?.trim() || "Неизвестное приложение";
+}
+
+function toDeviceView(d: VpnPanelDeviceDTO): VpnDeviceView {
+  const os = [d.deviceOs, d.osVersion].filter(Boolean).join(" ") || null;
+  return {
+    id: d.id,
+    app: appName(d.userAgent),
+    os,
+    model: d.deviceModel || null,
+    lastSeen: new Date(d.lastSeen).toISOString(),
+  };
 }
 
 export class VpnService {
@@ -65,9 +99,12 @@ export class VpnService {
     subId: string,
     incomingHwid: string | undefined,
     incomingUserAgent: string | undefined,
+    incomingDeviceHeaders: Record<string, string> = {},
   ): Promise<VpnSubscriptionProxyResult> {
     const upstreamUrl = `${config.vpn.subBaseUrl.replace(/\/$/, "")}/${subId}`;
-    const upstreamHeaders: Record<string, string> = {};
+    // X-Device-OS/X-Ver-OS/X-Device-Model панель сохраняет вместе с HWID — без них в
+    // «Мои устройства VPN» (бот) было бы видно только название приложения.
+    const upstreamHeaders: Record<string, string> = { ...incomingDeviceHeaders };
     if (incomingHwid) upstreamHeaders["X-HWID"] = incomingHwid;
     if (incomingUserAgent) upstreamHeaders["User-Agent"] = incomingUserAgent;
     const upstreamRes = await fetch(upstreamUrl, { headers: upstreamHeaders });
@@ -88,7 +125,7 @@ export class VpnService {
         headers.set("profile-title", `base64:${Buffer.from(title, "utf-8").toString("base64")}`);
 
         if (config.vpn.awgEnabled && isIncyUserAgent(incomingUserAgent)) {
-          body = await this.withAmneziaWg(body, profile, incomingHwid);
+          body = await this.withAmneziaWg(body, profile, incomingHwid, incomingUserAgent, incomingDeviceHeaders);
         }
       }
       this.rewriteRoutingHeader(headers);
@@ -104,7 +141,13 @@ export class VpnService {
    * значит, лимит устройств панель для этого X-HWID уже проверила.
    * Опционально: любой сбой — лог (без HWID и ключей) и подписка как пришла от панели,
    * без AmneziaWG; полнотуннельный конфиг без split-routing не выдаётся никогда. */
-  private async withAmneziaWg(body: ArrayBuffer, profile: VpnProfile, hwid: string | undefined): Promise<ArrayBuffer> {
+  private async withAmneziaWg(
+    body: ArrayBuffer,
+    profile: VpnProfile,
+    hwid: string | undefined,
+    appUserAgent: string | undefined,
+    deviceHeaders: Record<string, string>,
+  ): Promise<ArrayBuffer> {
     try {
       const json: unknown = JSON.parse(Buffer.from(body).toString("utf-8"));
       const slot = await vpnAwgSlotService.assignSlot(profile.id, hwid, VPN_PROFILE_HWID_LIMIT);
@@ -112,7 +155,10 @@ export class VpnService {
       if (!slotSubId) throw new AwgUnavailableError(`слот ${slot}: вспомогательный клиент ещё не создан`);
 
       // X-HWID нужен только основному клиенту (слот 1, под лимитом устройств).
-      const raw = await vpnPanelService.fetchRawSubscription(slotSubId, slot === 1 ? hwid : undefined);
+      const raw = await vpnPanelService.fetchRawSubscription(
+        slotSubId,
+        slot === 1 && hwid ? { hwid, appUserAgent, headers: deviceHeaders } : undefined,
+      );
       const configs = extractAmneziaWgConfigs(raw);
       if (configs.length === 0) throw new AwgUnavailableError(`слот ${slot}: в подписке нет AmneziaWG`);
 
@@ -239,6 +285,59 @@ export class VpnService {
       logger.error({ err: error, profileId: profile.id, auxEmail }, "vpnService: не удалось создать AmneziaWG-клиента слота 2");
       return false;
     }
+  }
+
+  /** «Мои устройства VPN» в боте: устройства СВОЕЙ подписки. Профиль должен совпадать с
+   * клиентом панели по subId (как в getOrCreateProfile) — иначе по email виден был бы
+   * чужой клиент с тем же логином. */
+  async listOwnDevices(telegramId: bigint): Promise<VpnDevicesDTO> {
+    const { profile } = await this.resolveOwnPanelClient(telegramId);
+    const devices = await vpnPanelService.listDevices(profile.panelEmail);
+    return { limit: VPN_PROFILE_HWID_LIMIT, devices: devices.map(toDeviceView) };
+  }
+
+  /** Удаляет устройство своей подписки — только если id есть в её текущем списке. */
+  async deleteOwnDevice(telegramId: bigint, deviceId: number): Promise<void> {
+    const { profile } = await this.resolveOwnPanelClient(telegramId);
+    const devices = await vpnPanelService.listDevices(profile.panelEmail);
+    if (!devices.some((d) => d.id === deviceId)) throw new NotFoundError("Устройство не найдено в вашей подписке");
+    await vpnPanelService.deleteDevice(profile.panelEmail, deviceId);
+  }
+
+  private async resolveOwnPanelClient(telegramId: bigint): Promise<{ profile: VpnProfile }> {
+    const user = await userRepository.findByTelegramId(telegramId);
+    if (!user || user.status !== "ACTIVE") throw new ForbiddenError("VPN доступен только подтверждённым сотрудникам");
+    const profile = await vpnProfileRepository.findActiveByUserId(user.id);
+    if (!profile) throw new NotFoundError("VPN ещё не выдан");
+    const onPanel = await vpnPanelService.getByEmail(profile.panelEmail);
+    if (!onPanel || onPanel.subId !== profile.subId) throw new NotFoundError("Подписка устарела — нажмите «Получить VPN»");
+    return { profile };
+  }
+
+  /** Ежедневная автоочистка (server.ts): удаляет с панели устройства подписок бота,
+   * не обновлявшие подписку дольше config.vpn.deviceStaleDays. Панель сама устройства
+   * не забывает, и удалённое приложение навсегда занимало бы место под лимитом.
+   * Только профили бота с совпадающим subId — клиентов, заведённых на панели вручную,
+   * и чужих по логину не трогаем. Сбой по одному клиенту не останавливает остальных. */
+  async cleanupStaleDevices(now = Date.now()): Promise<{ checked: number; removed: number; failed: number }> {
+    const result = { checked: 0, removed: 0, failed: 0 };
+    for (const profile of await vpnProfileRepository.findAllActive()) {
+      try {
+        const onPanel = await vpnPanelService.getByEmail(profile.panelEmail);
+        if (!onPanel || onPanel.subId !== profile.subId) continue;
+        result.checked++;
+        const stale = selectStaleDevices(await vpnPanelService.listDevices(profile.panelEmail), config.vpn.deviceStaleDays, now);
+        for (const device of stale) {
+          await vpnPanelService.deleteDevice(profile.panelEmail, device.id);
+          result.removed++;
+        }
+      } catch (error) {
+        result.failed++;
+        logger.error({ err: error, panelEmail: profile.panelEmail }, "vpnService: автоочистка устройств — сбой по клиенту");
+      }
+    }
+    logger.info(result, "vpnService: автоочистка неактивных VPN-устройств");
+    return result;
   }
 
   /** Best-effort, тем же принципом, что и остальные вторичные внешние вызовы в этой

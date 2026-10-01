@@ -3,7 +3,7 @@ import { vpnController } from "@/controllers/VpnController.js";
 import { requireBotService } from "@/middleware/auth.js";
 import { asyncErrorWrapper } from "@/middleware/asyncErrorWrapper.js";
 import { validate } from "@/middleware/validate.js";
-import { getVpnAccessBotSchema } from "@/validators/vpn.schema.js";
+import { deleteVpnDeviceBotSchema, getVpnAccessBotSchema, listVpnDevicesBotSchema } from "@/validators/vpn.schema.js";
 
 export const vpnRoutes = Router();
 
@@ -12,6 +12,22 @@ vpnRoutes.get(
   requireBotService("EMPLOYEE"),
   validate(getVpnAccessBotSchema, "query"),
   asyncErrorWrapper((req, res) => vpnController.getAccessFromBot(req, res)),
+);
+
+/** «Мои устройства VPN» в боте — устройства своей подписки и удаление одного из них
+ * (владение проверяет vpnService по telegramId, см. listOwnDevices/deleteOwnDevice). */
+vpnRoutes.get(
+  "/devices",
+  requireBotService("EMPLOYEE"),
+  validate(listVpnDevicesBotSchema, "query"),
+  asyncErrorWrapper((req, res) => vpnController.listDevicesFromBot(req, res)),
+);
+
+vpnRoutes.post(
+  "/devices/delete",
+  requireBotService("EMPLOYEE"),
+  validate(deleteVpnDeviceBotSchema),
+  asyncErrorWrapper((req, res) => vpnController.deleteDeviceFromBot(req, res)),
 );
 
 /** Публичный — без requireBotService, бьёт сюда напрямую VPN-приложение

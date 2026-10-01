@@ -7,7 +7,7 @@ const logger = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() 
 
 vi.mock("@/config/unifiedConfig.js", () => ({ config: { vpn: { subPublicBaseUrl: "https://x/api/v1/vpn/sub/", subBaseUrl: "https://p/" } } }));
 vi.mock("@/lib/logger.js", () => ({ logger }));
-vi.mock("@/services/vpnPanelService.js", () => ({ vpnPanelService: panel }));
+vi.mock("@/services/vpnPanelService.js", () => ({ vpnPanelService: panel, MERGE_FETCHER_UA: "HotLineMergeFetcher" }));
 vi.mock("@/repositories/VpnProfileRepository.js", () => ({ vpnProfileRepository: profiles }));
 vi.mock("@/repositories/VpnAwgSlotRepository.js", () => ({ vpnAwgSlotRepository: slots }));
 vi.mock("@/repositories/UserRepository.js", () => ({ userRepository: {} }));

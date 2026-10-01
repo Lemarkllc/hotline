@@ -12,6 +12,7 @@ const { leadAutoStopListService } = await import("@/services/leadAutoStopListSer
 const { bitrixLeadSlaService } = await import("@/services/bitrixLeadSlaService.js");
 const { managerLeadRatingService } = await import("@/services/managerLeadRatingService.js");
 const { weeklyManagerDigestService } = await import("@/services/weeklyManagerDigestService.js");
+const { vpnService } = await import("@/services/vpnService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 const { initRealtime } = await import("@/lib/realtime.js");
 
@@ -72,7 +73,16 @@ const weeklyManagerDigestInterval = setInterval(() => {
     .catch((error) => logger.error({ err: error }, "weekly manager digest failed"));
 }, 30 * 60 * 1000);
 
+// Автоочистка VPN-устройств (vpnService.cleanupStaleDevices): панель сама HWID не
+// забывает, удалённое приложение навсегда занимало бы место под лимитом устройств.
+// Раз в сутки + сразу при старте — пороги в днях, точность не нужна.
+vpnService.cleanupStaleDevices().catch((error) => logger.error({ err: error }, "vpn stale devices cleanup failed"));
+const vpnStaleDevicesInterval = setInterval(() => {
+  vpnService.cleanupStaleDevices().catch((error) => logger.error({ err: error }, "vpn stale devices cleanup failed"));
+}, 24 * 60 * 60 * 1000);
+
 function shutdown(): void {
+  clearInterval(vpnStaleDevicesInterval);
   clearInterval(cleanupInterval);
   clearInterval(emailPollInterval);
   clearInterval(leadSlaInterval);

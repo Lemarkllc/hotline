@@ -16,6 +16,7 @@ await bot.api.setMyCommands([
   // наткнуться на них после отмены /new (баг, найденный пользователем вживую).
   { command: "absence", description: "Отпуск / Отсутствие / Командировка" },
   { command: "vpn", description: "Получить VPN" },
+  { command: "vpndevices", description: "Мои устройства VPN" },
   { command: "my", description: "Мои обращения" },
   { command: "privacy", description: "О конфиденциальности" },
   { command: "cancel", description: "Отменить текущее действие" },

@@ -104,6 +104,19 @@ export class ApiClient {
     );
   }
 
+  /** «Мои устройства VPN» — устройства своей подписки (владение проверяет API,
+   * vpnService.listOwnDevices). 404 — VPN не выдан или подписка устарела. */
+  getVpnDevices(telegramId: string) {
+    return this.request<{
+      limit: number;
+      devices: { id: number; app: string; os: string | null; model: string | null; lastSeen: string }[];
+    }>("GET", `/vpn/devices?telegramId=${telegramId}`);
+  }
+
+  deleteVpnDevice(telegramId: string, deviceId: number) {
+    return this.request<{ ok: true }>("POST", "/vpn/devices/delete", { telegramId, deviceId });
+  }
+
   /** Самостоятельная правка своего же ФИО (разовая история 2026-09-23: несколько
    * сотрудников случайно ввели "/vpn" вместо имени при регистрации, HR одобрил не
    * заметив — см. bot.ts, флаг session.awaitingFullNameCorrection). */
