@@ -9,7 +9,15 @@ import { newAppeal } from "./conversations/newAppeal.js";
 import { vacation } from "./conversations/vacation.js";
 import { absence } from "./conversations/absence.js";
 import { businessTrip } from "./conversations/businessTrip.js";
-import { attachmentsKeyboard, hrMenuKeyboard, MAIN_MENU_KEYBOARD, MAX_ATTACHMENTS, vpnKeyboard } from "./keyboards.js";
+import {
+  attachmentsKeyboard,
+  hrMenuKeyboard,
+  MAIN_MENU_KEYBOARD,
+  MAX_ATTACHMENTS,
+  vpnDeviceDeleteConfirmKeyboard,
+  vpnDevicesKeyboard,
+  vpnKeyboard,
+} from "./keyboards.js";
 import { renderAppealDetail, renderMyAppealsMenu, renderMyAppealsPage } from "./myAppeals.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
 import { downloadTelegramMedia } from "./telegramFile.js";
@@ -237,6 +245,45 @@ export function createBot(): Bot<BotContext> {
     }
   });
 
+  // «Мои устройства VPN» (openspec vpn-device-management): панель ограничивает подписку
+  // двумя устройствами и сама их не забывает — без этого переход Happ → INCY или смена
+  // телефона упирались в «нет серверов» до ручной правки админом. Владение проверяет API.
+  bot.command("vpndevices", async (ctx) => {
+    if (!(await requireActiveUser(ctx))) return;
+    await renderVpnDevices(ctx);
+  });
+  bot.callbackQuery("vpn_devices", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
+    await renderVpnDevices(ctx);
+  });
+  bot.callbackQuery(/^vpn_dev_del:(\d+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
+    await ctx.reply(
+      "Удалить это устройство из подписки? Приложение на нём перестанет получать серверы, " +
+        "пока снова не обновит подписку (если будет свободное место).",
+      { reply_markup: vpnDeviceDeleteConfirmKeyboard(Number(ctx.match![1])) },
+    );
+  });
+  bot.callbackQuery(/^vpn_dev_del_ok:(\d+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!(await requireActiveUser(ctx))) return;
+    try {
+      await apiClient.deleteVpnDevice(String(ctx.from!.id), Number(ctx.match![1]));
+      await ctx.reply("Устройство удалено, место освободилось.");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        await ctx.reply(error.message);
+      } else {
+        console.error("Ошибка удаления VPN-устройства:", error);
+        await ctx.reply("Не получилось удалить устройство. Попробуйте позже или обратитесь к администратору.");
+        return;
+      }
+    }
+    await renderVpnDevices(ctx);
+  });
+
   bot.command("my", async (ctx) => {
     if (!(await requireActiveUser(ctx))) return;
     await renderMyAppealsMenu(ctx);
@@ -365,4 +412,37 @@ export function createBot(): Bot<BotContext> {
   });
 
   return bot;
+}
+
+/** Список устройств VPN-подписки с кнопками удаления (см. bot.command("vpndevices")). */
+async function renderVpnDevices(ctx: BotContext): Promise<void> {
+  try {
+    const { limit, devices } = await apiClient.getVpnDevices(String(ctx.from!.id));
+    if (devices.length === 0) {
+      await ctx.reply(`На вашей подписке пока нет устройств (лимит — ${limit}). Импортируйте ссылку из «Получить VPN» в приложение.`);
+      return;
+    }
+    const lines = devices.map((d, i) => `${i + 1}. ${deviceLabel(d)} — последний раз ${formatDate(d.lastSeen)}`);
+    await ctx.reply(
+      `Устройства VPN: ${devices.length} из ${limit}\n\n${lines.join("\n")}\n\n` +
+        "Удалите устройство, которым больше не пользуетесь (например, удалённое приложение), — " +
+        "место освободится для нового.",
+      { reply_markup: vpnDevicesKeyboard(devices.map((d) => ({ id: d.id, label: deviceLabel(d) }))) },
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      await ctx.reply(`${error.message}. Нажмите /vpn, чтобы получить ссылку.`);
+      return;
+    }
+    console.error("Ошибка получения VPN-устройств:", error);
+    await ctx.reply("Не получилось загрузить устройства. Попробуйте позже или обратитесь к администратору.");
+  }
+}
+
+function deviceLabel(d: { app: string; os: string | null; model: string | null }): string {
+  return [d.app, d.os, d.model].filter(Boolean).join(" · ");
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", timeZone: "Europe/Moscow" });
 }

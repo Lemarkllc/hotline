@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { BaseController } from "@/controllers/BaseController.js";
 import { vpnService } from "@/services/vpnService.js";
 import { vpnGeoDataService, type GeoDataKind } from "@/services/vpnGeoDataService.js";
-import type { getVpnAccessBotSchema } from "@/validators/vpn.schema.js";
+import type { deleteVpnDeviceBotSchema, getVpnAccessBotSchema, listVpnDevicesBotSchema } from "@/validators/vpn.schema.js";
 
 export class VpnController extends BaseController {
   /** Кнопка «Получить VPN» в боковом меню бота-сотрудника. */
@@ -17,6 +17,26 @@ export class VpnController extends BaseController {
     }
   }
 
+  /** «Мои устройства VPN» в боте. */
+  async listDevicesFromBot(req: Request, res: Response): Promise<void> {
+    try {
+      const { telegramId } = req.query as unknown as z.infer<typeof listVpnDevicesBotSchema>;
+      this.handleSuccess(res, await vpnService.listOwnDevices(BigInt(telegramId)));
+    } catch (error) {
+      this.handleError(error, res, "vpn.listDevicesFromBot");
+    }
+  }
+
+  async deleteDeviceFromBot(req: Request, res: Response): Promise<void> {
+    try {
+      const { telegramId, deviceId } = req.body as z.infer<typeof deleteVpnDeviceBotSchema>;
+      await vpnService.deleteOwnDevice(BigInt(telegramId), deviceId);
+      this.handleSuccess(res, { ok: true });
+    } catch (error) {
+      this.handleError(error, res, "vpn.deleteDeviceFromBot");
+    }
+  }
+
   /** Публичный эндпоинт — сюда бьёт напрямую приложение сотрудника (Happ/Incy/
    * v2rayNG), не бот, поэтому без requireBotService. Отдаёт не JSON, а сырой
    * ответ панели (см. vpnService.proxySubscription) — handleSuccess/handleError
@@ -26,7 +46,12 @@ export class VpnController extends BaseController {
       const subId = req.params.subId as string;
       const incomingHwid = req.header("X-HWID");
       const incomingUserAgent = req.header("User-Agent");
-      const { status, headers, body } = await vpnService.proxySubscription(subId, incomingHwid, incomingUserAgent);
+      const deviceHeaders: Record<string, string> = {};
+      for (const name of ["X-Device-OS", "X-Ver-OS", "X-Device-Model"]) {
+        const value = req.header(name);
+        if (value) deviceHeaders[name] = value;
+      }
+      const { status, headers, body } = await vpnService.proxySubscription(subId, incomingHwid, incomingUserAgent, deviceHeaders);
 
       // content-encoding: fetch() уже разжал тело перед тем, как оно попало сюда —
       // проброс заголовка "gzip" при фактически несжатом теле сломал бы клиентов,

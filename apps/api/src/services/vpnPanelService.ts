@@ -5,6 +5,9 @@ import { ValidationError } from "@/types/index.js";
 
 const SUBID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
+/** User-Agent служебных запросов сырой подписки — см. fetchRawSubscription. */
+export const MERGE_FETCHER_UA = "HotLineMergeFetcher";
+
 /** Панель, если не передать свой subId, генерирует его сама — на этом сервере
  * (после миграции 2026-09-23) её собственный генератор отдаёт полноценный UUID
  * (с дефисами, 36 символов) вместо короткой alnum-строки старых клиентов
@@ -30,6 +33,18 @@ export interface VpnPanelClientDTO {
   inboundIds: number[];
 }
 
+/** Устройство клиента на панели (HWID), как его отдаёт POST /clients/hwids/{email}.
+ * Время — миллисекунды Unix. */
+export interface VpnPanelDeviceDTO {
+  id: number;
+  firstSeen: number;
+  lastSeen: number;
+  userAgent?: string;
+  deviceOs?: string;
+  osVersion?: string;
+  deviceModel?: string;
+}
+
 interface VpnPanelApiResponse<T> {
   success: boolean;
   msg?: string;
@@ -41,7 +56,7 @@ interface VpnPanelApiResponse<T> {
  * токен), проверено вживую 2026-09-22. Тот же принцип, что и bitrixService.ts —
  * никакого SDK, секрет уже в конфиге. */
 export class VpnPanelService {
-  private async call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+  private async call<T>(method: "GET" | "POST" | "DELETE", path: string, body?: unknown): Promise<T> {
     if (!config.vpn.panelBaseUrl || !config.vpn.apiToken) {
       throw new ValidationError("VPN-панель не настроена (VPN_PANEL_BASE_URL/VPN_PANEL_API_TOKEN)");
     }
@@ -97,6 +112,19 @@ export class VpnPanelService {
     await this.call("POST", `/clients/${encodeURIComponent(email)}/attach`, { inboundIds: [...inboundIds] });
   }
 
+  /** Устройства (HWID), зарегистрированные на клиенте — POST /panel/api/clients/hwids/{email}
+   * (да, POST, хотя это чтение — так в OpenAPI панели). Сама панель неактивные
+   * устройства не забывает никогда, см. vpnService.cleanupStaleDevices. */
+  async listDevices(email: string): Promise<VpnPanelDeviceDTO[]> {
+    const obj = await this.call<VpnPanelDeviceDTO[] | null>("POST", `/clients/hwids/${encodeURIComponent(email)}`);
+    return obj ?? [];
+  }
+
+  /** Удаляет одно устройство, освобождая место под лимитом (DELETE …/hwids/{email}/{id}). */
+  async deleteDevice(email: string, deviceId: number): Promise<void> {
+    await this.call("DELETE", `/clients/hwids/${encodeURIComponent(email)}/${deviceId}`);
+  }
+
   /** Массовые операции для бэкфилла (scripts/backfillVpnAwg.ts): по OpenAPI панели
    * bulk-вызовы перезапускают Xray ОДИН раз в конце, а одиночные attach/add на
    * десятках клиентов могли бы дёргать соединения всех сотрудников много раз. */
@@ -126,10 +154,22 @@ export class VpnPanelService {
    * subJsonUserAgentRegex панели, поэтому она отдаёт список ссылок, где AmneziaWG
    * идёт как vpn://… — в JSON для Happ/INCY его нет. X-HWID передаём только для
    * клиента под лимитом устройств (слот 1), вспомогательному (слот 2) он не нужен. */
-  async fetchRawSubscription(subId: string, hwid?: string): Promise<string> {
+  async fetchRawSubscription(
+    subId: string,
+    device?: { hwid: string; appUserAgent?: string; headers?: Record<string, string> },
+  ): Promise<string> {
     const url = `${config.vpn.subBaseUrl.replace(/\/$/, "")}/${subId}`;
-    const headers: Record<string, string> = { "User-Agent": "HotLineMergeFetcher/1.0" };
-    if (hwid) headers["X-HWID"] = hwid;
+    // С X-HWID панель обновляет запись устройства этим запросом (User-Agent, ОС,
+    // модель) — поэтому передаём заголовки устройства и прячем настоящий User-Agent
+    // приложения в скобки: "HotLineMergeFetcher (INCY/2.6.2/ios …)" не совпадает с
+    // subJsonUserAgentRegex (нужен сырой список, не JSON), а «Мои устройства VPN»
+    // достаёт из скобок исходное приложение (vpnService.toDeviceView). Иначе после
+    // каждого обновления INCY в списке значилось бы «HotLineMergeFetcher».
+    const headers: Record<string, string> = {
+      ...(device?.headers ?? {}),
+      "User-Agent": device?.appUserAgent ? `${MERGE_FETCHER_UA} (${device.appUserAgent})` : `${MERGE_FETCHER_UA}/1.0`,
+    };
+    if (device?.hwid) headers["X-HWID"] = device.hwid;
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw new ValidationError(`VPN-панель: сырая подписка вернула ${res.status}`);
     return res.text();

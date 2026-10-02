@@ -200,7 +200,21 @@ export function vpnKeyboard(webAppPublicUrl: string, subscriptionUrl: string): I
   return new InlineKeyboard()
     .url("📲 Подключить", connectUrl)
     .row()
-    .copyText("📋 Скопировать ссылку", subscriptionUrl);
+    .copyText("📋 Скопировать ссылку", subscriptionUrl)
+    .row()
+    .text("📱 Мои устройства", "vpn_devices");
+}
+
+/** «Мои устройства VPN»: по кнопке удаления на каждое устройство. id устройства панели —
+ * число, в callback_data (лимит 64 байта) помещается с запасом. */
+export function vpnDevicesKeyboard(devices: { id: number; label: string }[]): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const d of devices) kb.text(`🗑 ${d.label}`, `vpn_dev_del:${d.id}`).row();
+  return kb.text("🔄 Обновить", "vpn_devices");
+}
+
+export function vpnDeviceDeleteConfirmKeyboard(deviceId: number): InlineKeyboard {
+  return new InlineKeyboard().text("Да, удалить", `vpn_dev_del_ok:${deviceId}`).text("Отмена", "vpn_devices");
 }
 
 export function businessTripHotelKeyboard(): InlineKeyboard {

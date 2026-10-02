@@ -130,6 +130,9 @@ export const config = {
     /// AmneziaWG в подписке для INCY (vpnService.proxySubscription) — выключено, пока
     /// не проверено на реальных устройствах; выключение = откат к одним Xray-серверам.
     awgEnabled: optional("VPN_AWG_ENABLED", "false") === "true",
+    /// Автоочистка (vpnService.cleanupStaleDevices): устройство, не обновлявшее
+    /// подписку дольше стольких дней, удаляется с панели и освобождает место.
+    deviceStaleDays: Number(optional("VPN_DEVICE_STALE_DAYS", "30")),
   },
 
   /** Классификация «Заявок» (режим наблюдения — leadAiService, не меняет поведение
