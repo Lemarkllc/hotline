@@ -2,7 +2,7 @@ import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
 import { VPN_AWG_INBOUND_ID, VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
 import { vpnAwgSlotRepository } from "@/repositories/VpnAwgSlotRepository.js";
-import { MERGE_FETCHER_UA, vpnPanelService, type VpnPanelDeviceDTO } from "@/services/vpnPanelService.js";
+import { MERGE_FETCHER_UA, vpnPanelService, type VpnPanelClientDTO, type VpnPanelDeviceDTO } from "@/services/vpnPanelService.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { transliterateToLogin } from "@/utils/transliterate.js";
@@ -52,7 +52,8 @@ export interface VpnDeviceView {
 }
 
 export interface VpnDevicesDTO {
-  limit: number;
+  /** null — без ограничения (limitHwid 0 на панели). */
+  limit: number | null;
   devices: VpnDeviceView[];
 }
 
@@ -291,9 +292,11 @@ export class VpnService {
    * клиентом панели по subId (как в getOrCreateProfile) — иначе по email виден был бы
    * чужой клиент с тем же логином. */
   async listOwnDevices(telegramId: bigint): Promise<VpnDevicesDTO> {
-    const { profile } = await this.resolveOwnPanelClient(telegramId);
+    const { profile, panelClient } = await this.resolveOwnPanelClient(telegramId);
     const devices = await vpnPanelService.listDevices(profile.panelEmail);
-    return { limit: VPN_PROFILE_HWID_LIMIT, devices: devices.map(toDeviceView) };
+    // Фактический лимит клиента на панели, а не общий VPN_PROFILE_HWID_LIMIT: его
+    // поднимают отдельным сотрудникам (2026-10-02 — 5 устройств), 0 = без ограничения.
+    return { limit: panelClient.limitHwid > 0 ? panelClient.limitHwid : null, devices: devices.map(toDeviceView) };
   }
 
   /** Удаляет устройство своей подписки — только если id есть в её текущем списке. */
@@ -304,14 +307,14 @@ export class VpnService {
     await vpnPanelService.deleteDevice(profile.panelEmail, deviceId);
   }
 
-  private async resolveOwnPanelClient(telegramId: bigint): Promise<{ profile: VpnProfile }> {
+  private async resolveOwnPanelClient(telegramId: bigint): Promise<{ profile: VpnProfile; panelClient: VpnPanelClientDTO }> {
     const user = await userRepository.findByTelegramId(telegramId);
     if (!user || user.status !== "ACTIVE") throw new ForbiddenError("VPN доступен только подтверждённым сотрудникам");
     const profile = await vpnProfileRepository.findActiveByUserId(user.id);
     if (!profile) throw new NotFoundError("VPN ещё не выдан");
     const onPanel = await vpnPanelService.getByEmail(profile.panelEmail);
     if (!onPanel || onPanel.subId !== profile.subId) throw new NotFoundError("Подписка устарела — нажмите «Получить VPN»");
-    return { profile };
+    return { profile, panelClient: onPanel };
   }
 
   /** Ежедневная автоочистка (server.ts): удаляет с панели устройства подписок бота,

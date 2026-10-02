@@ -31,6 +31,9 @@ export interface VpnPanelClientDTO {
   /** Inbound'ы, к которым привязан клиент — по нему бэкфилл AmneziaWG
    * (scripts/backfillVpnAwg.ts) понимает, привязан ли уже AmneziaWG-inbound. */
   inboundIds: number[];
+  /** Лимит устройств клиента на панели; 0 — без ограничения. Может отличаться от
+   * VPN_PROFILE_HWID_LIMIT: администратор поднимает его отдельным сотрудникам. */
+  limitHwid: number;
 }
 
 /** Устройство клиента на панели (HWID), как его отдаёт POST /clients/hwids/{email}.
@@ -178,11 +181,18 @@ export class VpnPanelService {
   async getByEmail(email: string): Promise<VpnPanelClientDTO | null> {
     try {
       const obj = await this.call<{
-        client: { email: string; subId: string; tgId: number; enable: boolean };
+        client: { email: string; subId: string; tgId: number; enable: boolean; limitHwid?: number };
         inboundIds?: number[];
       }>("GET", `/clients/get/${encodeURIComponent(email)}`);
       const c = obj.client;
-      return { email: c.email, subId: c.subId, tgId: c.tgId, enable: c.enable, inboundIds: obj.inboundIds ?? [] };
+      return {
+        email: c.email,
+        subId: c.subId,
+        tgId: c.tgId,
+        enable: c.enable,
+        inboundIds: obj.inboundIds ?? [],
+        limitHwid: c.limitHwid ?? 0,
+      };
     } catch (error) {
       // «Клиента нет» — штатный ответ, не сбой: так проверяются свободные логины
       // (findFreePanelEmail) и устаревшие профили (автоочистка устройств обходит их

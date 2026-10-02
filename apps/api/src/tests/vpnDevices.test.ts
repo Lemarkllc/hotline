@@ -35,8 +35,15 @@ describe("vpnService: мои устройства", () => {
     vi.resetAllMocks();
     users.findByTelegramId.mockResolvedValue({ id: "u1", status: "ACTIVE" });
     profiles.findActiveByUserId.mockResolvedValue(PROFILE);
-    panel.getByEmail.mockResolvedValue({ email: "i.ivanov", subId: "own-sub", inboundIds: [] });
+    panel.getByEmail.mockResolvedValue({ email: "i.ivanov", subId: "own-sub", inboundIds: [], limitHwid: 2 });
     panel.listDevices.mockResolvedValue([HAPP, INCY]);
+  });
+
+  it("лимит — фактический с панели: поднятый до 5 и «без ограничения»", async () => {
+    panel.getByEmail.mockResolvedValue({ email: "i.ivanov", subId: "own-sub", inboundIds: [], limitHwid: 5 });
+    expect((await vpnService.listOwnDevices(1n)).limit).toBe(5);
+    panel.getByEmail.mockResolvedValue({ email: "i.ivanov", subId: "own-sub", inboundIds: [], limitHwid: 0 });
+    expect((await vpnService.listOwnDevices(1n)).limit).toBeNull();
   });
 
   it("список своей подписки — приложение, ОС, модель, лимит", async () => {

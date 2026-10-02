@@ -434,12 +434,15 @@ async function renderVpnDevices(ctx: BotContext): Promise<void> {
   try {
     const { limit, devices } = await apiClient.getVpnDevices(String(ctx.from!.id));
     if (devices.length === 0) {
-      await ctx.reply(`На вашей подписке пока нет устройств (лимит — ${limit}). Импортируйте ссылку из «Получить VPN» в приложение.`);
+      await ctx.reply(
+        `На вашей подписке пока нет устройств (${limit === null ? "без ограничения" : `лимит — ${limit}`}). ` +
+          "Импортируйте ссылку из «Получить VPN» в приложение.",
+      );
       return;
     }
     const lines = devices.map((d, i) => `${i + 1}. ${deviceLabel(d)} — последний раз ${formatDate(d.lastSeen)}`);
     await ctx.reply(
-      `Устройства VPN: ${devices.length} из ${limit}\n\n${lines.join("\n")}\n\n` +
+      `Устройства VPN: ${limit === null ? `${devices.length} (без ограничения)` : `${devices.length} из ${limit}`}\n\n${lines.join("\n")}\n\n` +
         "Удалите устройство, которым больше не пользуетесь (например, удалённое приложение), — " +
         "место освободится для нового.",
       { reply_markup: vpnDevicesKeyboard(devices.map((d) => ({ id: d.id, label: deviceLabel(d) }))) },
