@@ -235,3 +235,9 @@ export function businessTripPreviewKeyboard(): InlineKeyboard {
     .row()
     .text("Отменить", "cancel");
 }
+
+/** «Подтвердить данные» — подтверждение текущего ФИО одной кнопкой (иначе — прислать
+ * исправленное ФИО текстом, см. bot.ts session.awaitingFullNameCorrection). */
+export function confirmDataKeyboard(): InlineKeyboard {
+  return new InlineKeyboard().text("✅ Данные верны", "confirm_data_ok");
+}

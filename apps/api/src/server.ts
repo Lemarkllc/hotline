@@ -13,6 +13,7 @@ const { bitrixLeadSlaService } = await import("@/services/bitrixLeadSlaService.j
 const { managerLeadRatingService } = await import("@/services/managerLeadRatingService.js");
 const { weeklyManagerDigestService } = await import("@/services/weeklyManagerDigestService.js");
 const { vpnService } = await import("@/services/vpnService.js");
+const { userService } = await import("@/services/userService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 const { initRealtime } = await import("@/lib/realtime.js");
 
@@ -81,7 +82,19 @@ const vpnStaleDevicesInterval = setInterval(() => {
   vpnService.cleanupStaleDevices().catch((error) => logger.error({ err: error }, "vpn stale devices cleanup failed"));
 }, 24 * 60 * 60 * 1000);
 
+// «Подтвердить данные» (userService.processDataConfirmationDeadlines): напоминание за
+// 5 ч и блокировка по истечении 2 дней — 10 минут дают точность, которой достаточно.
+const dataConfirmationInterval = setInterval(() => {
+  userService
+    .processDataConfirmationDeadlines()
+    .then((r) => {
+      if (r.reminded || r.blocked || r.failed) logger.info(r, "data confirmation deadlines processed");
+    })
+    .catch((error) => logger.error({ err: error }, "data confirmation deadlines failed"));
+}, 10 * 60 * 1000);
+
 function shutdown(): void {
+  clearInterval(dataConfirmationInterval);
   clearInterval(vpnStaleDevicesInterval);
   clearInterval(cleanupInterval);
   clearInterval(emailPollInterval);

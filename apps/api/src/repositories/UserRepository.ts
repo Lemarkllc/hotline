@@ -2,6 +2,12 @@ import type { Prisma, User } from "@prisma/client";
 import type { AuthenticatedUser } from "@/types/index.js";
 import { prisma } from "@/lib/prisma.js";
 
+const CLEARED_DATA_CONFIRMATION = {
+  dataConfirmationDeadline: null,
+  dataConfirmationRemindedAt: null,
+  dataConfirmationRequestedById: null,
+} as const;
+
 export class UserRepository {
   findById(id: string): Promise<User | null> {
     return prisma.user.findFirst({ where: { id, deletedAt: null } });
@@ -60,8 +66,32 @@ export class UserRepository {
     return prisma.user.update({ where: { id }, data: { privacyAcceptedAt: new Date() } });
   }
 
+  /** Любая блокировка снимает и незавершённую проверку данных — блокировать по сроку
+   * уже некого (см. userService.processDataConfirmationDeadlines). */
   blockUser(id: string, reason: string): Promise<User> {
-    return prisma.user.update({ where: { id }, data: { status: "BLOCKED", blockReason: reason } });
+    return prisma.user.update({
+      where: { id },
+      data: { status: "BLOCKED", blockReason: reason, ...CLEARED_DATA_CONFIRMATION },
+    });
+  }
+
+  setDataConfirmationDeadline(id: string, deadline: Date, requestedById: string): Promise<User> {
+    return prisma.user.update({
+      where: { id },
+      data: { dataConfirmationDeadline: deadline, dataConfirmationRemindedAt: null, dataConfirmationRequestedById: requestedById },
+    });
+  }
+
+  clearDataConfirmation(id: string): Promise<User> {
+    return prisma.user.update({ where: { id }, data: CLEARED_DATA_CONFIRMATION });
+  }
+
+  markDataConfirmationReminded(id: string, at: Date): Promise<User> {
+    return prisma.user.update({ where: { id }, data: { dataConfirmationRemindedAt: at } });
+  }
+
+  findWithPendingDataConfirmation(): Promise<User[]> {
+    return prisma.user.findMany({ where: { deletedAt: null, dataConfirmationDeadline: { not: null } } });
   }
 
   unblockUser(id: string): Promise<User> {

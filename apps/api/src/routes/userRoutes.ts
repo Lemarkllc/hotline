@@ -10,6 +10,7 @@ import {
   createWebAccountSchema,
   decideAccessRequestSchema,
   fixFullNameBotSchema,
+  confirmDataBotSchema,
   updateChannelAccessSchema,
   updateUserSchema,
 } from "@/validators/user.schema.js";
@@ -35,6 +36,12 @@ userRoutes.post(
   requireBotService("EMPLOYEE"),
   validate(fixFullNameBotSchema),
   asyncErrorWrapper((req, res) => userController.fixFullNameFromBot(req, res)),
+);
+userRoutes.post(
+  "/confirm-data-bot",
+  requireBotService("EMPLOYEE"),
+  validate(confirmDataBotSchema),
+  asyncErrorWrapper((req, res) => userController.confirmDataFromBot(req, res)),
 );
 
 // --- web (Администратор, user.manage) ---

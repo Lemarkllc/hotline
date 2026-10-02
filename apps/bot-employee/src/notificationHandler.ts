@@ -3,7 +3,7 @@ import { patchSession } from "@hotline/bot-core";
 import type { PendingNotification } from "@hotline/bot-core";
 import { APPEAL_STATUS_LABELS, type AppealStatus } from "@hotline/shared";
 import { config } from "./config.js";
-import { accessRequestKeyboard, ratingKeyboard } from "./keyboards.js";
+import { accessRequestKeyboard, confirmDataKeyboard, ratingKeyboard } from "./keyboards.js";
 import { redis, SESSION_PREFIX } from "./redis.js";
 import type { BotContext, SessionData } from "./types.js";
 
@@ -47,11 +47,30 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         break;
       }
       case "confirm_data_request": {
+        // Со сроком и автоблокировкой (решение 2026-10-02): «Данные верны» — кнопкой,
+        // исправленное ФИО — следующим сообщением (session.awaitingFullNameCorrection).
         await bot.api.sendMessage(
           telegramId,
-          "Просьба администратора: проверьте корректность ваших данных в системе.\n\n" +
-            "Пожалуйста, ответьте на это сообщение вашими настоящими Фамилией, Именем и Отчеством " +
-            "одним сообщением — данные обновятся автоматически. Без корректного ФИО доступ может быть заблокирован.",
+          "Подтвердите ваши данные в течение 2 дней, во избежание блокировки в системе.\n\n" +
+            `Ваше ФИО в системе: ${payload.fullName}\n` +
+            `Срок: до ${formatDeadline(payload.deadline)} (МСК)\n\n` +
+            "Если всё верно — нажмите «Данные верны». Если нет — пришлите правильные Фамилию, Имя и Отчество " +
+            "одним сообщением, данные обновятся автоматически.",
+          { reply_markup: confirmDataKeyboard() },
+        );
+        await patchSession<SessionData>(redis, SESSION_PREFIX, telegramId, {
+          awaitingFullNameCorrection: true,
+        });
+        break;
+      }
+      case "confirm_data_reminder": {
+        await bot.api.sendMessage(
+          telegramId,
+          `Напоминание: подтвердите ваши данные до ${formatDeadline(payload.deadline)} (МСК), иначе доступ ` +
+            "в системе будет заблокирован.\n\n" +
+            `Ваше ФИО в системе: ${payload.fullName}\n\n` +
+            "Если всё верно — нажмите «Данные верны». Если нет — пришлите правильные ФИО одним сообщением.",
+          { reply_markup: confirmDataKeyboard() },
         );
         await patchSession<SessionData>(redis, SESSION_PREFIX, telegramId, {
           awaitingFullNameCorrection: true,
@@ -168,24 +187,53 @@ export function createNotificationHandler(bot: Bot<BotContext>) {
         break;
       }
       case "employee_terminated": {
-        // Best-effort: ошибка в одном чате (бот не добавлен/не админ) не должна
-        // блокировать ack всего уведомления и уводить его в бесконечный ретрай раз
-        // в 5с (см. packages/bot-core/notificationPoller.ts) — доступ к самому боту
-        // уже перекрыт синхронно в userService.blockUser() ДО этого уведомления,
-        // это лишь дополнительная, не критическая для безопасности зачистка чатов.
-        const userId = Number(telegramId);
-        for (const chatId of config.terminationRemovalChatIds) {
-          try {
-            await bot.api.banChatMember(chatId, userId);
-            await bot.api.unbanChatMember(chatId, userId, { only_if_banned: true });
-          } catch (error) {
-            console.error(`Не удалось удалить ${telegramId} из чата ${chatId}:`, error);
-          }
+        await removeFromWorkChats(bot, telegramId);
+        break;
+      }
+      case "user_blocked_data_unconfirmed": {
+        // Блокировка по сроку «Подтвердить данные» — те же действия, что при ручной
+        // (userService.blockUser), но сотруднику сообщается настоящая причина.
+        try {
+          await bot.api.sendMessage(
+            telegramId,
+            "Ваш доступ в системе заблокирован: данные не были подтверждены в течение 2 дней. " +
+              "Чтобы восстановить доступ, обратитесь в отдел персонала.",
+          );
+        } catch (error) {
+          console.error(`Не удалось сообщить ${telegramId} о блокировке:`, error);
         }
+        await removeFromWorkChats(bot, telegramId);
         break;
       }
       default:
         break;
     }
   };
+}
+
+/** Удаление из рабочих чатов при блокировке. Best-effort: ошибка в одном чате (бот не
+ * добавлен/не админ) не должна блокировать ack всего уведомления и уводить его в
+ * бесконечный ретрай раз в 5с (см. packages/bot-core/notificationPoller.ts) — доступ к
+ * самому боту уже перекрыт синхронно в userService.blockUser() ДО этого уведомления,
+ * это лишь дополнительная, не критическая для безопасности зачистка чатов. */
+async function removeFromWorkChats(bot: Bot<BotContext>, telegramId: string | number): Promise<void> {
+  const userId = Number(telegramId);
+  for (const chatId of config.terminationRemovalChatIds) {
+    try {
+      await bot.api.banChatMember(chatId, userId);
+      await bot.api.unbanChatMember(chatId, userId, { only_if_banned: true });
+    } catch (error) {
+      console.error(`Не удалось удалить ${telegramId} из чата ${chatId}:`, error);
+    }
+  }
+}
+
+function formatDeadline(iso: unknown): string {
+  return new Date(String(iso)).toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Moscow",
+  });
 }

@@ -10,6 +10,8 @@ import type { AuthenticatedUser } from "@/types/index.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/types/index.js";
 import { generateTemporaryPassword } from "@/utils/generatePassword.js";
 import { sanitizeUser } from "@/utils/serializers.js";
+import { DATA_CONFIRMATION_WINDOW_MS, decideDataConfirmation } from "@/utils/dataConfirmation.js";
+import { logger } from "@/lib/logger.js";
 
 /**
  * Канал по умолчанию для новой web-роли (SRS/PLAN.md: SALES единолично ведёт
@@ -164,22 +166,36 @@ export class UserService {
    * процедуры и просто заблокировали через эту кнопку, он раньше оставался в
    * группах — найдено пользователем вживую. Теперь срабатывает для любой блокировки,
    * откуда бы она ни была вызвана. */
-  async blockUser(admin: AuthenticatedUser, userId: string, reason: string): Promise<void> {
+  /** `admin` = null — системная блокировка (истёк срок «Подтвердить данные»): исполнитель
+   * в аудите пустой, причина в metadata. `notice` — что сообщить сотруднику: при
+   * увольнении/ручной блокировке — employee_terminated, при автоблокировке — честная
+   * причина; остальные действия (статус, удаление из чатов ботом, отзыв VPN) одинаковы. */
+  async blockUser(
+    admin: AuthenticatedUser | null,
+    userId: string,
+    reason: string,
+    notice: "terminated" | "data_unconfirmed" = "terminated",
+  ): Promise<void> {
     const user = await userRepository.findById(userId);
     if (!user) throw new NotFoundError("Пользователь не найден");
     await userRepository.blockUser(userId, reason);
-    await notificationService.notifyEmployeeTerminated(userId);
+    if (notice === "data_unconfirmed") {
+      await notificationService.notifyBlockedDataUnconfirmed(userId);
+    } else {
+      await notificationService.notifyEmployeeTerminated(userId);
+    }
     // Единственная точка блокировки — срабатывает и при ручной блокировке, и при
-    // appealService.processTermination (увольнение), поэтому отзыв VPN-профиля
-    // здесь, а не дублируется в обоих местах вызова.
+    // appealService.processTermination (увольнение), и по сроку подтверждения данных,
+    // поэтому отзыв VPN-профиля здесь, а не дублируется в местах вызова.
     await vpnService.revokeProfile(userId);
     await auditService.record({
-      actorId: admin.id,
+      actorId: admin?.id ?? null,
       action: "user.blocked",
       objectType: "User",
       objectId: userId,
       result: "success",
       reason,
+      ...(admin ? {} : { metadata: { system: "data_confirmation_deadline" } }),
     });
   }
 
@@ -273,6 +289,67 @@ export class UserService {
       result: "success",
       metadata: { previousFullName: user.fullName, newFullName: fullName },
     });
+    // Исправленное ФИО в ответ на «Подтвердить данные» — тоже подтверждение.
+    await this.completeDataConfirmation({ ...user, fullName });
+  }
+
+  /** Кнопка «Данные верны» в боте. Возвращает false, если активной проверки нет
+   * (уже подтверждено, заблокирован, не запрашивали) — бот отвечает по-разному. */
+  async confirmDataSelf(telegramId: bigint): Promise<{ confirmed: boolean }> {
+    const user = await userRepository.findByTelegramId(telegramId);
+    if (!user) throw new NotFoundError("Пользователь не найден");
+    if (!user.dataConfirmationDeadline || user.status !== "ACTIVE") return { confirmed: false };
+    await auditService.record({
+      actorId: user.id,
+      action: "user.confirmed_data_self",
+      objectType: "User",
+      objectId: user.id,
+      result: "success",
+    });
+    await this.completeDataConfirmation(user);
+    return { confirmed: true };
+  }
+
+  private async completeDataConfirmation(user: {
+    id: string;
+    fullName: string;
+    dataConfirmationDeadline: Date | null;
+    dataConfirmationRequestedById: string | null;
+  }): Promise<void> {
+    if (!user.dataConfirmationDeadline) return;
+    await userRepository.clearDataConfirmation(user.id);
+    if (user.dataConfirmationRequestedById) {
+      await notificationService.notifyDataConfirmationOutcome(user.dataConfirmationRequestedById, "confirmed", user.fullName);
+    }
+  }
+
+  /** Периодическая обработка сроков «Подтвердить данные» (server.ts, раз в 10 мин):
+   * напоминание за 5 ч, по истечении — блокировка как ручная (blockUser с notice
+   * data_unconfirmed). Сбой по одному сотруднику не останавливает остальных. */
+  async processDataConfirmationDeadlines(now = new Date()): Promise<{ reminded: number; blocked: number; failed: number }> {
+    const result = { reminded: 0, blocked: 0, failed: 0 };
+    for (const user of await userRepository.findWithPendingDataConfirmation()) {
+      try {
+        const action = decideDataConfirmation(user, now);
+        if (action === "clear") {
+          await userRepository.clearDataConfirmation(user.id);
+        } else if (action === "remind") {
+          await notificationService.notifyConfirmDataReminder(user.id, user.fullName, user.dataConfirmationDeadline!);
+          await userRepository.markDataConfirmationReminded(user.id, now);
+          result.reminded++;
+        } else if (action === "block") {
+          await this.blockUser(null, user.id, "Не подтвердил данные в срок", "data_unconfirmed");
+          if (user.dataConfirmationRequestedById) {
+            await notificationService.notifyDataConfirmationOutcome(user.dataConfirmationRequestedById, "blocked", user.fullName);
+          }
+          result.blocked++;
+        }
+      } catch (error) {
+        result.failed++;
+        logger.error({ err: error, userId: user.id }, "userService: обработка срока подтверждения данных — сбой");
+      }
+    }
+    return result;
   }
 
   /** Кнопка «Подтвердить данные» на странице «Пользователи» (Администратор,
@@ -283,14 +360,19 @@ export class UserService {
     const user = await userRepository.findById(userId);
     if (!user) throw new NotFoundError("Пользователь не найден");
     if (!user.telegramId) throw new ValidationError("У пользователя не привязан Telegram");
+    if (user.status !== "ACTIVE") throw new ValidationError("Проверить данные можно только у активного сотрудника");
 
-    await notificationService.notifyConfirmDataRequest(userId);
+    // Повторный запрос начинает срок заново (решение 2026-10-02).
+    const deadline = new Date(Date.now() + DATA_CONFIRMATION_WINDOW_MS);
+    await userRepository.setDataConfirmationDeadline(userId, deadline, admin.id);
+    await notificationService.notifyConfirmDataRequest(userId, user.fullName, deadline);
     await auditService.record({
       actorId: admin.id,
       action: "user.requested_data_confirmation",
       objectType: "User",
       objectId: userId,
       result: "success",
+      metadata: { deadline: deadline.toISOString() },
     });
   }
 

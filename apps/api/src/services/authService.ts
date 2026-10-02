@@ -278,6 +278,7 @@ export class AuthService {
           await userRepository.updateStatus(existing.id, "PENDING");
           await accessRequestRepository.resubmit(request.id, params.fullName);
           await notificationService.notifyHrdNewAccessRequest(request.id, params.fullName);
+          await notificationService.notifyStaffNewAccessRequest(request.id, params.fullName);
           return { status: "PENDING", userId: existing.id, isNew: false };
         }
         const request = await accessRequestRepository.findByUserId(existing.id);
@@ -303,6 +304,7 @@ export class AuthService {
       fullName: params.fullName,
     });
     await notificationService.notifyHrdNewAccessRequest(accessRequest.id, params.fullName);
+    await notificationService.notifyStaffNewAccessRequest(accessRequest.id, params.fullName);
     return { status: user.status, userId: user.id, isNew: true };
   }
 

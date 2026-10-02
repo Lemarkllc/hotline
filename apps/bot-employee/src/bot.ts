@@ -284,6 +284,21 @@ export function createBot(): Bot<BotContext> {
     await renderVpnDevices(ctx);
   });
 
+  // «Данные верны» под запросом «Подтвердить данные» (notificationHandler.ts). Без
+  // requireActiveUser: проверку решает API, а заблокированному нужен понятный ответ.
+  bot.callbackQuery("confirm_data_ok", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    try {
+      const { confirmed } = await apiClient.confirmDataSelf(String(ctx.from!.id));
+      ctx.session.awaitingFullNameCorrection = undefined;
+      await ctx.editMessageReplyMarkup().catch(() => undefined);
+      await ctx.reply(confirmed ? "Спасибо, данные подтверждены." : "Подтверждение сейчас не требуется.");
+    } catch (error) {
+      console.error("Ошибка подтверждения данных:", error);
+      await ctx.reply("Не получилось подтвердить данные. Попробуйте ещё раз позже.");
+    }
+  });
+
   bot.command("my", async (ctx) => {
     if (!(await requireActiveUser(ctx))) return;
     await renderMyAppealsMenu(ctx);

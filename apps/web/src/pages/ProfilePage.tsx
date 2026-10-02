@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
+import { useAccessRequests } from "@/hooks/api";
+import { useCanApproveAccess } from "@/hooks/useCanApproveAccess";
 import { setupWebPush } from "@/lib/webPush";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { initials } from "@/lib/utils";
@@ -21,6 +23,9 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const canApproveAccess = useCanApproveAccess();
+  const { data: accessRequests } = useAccessRequests(canApproveAccess);
+  const pendingAccessCount = accessRequests?.length ?? 0;
   const [pushStatus, setPushStatus] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
 
@@ -54,6 +59,22 @@ export function ProfilePage() {
       </div>
 
       <div className="w-full divide-y divide-border overflow-hidden rounded-[16px] border border-border bg-surface">
+        {canApproveAccess && (
+          <button
+            onClick={() => navigate("/access-requests")}
+            className="flex w-full items-center justify-between px-4 py-4 text-left text-[15px] text-foreground"
+          >
+            <span>
+              Заявки на доступ
+              {pendingAccessCount > 0 && (
+                <span className="ml-2 rounded-full bg-action px-2 py-0.5 text-[12px] font-semibold text-action-fg">
+                  {pendingAccessCount}
+                </span>
+              )}
+            </span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </button>
+        )}
         <button
           onClick={() => navigate("/change-password")}
           className="flex w-full items-center justify-between px-4 py-4 text-left text-[15px] text-foreground"

@@ -52,3 +52,8 @@ export const fixFullNameBotSchema = z.object({
   telegramId: z.union([z.string(), z.number()]).transform(String),
   fullName: z.string().trim().min(3).max(200),
 });
+
+/** Кнопка «Данные верны» в боте (userService.confirmDataSelf). */
+export const confirmDataBotSchema = z.object({
+  telegramId: z.union([z.string(), z.number()]).transform(String),
+});

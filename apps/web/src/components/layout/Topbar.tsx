@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
 import { useMarkNotificationRead, useNotifications } from "@/hooks/api";
-import { describeNotification } from "@/lib/notifications";
+import { describeNotification, notificationTarget } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -41,7 +41,7 @@ export function Topbar() {
                       setOpen(false);
                       if (n.appealId) navigate(`/appeals/${n.appealId}`);
                       else if (n.emailLeadId) navigate(`/leads/${n.emailLeadId}`);
-                      else if (n.payload?.type === "lead_ai_autostoplist_digest") navigate("/leads");
+                      else if (notificationTarget(n.payload)) navigate(notificationTarget(n.payload)!);
                       else if (n.payload?.type === "bitrix_lead_stalled" && n.payload.url) {
                         window.open(n.payload.url as string, "_blank", "noopener,noreferrer");
                       }

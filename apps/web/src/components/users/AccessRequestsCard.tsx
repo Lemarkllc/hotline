@@ -22,16 +22,34 @@ export function AccessRequestsCard() {
       <CardContent className="flex flex-col gap-2">
         {!requests?.length && <p className="text-ui text-text-3">Заявок нет.</p>}
         {requests?.map((r) => (
-          <div key={r.id} className="flex items-center justify-between rounded-md border border-rule p-3">
+          // На телефоне (PWA) кнопки уходят под имя и растягиваются на всю ширину — в одну
+          // строку с длинным ФИО они не помещались; с md и шире — прежняя строка.
+          <div
+            key={r.id}
+            className="flex flex-col gap-3 rounded-md border border-rule p-3 md:flex-row md:items-center md:justify-between"
+          >
             <div>
               <p className="text-ui font-medium text-text-1">{r.fullName}</p>
-              <p className="text-meta text-text-3">telegramId: {r.telegramId}</p>
+              <p className="text-meta text-text-3">
+                {new Date(r.createdAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                {" · "}telegramId: {r.telegramId}
+              </p>
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => approve.mutate(r.id)} disabled={approve.isPending}>
+            <div className="grid grid-cols-2 gap-2 md:flex">
+              <Button
+                className="min-h-touch md:min-h-0"
+                size="sm"
+                onClick={() => approve.mutate(r.id)}
+                disabled={approve.isPending}
+              >
                 Подтвердить
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setRejectTarget({ id: r.id, fullName: r.fullName })}>
+              <Button
+                className="min-h-touch md:min-h-0"
+                size="sm"
+                variant="outline"
+                onClick={() => setRejectTarget({ id: r.id, fullName: r.fullName })}
+              >
                 Отклонить
               </Button>
             </div>

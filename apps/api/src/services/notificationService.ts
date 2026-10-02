@@ -449,22 +449,69 @@ export class NotificationService {
   }
 
   /** «Подтвердить данные» (кнопка Администратора на странице «Пользователи»,
-   * 2026-09-23) — просит сотрудника прислать ФИО заново, следующий текстовый
-   * ответ применяется автоматически (см. bot-employee notificationHandler.ts
-   * "confirm_data_request" и session.awaitingFullNameCorrection). Выросло из
-   * разового инцидента (несколько сотрудников ввели "/vpn" вместо имени при
-   * регистрации, HR одобрил не заметив) в постоянный инструмент проверки. */
-  async notifyConfirmDataRequest(userId: string): Promise<void> {
+   * 2026-09-23; со сроком и автоблокировкой — 2026-10-02) — бот просит подтвердить
+   * текущее ФИО кнопкой «Данные верны» или прислать исправленное (см. bot-employee
+   * notificationHandler.ts "confirm_data_request" и session.awaitingFullNameCorrection).
+   * Выросло из разового инцидента ("/vpn" вместо имени при регистрации). */
+  async notifyConfirmDataRequest(userId: string, fullName: string, deadline: Date): Promise<void> {
     await notificationRepository.create({
       userId,
       channel: "TELEGRAM",
-      payload: { type: "confirm_data_request" },
+      payload: { type: "confirm_data_request", fullName, deadline: deadline.toISOString() },
     });
   }
 
-  /** reason/permanent — только для отказа (решение пользователя 2026-09-24: причина
-   * должна доходить до сотрудника, а мягкий отказ должен явно говорить, что можно
-   * подать заявку заново через /start, см. bot-employee notificationHandler.ts). */
+  /** Напоминание за 5 ч до конца срока (userService.processDataConfirmationDeadlines). */
+  async notifyConfirmDataReminder(userId: string, fullName: string, deadline: Date): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: "confirm_data_reminder", fullName, deadline: deadline.toISOString() },
+    });
+  }
+
+  /** Автоблокировка по сроку — вместо employee_terminated: те же действия бота
+   * (удаление из рабочих чатов), но сотруднику сообщается настоящая причина. */
+  async notifyBlockedDataUnconfirmed(userId: string): Promise<void> {
+    await notificationRepository.create({
+      userId,
+      channel: "TELEGRAM",
+      payload: { type: "user_blocked_data_unconfirmed" },
+    });
+  }
+
+  /** Итог проверки данных — тому, кто её запросил (веб-панель + push). */
+  async notifyDataConfirmationOutcome(
+    requestedById: string,
+    outcome: "confirmed" | "blocked",
+    fullName: string,
+  ): Promise<void> {
+    const type = outcome === "confirmed" ? "data_confirmed" : "user_blocked_data_unconfirmed";
+    await notificationRepository.create({ userId: requestedById, channel: "WEB", payload: { type, fullName } });
+    await pushService.sendToUser(requestedById, {
+      title: outcome === "confirmed" ? "Данные подтверждены" : "Сотрудник заблокирован",
+      body: outcome === "confirmed" ? `${fullName} подтвердил(а) свои данные` : `${fullName} не подтвердил(а) данные в срок`,
+      url: "/users",
+    });
+  }
+
+  /** Новая заявка на доступ — веб-панель + push всем HRD и Администраторам: без этого
+   * с телефона (PWA) о заявках было не узнать, Telegram-уведомление получали только HRD. */
+  async notifyStaffNewAccessRequest(requestId: string, fullName: string): Promise<void> {
+    const recipients = [...(await userRepository.findByRole("HRD")), ...(await userRepository.findByRole("ADMINISTRATOR"))];
+    const unique = [...new Map(recipients.map((r) => [r.id, r])).values()];
+    await Promise.all(
+      unique.map(async (r) => {
+        await notificationRepository.create({
+          userId: r.id,
+          channel: "WEB",
+          payload: { type: "access_request_new", requestId, fullName },
+        });
+        await pushService.sendToUser(r.id, { title: "Новая заявка на доступ", body: fullName, url: "/access-requests" });
+      }),
+    );
+  }
+
   async notifyAccessDecision(userId: string, approved: boolean, reason?: string, permanent?: boolean): Promise<void> {
     await notificationRepository.create({
       userId,
