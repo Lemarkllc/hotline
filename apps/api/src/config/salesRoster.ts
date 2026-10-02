@@ -7,11 +7,12 @@
  * не зависит (NEWCOMERS/REST — просто списки ключей).
  */
 export const SALES_ROSTER = {
-  ROMAN: { bitrixId: "87", fullName: "Роман Гурьев" },
   ANASTASIA: { bitrixId: "17", fullName: "Анастасия Архипова" },
   PAVEL: { bitrixId: "83", fullName: "Павел Лякишев" },
   TATIANA: { bitrixId: "85", fullName: "Татьяна Пономарёва" },
   ALEXANDER: { bitrixId: "89", fullName: "Александр Шевчук" },
+  // Новый менеджер (решение пользователя 2026-10-02) — Bitrix ID найден через user.search.
+  NATALIA: { bitrixId: "173", fullName: "Наталья Белякова" },
 } as const;
 
 export type SalesRosterKey = keyof typeof SALES_ROSTER;
@@ -19,18 +20,18 @@ export type SalesRosterKey = keyof typeof SALES_ROSTER;
 export const SALES_ROSTER_KEYS = Object.keys(SALES_ROSTER) as SalesRosterKey[];
 
 /** Приоритетная пара — самобалансировка по нагрузке, высший приоритет после
- * именного назначения (решение пользователя, 2026-09-17: Мила уволилась, Архипова
- * заняла её место в этом тире, а не отдельный "переполнение"-тир — тот стал бы
- * пустым сам по себе, раз в нём никого не осталось). Порядок ЗНАЧИМ: при равной
- * нагрузке (или единственной прошедшей порог) побеждает первый в массиве — тем же
- * механизмом, что и раньше, но теперь тай-брейк должен быть за Архиповой, поэтому
- * она первая (см. leadAssignmentService.pickAssignee).
+ * именного назначения. Порядок ЗНАЧИМ: при равной нагрузке (или единственной
+ * прошедшей порог) побеждает первый в массиве (см. leadAssignmentService.pickAssignee).
+ * История: 2026-09-17 Мила уволилась — Архипова заняла её место; 2026-10-02 уволился
+ * Гурьев — его место занял Шевчук, ничья по-прежнему за Архиповой (решение пользователя).
  */
-export const NEWCOMERS: SalesRosterKey[] = ["ANASTASIA", "ROMAN"];
+export const NEWCOMERS: SalesRosterKey[] = ["ANASTASIA", "ALEXANDER"];
 
-/** Опытные — случайный выбор, если и приоритетная пара занята; сегодня 3 человека,
- * но код (leadAssignmentService.ts) не завязан на конкретное количество. */
-export const REST: SalesRosterKey[] = ["PAVEL", "TATIANA", "ALEXANDER"];
+/** Случайный выбор, если и приоритетная пара занята. Белякова — новый менеджер, по
+ * решению пользователя 2026-10-02 «в конец очереди» = в этот же общий пул наравне с
+ * остальными (отдельный тир после случайного выбора никогда бы не срабатывал). Код
+ * (leadAssignmentService.ts) не завязан на конкретное количество. */
+export const REST: SalesRosterKey[] = ["PAVEL", "TATIANA", "NATALIA"];
 
 /** Порог "Не обработан" (Bitrix STATUS_ID="NEW") для новичков и переполнения. */
 export const NEW_LEAD_THRESHOLD = 10;
