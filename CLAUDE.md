@@ -119,6 +119,8 @@ Employees get a personal subscription link to **our** domain (`GET /api/v1/vpn/s
 - **One WireGuard key per device**: slot 1 = the employee's main panel client, slot 2 = a hidden aux client `<panelEmail>-AWG2` (AmneziaWG inbound only). `VpnAwgSlot` maps SHA-256(X-HWID) → slot; a slot is assigned only after the panel accepted that HWID under its device limit.
 - AmneziaWG is **optional**: any failure returns the subscription without it — never a full-tunnel config.
 - Revocation on termination (`revokeProfile`) must delete the aux client too. Existing profiles are migrated with `apps/api/src/scripts/backfillVpnAwg.ts` (`--dry-run` first).
+- **Device limit self-service**: the panel caps each subscription at 2 HWIDs and never forgets a device on its own — each app (Happ, INCY) on the same phone is a separate HWID. Employees manage their devices via `/vpndevices` in the bot (`GET /vpn/devices`, `POST /vpn/devices/delete`, ownership re-checked by `subId` in `vpnService`), and `vpnService.cleanupStaleDevices()` runs daily from `server.ts`, removing devices silent for `VPN_DEVICE_STALE_DAYS` (30) — only for bot-issued profiles, never manually created panel clients.
+- **RU-direct for Xray lives in the panel's `subJsonRoutingRules`** (Happ-format profile the panel converts into each JSON config's `routing`, with `IPIfNonMatch`). It must be valid JSON — a single trailing comma there silently produced "everything through VPN" configs for everyone until 2026-10-01. `subJsonRules` is not used by this panel build.
 - This replaces the neighbour provider's `incy_merge.py` approach (reads the panel's SQLite directly) — we only have the panel's HTTP API, so don't reintroduce panel-disk access.
 
 ## Testing
