@@ -114,7 +114,8 @@ export class ApiClient {
    * vpnService.listOwnDevices). 404 — VPN не выдан или подписка устарела. */
   getVpnDevices(telegramId: string) {
     return this.request<{
-      limit: number;
+      /** null — без ограничения. */
+      limit: number | null;
       devices: { id: number; app: string; os: string | null; model: string | null; lastSeen: string }[];
     }>("GET", `/vpn/devices?telegramId=${telegramId}`);
   }
