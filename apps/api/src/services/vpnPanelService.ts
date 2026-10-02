@@ -184,7 +184,15 @@ export class VpnPanelService {
       const c = obj.client;
       return { email: c.email, subId: c.subId, tgId: c.tgId, enable: c.enable, inboundIds: obj.inboundIds ?? [] };
     } catch (error) {
-      logger.warn({ err: error, email }, "vpnPanelService: getByEmail failed");
+      // «Клиента нет» — штатный ответ, не сбой: так проверяются свободные логины
+      // (findFreePanelEmail) и устаревшие профили (автоочистка устройств обходит их
+      // каждый запуск). На warn со стеком это засоряло логи; настоящие сбои связи с
+      // панелью (таймаут, 5xx, не настроена) по-прежнему warn.
+      if (error instanceof Error && /record not found/i.test(error.message)) {
+        logger.debug({ email }, "vpnPanelService: клиента с таким email на панели нет");
+      } else {
+        logger.warn({ err: error, email }, "vpnPanelService: getByEmail failed");
+      }
       return null;
     }
   }
