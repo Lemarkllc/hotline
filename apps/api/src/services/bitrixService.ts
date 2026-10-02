@@ -50,6 +50,11 @@ interface BitrixRawUser {
   ACTIVE?: boolean;
 }
 
+/** Размер страницы Bitrix REST для list/search-методов (фиксирован на стороне Bitrix). */
+const BITRIX_PAGE_SIZE = 50;
+/** Предохранитель от бесконечного обхода — на порядок больше реального штата. */
+const MAX_USERS_SCAN = 2000;
+
 /** Тонкая обёртка над Bitrix24 REST через входящий вебхук (PLAN.md, проверен вживую
  * 2026-08-03: user.current/crm.lead.fields/user.search/crm.status.list). Никакого SDK
  * или OAuth-флоу — токен уже встроен в сам webhookUrl. */
@@ -86,7 +91,15 @@ export class BitrixService {
    * LIKE-фильтров Bitrix (%FIELD), который не проверялся вживую.
    */
   private async fetchActiveUsers(): Promise<BitrixUserDTO[]> {
-    const users = await this.call<BitrixRawUser[]>("user.search", { FILTER: { ACTIVE: true } });
+    // user.search отдаёт не больше 50 записей за запрос — без постраничного обхода
+    // сотрудники после 50-го молча пропадали (найдено 2026-10-02: активных стало 54,
+    // новый менеджер Белякова — ID 173 — не находилась ни в поиске, ни в findUserById).
+    const users: BitrixRawUser[] = [];
+    for (let start = 0; ; start += BITRIX_PAGE_SIZE) {
+      const page = await this.call<BitrixRawUser[]>("user.search", { FILTER: { ACTIVE: true }, start });
+      users.push(...page);
+      if (page.length < BITRIX_PAGE_SIZE || start >= MAX_USERS_SCAN) break;
+    }
     return users.map((u) => ({
       id: u.ID,
       fullName: [u.LAST_NAME, u.NAME, u.SECOND_NAME].filter(Boolean).join(" ") || u.EMAIL || u.ID,
