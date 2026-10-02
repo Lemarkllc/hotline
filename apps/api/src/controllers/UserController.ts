@@ -101,6 +101,16 @@ export class UserController extends BaseController {
     }
   }
 
+  /** Кнопка «Данные верны» в боте — см. userService.confirmDataSelf. */
+  async confirmDataFromBot(req: Request, res: Response): Promise<void> {
+    try {
+      const { telegramId } = req.body as { telegramId: string };
+      this.handleSuccess(res, await userService.confirmDataSelf(BigInt(telegramId)));
+    } catch (error) {
+      this.handleError(error, res, "confirmDataFromBot");
+    }
+  }
+
   /** Самостоятельная правка ФИО из бота — см. userService.fixFullNameSelf. */
   async fixFullNameFromBot(req: Request, res: Response): Promise<void> {
     try {

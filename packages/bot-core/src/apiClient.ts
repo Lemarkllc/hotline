@@ -104,6 +104,12 @@ export class ApiClient {
     );
   }
 
+  /** Кнопка «Данные верны» (userService.confirmDataSelf): confirmed=false — активной
+   * проверки уже нет (подтверждено раньше или срок истёк). */
+  confirmDataSelf(telegramId: string) {
+    return this.request<{ confirmed: boolean }>("POST", "/users/confirm-data-bot", { telegramId });
+  }
+
   /** «Мои устройства VPN» — устройства своей подписки (владение проверяет API,
    * vpnService.listOwnDevices). 404 — VPN не выдан или подписка устарела. */
   getVpnDevices(telegramId: string) {

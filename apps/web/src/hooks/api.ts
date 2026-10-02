@@ -383,6 +383,8 @@ export interface UserDTO {
   /** Для формулы остатка отпуска (PLAN.md §10) — null, пока не заведено вручную. */
   hireDate: string | null;
   vacationBalance: { startingBalance: number; asOfDate: string } | null;
+  /** «Подтвердить данные»: срок ответа сотрудника, null — проверки нет. */
+  dataConfirmationDeadline?: string | null;
 }
 
 export function useUsers(status?: string) {
@@ -492,8 +494,11 @@ export function useResetPassword() {
 }
 
 export function useRequestDataConfirmation() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiRequest<{ ok: true }>(`/users/${id}/request-data-confirmation`, { method: "POST" }),
+    // Срок ожидания показывается в списке — обновляем его сразу после запроса.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }
 

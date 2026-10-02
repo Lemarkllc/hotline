@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useMarkNotificationRead, useNotifications } from "@/hooks/api";
-import { describeNotification } from "@/lib/notifications";
+import { describeNotification, notificationTarget } from "@/lib/notifications";
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -39,10 +39,9 @@ export function NotificationsPage() {
                 if (unread) markRead.mutate(n.id);
                 if (n.appealId) navigate(`/appeals/${n.appealId}`);
                 else if (n.emailLeadId) navigate(`/leads/${n.emailLeadId}`);
-                // Дайджест авто-стоплиста (leadAutoStopListService) — про N писем сразу,
-                // не про один лид, поэтому нет ни appealId, ни emailLeadId (см.
-                // notificationService.notifySalesAutoStopListDigest).
-                else if (n.payload?.type === "lead_ai_autostoplist_digest") navigate("/leads");
+                // Уведомления не про конкретное обращение/лид (дайджест стоп-листа,
+                // заявки на доступ, проверка данных) — маршрут по типу, см. notificationTarget.
+                else if (notificationTarget(n.payload)) navigate(notificationTarget(n.payload)!);
                 // «SLA Лиды» (bitrixLeadSlaService) — чужая сущность (Bitrix, не наш
                 // EmailLead), ни appealId, ни emailLeadId нет, ссылка внешняя.
                 else if (n.payload?.type === "bitrix_lead_stalled" && n.payload.url) {

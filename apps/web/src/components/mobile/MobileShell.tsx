@@ -3,8 +3,11 @@ import { cn } from "@/lib/utils";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { MobileTabBar } from "./MobileTabBar";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
+import { AccessRequestsBanner } from "./AccessRequestsBanner";
 
 const DETAIL_ROUTE = /^\/(appeals|leads)\/[^/]+$/;
+/** Где баннер заявок на доступ лишний: на самом экране заявок. */
+const ACCESS_REQUESTS_ROUTE = "/access-requests";
 
 /** Мобильная оболочка (замена Sidebar+Topbar на брейкпоинте <768px, см. useIsMobile) —
  * design_handoff_mobile_pwa/. Карточка обращения (/appeals/:id) и карточка лида
@@ -26,6 +29,7 @@ export function MobileShell() {
         <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} threshold={threshold} />
       )}
       <main className={cn(!isDetailRoute && "px-4 pb-[calc(72px+env(safe-area-inset-bottom))] pt-4")}>
+        {!isDetailRoute && location.pathname !== ACCESS_REQUESTS_ROUTE && <AccessRequestsBanner />}
         <Outlet />
       </main>
       {!isDetailRoute && <MobileTabBar />}

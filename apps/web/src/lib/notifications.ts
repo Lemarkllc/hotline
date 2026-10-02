@@ -34,7 +34,29 @@ export function describeNotification(payload: Record<string, unknown>): string {
       return `ИИ отправил в стоп-лист ${payload.count} писем за сегодня — фильтр «От ИИ» в стоп-листе`;
     case "bitrix_lead_stalled":
       return `Лид Bitrix «${payload.title}» завис без движения`;
+    case "access_request_new":
+      return `Новая заявка на доступ: ${payload.fullName}`;
+    case "data_confirmed":
+      return `${payload.fullName} подтвердил(а) свои данные`;
+    case "user_blocked_data_unconfirmed":
+      return `${payload.fullName} заблокирован(а): данные не подтверждены в срок`;
     default:
       return "Новое уведомление";
+  }
+}
+
+/** Куда вести по клику уведомление, у которого нет appealId/emailLeadId (тот же список
+ * для колокольчика Topbar и мобильного экрана «Уведомления»). */
+export function notificationTarget(payload: Record<string, unknown>): string | null {
+  switch (payload.type) {
+    case "lead_ai_autostoplist_digest":
+      return "/leads";
+    case "access_request_new":
+      return "/access-requests";
+    case "data_confirmed":
+    case "user_blocked_data_unconfirmed":
+      return "/users";
+    default:
+      return null;
   }
 }

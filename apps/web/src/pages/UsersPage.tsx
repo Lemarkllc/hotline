@@ -337,6 +337,17 @@ export function UsersPage() {
                 <Badge variant={u.status === "ACTIVE" ? "success" : u.status === "BLOCKED" ? "destructive" : "outline"}>
                   {USER_STATUS_LABELS[u.status as UserStatus] ?? u.status}
                 </Badge>
+                {u.dataConfirmationDeadline && (
+                  <p className="mt-1 text-meta text-status-overdue">
+                    Ждёт подтверждения данных до{" "}
+                    {new Date(u.dataConfirmationDeadline).toLocaleString("ru-RU", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                )}
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-2">
