@@ -7,8 +7,8 @@
  * сотрудникам, у них нет причин меняться — если набор серверов изменится, правки
  * только здесь.
  */
-export const VPN_STANDARD_INBOUND_IDS = [1, 881, 882, 883, 884, 885, 886, 906, 912, 915] as const;
-// 915 — AmneziaWG (VPN_AWG_INBOUND_ID ниже), добавлен 2026-09-30 для INCY: даёт
+export const VPN_STANDARD_INBOUND_IDS = [1, 881, 882, 883, 884, 885, 886, 906, 912, 917] as const;
+// 917 — AmneziaWG (VPN_AWG_INBOUND_ID ниже), с 2026-10-06 вместо 915 (см. там): даёт
 // основному клиенту сотрудника ключ слота 1. Существующим — бэкфиллом
 // (scripts/backfillVpnAwg.ts).
 
@@ -26,10 +26,15 @@ export const VPN_STANDARD_INBOUND_IDS = [1, 881, 882, 883, 884, 885, 886, 906, 9
  * такого поля ни у clients, ни у inbounds/nodes. */
 export const VPN_PROFILE_HWID_LIMIT = 2;
 
-/** AmneziaWG-inbound на панели («AMN», порт 44034) — проверено вживую 2026-09-30.
- * Его конфиги INCY получает отдельным элементом подписки (vpnService.proxySubscription),
- * а не через JSON панели: Xray-JSON AmneziaWG не содержит. */
-export const VPN_AWG_INBOUND_ID = 915;
+/** AmneziaWG-inbound на панели («AMN-DE», порт UDP 47823, выход через Германию —
+ * правило Xray in-47823-udp → GER+HYST). Его конфиги INCY получает отдельным
+ * элементом подписки (vpnService.proxySubscription): Xray-JSON AmneziaWG не содержит.
+ * 2026-10-06 заменил 915 («AMN»): тот перестал отвечать на рукопожатия части
+ * клиентов (с мобильного не работал вовсе) после ручных правок/пересоздания на
+ * панели; 917 создан заново по образцу рабочего AMN2 (916). При переносе клиентов
+ * следить, чтобы их адреса в туннеле были внутри подсети сервера (10.8.1.0/24):
+ * массовая привязка (bulkAttach) переносит старые адреса клиента как есть. */
+export const VPN_AWG_INBOUND_ID = 917;
 
 /** Раздельная маршрутизация AmneziaWG «RU напрямую» (см. utils/awgAllowedIps.ts).
  * У WireGuard нет клиентского geoip-роутинга — только AllowedIPs в самом конфиге,
