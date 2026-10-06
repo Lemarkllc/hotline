@@ -1,6 +1,6 @@
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
-import { VPN_AWG_INBOUND_ID, VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
+import { VPN_AWG_INBOUND_IDS, VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
 import { vpnAwgSlotRepository } from "@/repositories/VpnAwgSlotRepository.js";
 import { MERGE_FETCHER_UA, vpnPanelService, type VpnPanelClientDTO, type VpnPanelDeviceDTO } from "@/services/vpnPanelService.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
@@ -260,7 +260,7 @@ export class VpnService {
 
   /** Вспомогательный клиент слота 2 AmneziaWG ("<panelEmail>-AWG2", см. VpnProfile.awgAuxSubId):
    * второе устройство сотрудника не может делить WireGuard-ключ с первым. Только
-   * AmneziaWG-inbound, limitHwid 0 — его подписку запрашивает лишь наш сервер.
+   * AmneziaWG-inbound'ы (VPN_AWG_INBOUND_IDS), limitHwid 0 — его подписку запрашивает лишь наш сервер.
    * Best-effort: сбой не должен ломать выдачу VPN — без него просто не будет AmneziaWG
    * на втором устройстве, бэкфилл (scripts/backfillVpnAwg.ts) досоздаст. Возвращает
    * true, если клиент есть (уже был или создан). */
@@ -276,7 +276,7 @@ export class VpnService {
               email: auxEmail,
               tgId,
               limitHwid: 0,
-              inboundIds: [VPN_AWG_INBOUND_ID],
+              inboundIds: [...VPN_AWG_INBOUND_IDS],
               comment: "HotLine: AmneziaWG слот 2, скрытый — не выдавать сотруднику",
             })
           ).subId;

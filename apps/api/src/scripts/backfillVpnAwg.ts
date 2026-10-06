@@ -17,7 +17,7 @@
  */
 import "dotenv/config";
 import { prisma } from "@/lib/prisma.js";
-import { VPN_AWG_INBOUND_ID } from "@/config/vpnConfig.js";
+import { VPN_AWG_INBOUND_IDS } from "@/config/vpnConfig.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
 import { generateSubId, vpnPanelService } from "@/services/vpnPanelService.js";
 
@@ -26,7 +26,7 @@ const AUX_COMMENT = "HotLine: AmneziaWG слот 2, скрытый — не вы
 
 async function main(): Promise<void> {
   const profiles = await vpnProfileRepository.findAllActive();
-  const toAttach: string[] = [];
+  const toAttach = new Map<number, string[]>(VPN_AWG_INBOUND_IDS.map((id) => [id, []]));
   const toCreate: { profileId: string; email: string; subId: string; tgId: number }[] = [];
   let missingOnPanel = 0;
 
@@ -37,7 +37,7 @@ async function main(): Promise<void> {
       console.log(`[нет на панели] ${profile.panelEmail} — пропуск (самовосстановится при следующем «Получить VPN»)`);
       continue;
     }
-    if (!main.inboundIds.includes(VPN_AWG_INBOUND_ID)) toAttach.push(profile.panelEmail);
+    for (const id of VPN_AWG_INBOUND_IDS) if (!main.inboundIds.includes(id)) toAttach.get(id)!.push(profile.panelEmail);
     if (!profile.awgAuxSubId) {
       toCreate.push({
         profileId: profile.id,
@@ -48,18 +48,20 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(`${dryRun ? "[dry-run] " : ""}профилей: ${profiles.length}, нет на панели: ${missingOnPanel}, привязать AmneziaWG: ${toAttach.length}, создать -AWG2: ${toCreate.length}`);
+  const attachSummary = [...toAttach].map(([id, emails]) => `${id}: ${emails.length}`).join(", ");
+  console.log(`${dryRun ? "[dry-run] " : ""}профилей: ${profiles.length}, нет на панели: ${missingOnPanel}, привязать AmneziaWG (${attachSummary}), создать -AWG2: ${toCreate.length}`);
   if (dryRun) return;
 
-  if (toAttach.length > 0) {
-    const result = await vpnPanelService.bulkAttach(toAttach, [VPN_AWG_INBOUND_ID]);
-    console.log(`bulkAttach: привязано ${result.attached.length}, пропущено ${result.skipped.length}, ошибок ${result.errors.length}`);
+  for (const [id, emails] of toAttach) {
+    if (emails.length === 0) continue;
+    const result = await vpnPanelService.bulkAttach(emails, [id]);
+    console.log(`bulkAttach ${id}: привязано ${result.attached.length}, пропущено ${result.skipped.length}, ошибок ${result.errors.length}`);
     for (const error of result.errors) console.error("[ошибка attach]", error);
   }
 
   if (toCreate.length > 0) {
     const result = await vpnPanelService.bulkCreate(
-      toCreate.map((c) => ({ email: c.email, subId: c.subId, tgId: c.tgId, limitHwid: 0, comment: AUX_COMMENT, inboundIds: [VPN_AWG_INBOUND_ID] })),
+      toCreate.map((c) => ({ email: c.email, subId: c.subId, tgId: c.tgId, limitHwid: 0, comment: AUX_COMMENT, inboundIds: [...VPN_AWG_INBOUND_IDS] })),
     );
     console.log(`bulkCreate: создано ${result.created}, пропущено ${result.skipped.length}`);
     const skipped = new Map(result.skipped.map((s) => [s.email, s.reason]));
