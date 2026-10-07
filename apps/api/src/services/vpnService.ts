@@ -74,7 +74,7 @@ function appName(userAgent: string | undefined): string {
   return ua.split("/")[0]?.trim() || "Неизвестное приложение";
 }
 
-function toDeviceView(d: VpnPanelDeviceDTO): VpnDeviceView {
+export function toDeviceView(d: VpnPanelDeviceDTO): VpnDeviceView {
   const os = [d.deviceOs, d.osVersion].filter(Boolean).join(" ") || null;
   return {
     id: d.id,

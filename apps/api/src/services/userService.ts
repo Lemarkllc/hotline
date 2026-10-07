@@ -105,14 +105,16 @@ export class UserService {
   }
 
   /** FR-USR-003/FR-AUTH-005: подтверждает Администратор или HRD. */
-  async approveAccessRequest(admin: AuthenticatedUser, requestId: string): Promise<void> {
+  /** notify=false — Администратор добавляет сотрудника в разделе «VPN» (adminVpnService):
+   * сообщения в Telegram при этом не отправляются (решение пользователя 2026-10-07). */
+  async approveAccessRequest(admin: AuthenticatedUser, requestId: string, options: { notify?: boolean } = {}): Promise<void> {
     this.requireHrdOrAdmin(admin);
     const request = await accessRequestRepository.findById(requestId);
     if (!request) throw new NotFoundError("Заявка не найдена");
     await accessRequestRepository.decide(requestId, { status: "ACTIVE", decidedById: admin.id });
     await userRepository.updateStatus(request.userId, "ACTIVE");
     await userRepository.grantChannelAccess(request.userId, "EMPLOYEE", admin.id);
-    await notificationService.notifyAccessDecision(request.userId, true);
+    if (options.notify !== false) await notificationService.notifyAccessDecision(request.userId, true);
     await auditService.record({
       actorId: admin.id,
       action: "user.access_approved",

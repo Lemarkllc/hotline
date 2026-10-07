@@ -93,3 +93,7 @@ export const VPN_AWG_FORCE_TUNNEL_CIDRS = [
   "185.76.151.0/24",
   "62.210.70.253/32",
 ] as const;
+
+/** Ссылки на INCY для письма с доступом (templates/vpnAccess.ts). */
+export const VPN_INCY_APP_STORE_URL = "https://apps.apple.com/app/incy/id6756943388";
+export const VPN_INCY_GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=llc.itdev.incy";

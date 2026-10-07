@@ -240,6 +240,12 @@ export function createBot(): Bot<BotContext> {
         { reply_markup: vpnKeyboard(config.webAppPublicUrl, subscriptionUrl) },
       );
     } catch (error) {
+      // 403 — осознанный отказ API с понятным текстом (например, «VPN отключён
+      // администратором»), показываем его как есть; остальное — общий сбой.
+      if (error instanceof ApiError && error.status === 403) {
+        await ctx.reply(error.message);
+        return;
+      }
       console.error("Ошибка получения VPN-доступа:", error);
       await ctx.reply("Не получилось получить VPN-доступ. Попробуйте ещё раз позже или обратитесь к администратору.");
     }

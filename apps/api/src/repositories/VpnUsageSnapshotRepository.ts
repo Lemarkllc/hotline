@@ -20,6 +20,17 @@ export class VpnUsageSnapshotRepository {
     });
   }
 
+  /** Снимки сотрудников по ВСЕМ их профилям, включая отозванные: после перевыпуска
+   * профиль новый, а ряд «за 30 дней» должен продолжаться (падение счётчика в день
+   * перевыпуска trafficOverWindow считает с нуля). */
+  listSinceForUsers(userIds: string[], since: Date): Promise<(VpnUsageSnapshot & { profile: { userId: string } })[]> {
+    return prisma.vpnUsageSnapshot.findMany({
+      where: { profile: { userId: { in: userIds } }, day: { gte: since } },
+      include: { profile: { select: { userId: true } } },
+      orderBy: { day: "asc" },
+    });
+  }
+
   /** Был ли уже снимок за этот день хоть у одного профиля (ночная задача не повторяется). */
   async hasAnyForDay(day: Date): Promise<boolean> {
     return (await prisma.vpnUsageSnapshot.count({ where: { day } })) > 0;
