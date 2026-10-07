@@ -1119,7 +1119,9 @@ export interface AdminVpnRow {
 
 export interface AdminVpnDevice {
   id: number;
+  kind: "phone" | "tablet" | "computer" | "unknown";
   app: string;
+  appVersion: string | null;
   os: string | null;
   model: string | null;
   lastSeen: string;

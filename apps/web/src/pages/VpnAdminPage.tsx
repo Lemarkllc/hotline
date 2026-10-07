@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronRight, Copy, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronRight, Copy, HelpCircle, Laptop, Plus, Smartphone, Tablet, Trash2 } from "lucide-react";
 import { FULL_NAME_FORMAT_HINT, isValidFullName } from "@hotline/shared";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
   useReissueVpn,
   useSendVpnEmail,
   useSetVpnDeviceLimit,
+  type AdminVpnDevice,
   type AdminVpnRow,
   type AdminVpnState,
 } from "@/hooks/api";
@@ -76,6 +77,25 @@ function devicesLabel(row: AdminVpnRow): string {
 }
 
 const DEVICES_PENDING_HINT = "Число устройств появится после снимка; точный список — в карточке сотрудника";
+
+const DEVICE_ICONS = { phone: Smartphone, tablet: Tablet, computer: Laptop, unknown: HelpCircle } as const;
+
+function DeviceIcon({ kind }: { kind: AdminVpnDevice["kind"] }) {
+  const Icon = DEVICE_ICONS[kind] ?? HelpCircle;
+  return <Icon className="size-5 shrink-0 text-text-3" aria-hidden />;
+}
+
+/** «5 мин назад», «3 ч назад», «вчера», «12 дн. назад» — по последнему обновлению подписки. */
+function relativeTime(iso: string, now = Date.now()): string {
+  const minutes = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
+  if (minutes < 2) return "только что";
+  if (minutes < 60) return `${minutes} мин назад`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} ч назад`;
+  const days = Math.round(hours / 24);
+  if (days === 1) return "вчера";
+  return `${days} дн. назад`;
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Не получилось — попробуйте ещё раз";
@@ -366,13 +386,14 @@ function EmployeeCard({ userId }: { userId: string }) {
             <ul className="divide-y divide-rule rounded-md border border-rule">
               {card.liveDevices.map((d) => (
                 <li key={d.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                  <div className="min-w-0">
-                    <p className="text-ui text-text-1">
-                      {d.app}
-                      {d.model ? ` · ${d.model}` : ""}
-                    </p>
+                  <DeviceIcon kind={d.kind} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-ui text-text-1">{d.model ?? "Устройство"}</p>
                     <p className="text-meta text-text-3">
-                      {d.os ?? "ОС неизвестна"} · обновлял подписку {formatDate(d.lastSeen, true)}
+                      {[d.os, d.appVersion ? `${d.app} ${d.appVersion}` : d.app].filter(Boolean).join(" · ")}
+                    </p>
+                    <p className="text-meta text-text-3" title={formatDate(d.lastSeen, true)}>
+                      Активно {relativeTime(d.lastSeen)}
                     </p>
                   </div>
                   <Button

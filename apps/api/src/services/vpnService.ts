@@ -26,6 +26,7 @@ import { AwgUnavailableError, vpnAwgSlotService } from "@/services/vpnAwgSlotSer
 import { vpnAwgRoutingService } from "@/services/vpnAwgRoutingService.js";
 import { ForbiddenError, HttpError, NotFoundError } from "@/types/index.js";
 import { selectStaleDevices } from "@/utils/vpnStaleDevices.js";
+import { describeVpnDevice, type VpnDeviceKind } from "@/utils/vpnDeviceLabel.js";
 import type { VpnProfile } from "@prisma/client";
 
 export interface VpnAccessDTO {
@@ -54,8 +55,11 @@ export interface VpnSubscriptionProxyResult {
 /** Устройство подписки для бота — без fingerprint и прочих внутренностей панели. */
 export interface VpnDeviceView {
   id: number;
+  kind: VpnDeviceKind;
   app: string;
+  appVersion: string | null;
   os: string | null;
+  /** Понятное название устройства (utils/vpnDeviceLabel.ts): «iPhone 11», «Mac», «Компьютер …». */
   model: string | null;
   lastSeen: string;
 }
@@ -66,21 +70,16 @@ export interface VpnDevicesDTO {
   devices: VpnDeviceView[];
 }
 
-/** "INCY/2.6.2/ios …" → "INCY"; служебный "HotLineMergeFetcher (INCY/2.6.2/…)" → "INCY". */
-function appName(userAgent: string | undefined): string {
-  let ua = (userAgent ?? "").trim();
-  const wrapped = ua.match(new RegExp(`^${MERGE_FETCHER_UA} \\((.+)\\)$`));
-  if (wrapped) ua = wrapped[1]!;
-  return ua.split("/")[0]?.trim() || "Неизвестное приложение";
-}
-
 export function toDeviceView(d: VpnPanelDeviceDTO): VpnDeviceView {
-  const os = [d.deviceOs, d.osVersion].filter(Boolean).join(" ") || null;
+  const label = describeVpnDevice(d, MERGE_FETCHER_UA);
   return {
     id: d.id,
-    app: appName(d.userAgent),
-    os,
-    model: d.deviceModel || null,
+    kind: label.kind,
+    app: label.app,
+    appVersion: label.appVersion,
+    os: label.os,
+    // Панель ничего не знает об устройстве — без заглушки «Устройство» (бот её показал бы).
+    model: d.deviceModel || d.deviceOs ? label.name : null,
     lastSeen: new Date(d.lastSeen).toISOString(),
   };
 }
