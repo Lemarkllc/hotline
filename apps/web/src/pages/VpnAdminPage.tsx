@@ -67,10 +67,15 @@ function traffic30Label(t: AdminVpnRow["traffic30"]): string {
   return `${formatBytes(t.bytes)} за ${t.days} дн. (с ${formatDate(t.since)})`;
 }
 
+/** Колонка «Устройства»: число из ночного снимка; пока снимка нет — хотя бы лимит. */
 function devicesLabel(row: AdminVpnRow): string {
-  if (row.state !== "ACTIVE" || !row.devices) return "—";
+  if (row.state === "NONE" || row.state === "DISABLED") return "нет VPN";
+  if (row.state === "STALE") return "не работает";
+  if (!row.devices) return `лимит ${row.deviceLimit ?? "—"}`;
   return `${row.devices.count} из ${row.deviceLimit ?? "—"}`;
 }
+
+const DEVICES_PENDING_HINT = "Число устройств появится после снимка; точный список — в карточке сотрудника";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Не получилось — попробуйте ещё раз";
@@ -606,7 +611,15 @@ export function VpnAdminPage() {
       {data && !data.panelAvailable && (
         <p className="text-meta text-status-overdue">Панель VPN не ответила — состояние ссылок и трафик «всего» сейчас неизвестны.</p>
       )}
-      {lastSnapshotAt && <p className="text-meta text-text-3">Устройства и трафик за 30 дней — на {formatDate(lastSnapshotAt, true)}.</p>}
+      {lastSnapshotAt ? (
+        <p className="text-meta text-text-3">Устройства и трафик за 30 дней — на {formatDate(lastSnapshotAt, true)}.</p>
+      ) : (
+        data && (
+          <p className="text-meta text-text-3">
+            Число устройств и трафик за 30 дней появятся после первого снимка (раз в сутки, после 03:00 МСК). Точный список устройств — в карточке сотрудника.
+          </p>
+        )
+      )}
       {error && <p className="text-meta text-status-overdue">{errorMessage(error)}</p>}
       {isLoading && <p className="text-ui text-text-3">Загрузка…</p>}
 
@@ -617,7 +630,7 @@ export function VpnAdminPage() {
               <div className="min-w-0">
                 <p className="truncate text-[15px] text-foreground">{r.fullName}</p>
                 <p className="mt-0.5 text-[12px] text-muted-foreground">
-                  {STATE_LABELS[r.state]} · устройств {devicesLabel(r)} · {traffic30Label(r.traffic30)}
+                  {STATE_LABELS[r.state]} · {r.state === "ACTIVE" ? `устройств ${devicesLabel(r)}` : devicesLabel(r)} · {traffic30Label(r.traffic30)}
                 </p>
               </div>
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
@@ -646,7 +659,12 @@ export function VpnAdminPage() {
                 <TableCell>
                   <Badge variant={STATE_VARIANTS[r.state]}>{STATE_LABELS[r.state]}</Badge>
                 </TableCell>
-                <TableCell>{devicesLabel(r)}</TableCell>
+                <TableCell
+                  className={r.state === "ACTIVE" && r.devices ? undefined : "text-text-3"}
+                  title={r.state === "ACTIVE" && !r.devices ? DEVICES_PENDING_HINT : undefined}
+                >
+                  {devicesLabel(r)}
+                </TableCell>
                 <TableCell>{traffic30Label(r.traffic30)}</TableCell>
                 <TableCell>{r.state === "ACTIVE" ? formatBytes(r.trafficTotal) : "—"}</TableCell>
               </TableRow>
