@@ -53,6 +53,11 @@ export const VPN_AWG_RU_IPV4_COMPACT_PREFIX = 19;
  * вовсе, чем выдать конфиг, который iOS не сохранит. */
 export const VPN_AWG_MAX_TUNNEL_ROUTES = 12000;
 
+/** PersistentKeepalive в выдаваемых AmneziaWG-конфигах (utils/awgAllowedIps.ts
+ * ensurePersistentKeepalive) — держит NAT мобильного оператора открытым между паузами.
+ * 25 с — стандартное значение WireGuard для клиентов за NAT. */
+export const VPN_AWG_PERSISTENT_KEEPALIVE_SEC = 25;
+
 /** Мимо туннеля: локальные/служебные сети (как в incy_merge.py; 0.0.0.0/8 — большие
  * списки с ним iOS обрабатывает плохо) + корпоративные адреса, которые в Routing-
  * профиле панели (subRoutingRules, DirectIp) идут напрямую — скопировано 2026-09-30,

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { applyAllowedIps, computeAwgAllowedIps } from "@/utils/awgAllowedIps.js";
+import { applyAllowedIps, computeAwgAllowedIps, ensurePersistentKeepalive } from "@/utils/awgAllowedIps.js";
 import { complement, intervalToCidrs, mergeIntervals, parseCidr, type IpInterval } from "@/utils/cidr.js";
 import { loadGeoIpCountry } from "@/utils/geoipDat.js";
 import { VPN_AWG_DIRECT_CIDRS, VPN_AWG_FORCE_TUNNEL_CIDRS } from "@/config/vpnConfig.js";
@@ -146,5 +146,33 @@ describe("applyAllowedIps", () => {
 
   it("две строки AllowedIPs — ошибка", () => {
     expect(() => applyAllowedIps(`${sample}\nAllowedIPs = 10.0.0.0/8\n`, ["1.0.0.0/8"])).toThrow(/найдено 2/);
+  });
+});
+
+describe("ensurePersistentKeepalive", () => {
+  const sample = readFileSync(new URL("./fixtures/amneziawg-sample.conf", import.meta.url), "utf-8");
+  const peerSection = (conf: string) => conf.slice(conf.indexOf("[Peer]"));
+
+  it("добавляет строку в секцию [Peer], остальное без изменений", () => {
+    const result = ensurePersistentKeepalive(sample, 25);
+    expect(peerSection(result)).toMatch(/^PersistentKeepalive = 25$/m);
+    expect(result.replace(/^PersistentKeepalive = 25\n?/m, "")).toBe(sample);
+    expect(result.indexOf("PersistentKeepalive")).toBeGreaterThan(result.indexOf("Endpoint"));
+  });
+
+  it("уже заданное значение не трогает и не дублирует", () => {
+    const withValue = `${sample.trimEnd()}\nPersistentKeepalive = 15\n`;
+    const result = ensurePersistentKeepalive(withValue, 25);
+    expect(result).toBe(withValue);
+    expect(result.match(/PersistentKeepalive/g)).toHaveLength(1);
+  });
+
+  it("строка в [Interface] не считается — добавляет в [Peer]", () => {
+    const weird = sample.replace("[Interface]", "[Interface]\nPersistentKeepalive = 5");
+    expect(peerSection(ensurePersistentKeepalive(weird, 25))).toMatch(/^PersistentKeepalive = 25$/m);
+  });
+
+  it("нет [Peer] — ошибка", () => {
+    expect(() => ensurePersistentKeepalive("[Interface]\nPrivateKey = x\n", 25)).toThrow(/\[Peer\]/);
   });
 });
