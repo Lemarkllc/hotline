@@ -84,7 +84,9 @@ const vpnStaleDevicesInterval = setInterval(() => {
 }, 24 * 60 * 60 * 1000);
 
 // Суточный снимок трафика VPN (vpnUsageService) для раздела «VPN» Администратора:
-// проверка раз в час, сам снимок — один раз за московские сутки после 03:00.
+// проверка раз в час, сам снимок — один раз за московские сутки после 03:00. Плюс сразу
+// при старте: иначе после выкатки колонка «Устройства» пустует до следующего часа.
+vpnUsageService.takeDailySnapshotIfDue().catch((error) => logger.error({ err: error }, "vpn usage snapshot failed"));
 const vpnUsageSnapshotInterval = setInterval(() => {
   vpnUsageService.takeDailySnapshotIfDue().catch((error) => logger.error({ err: error }, "vpn usage snapshot failed"));
 }, 60 * 60 * 1000);
