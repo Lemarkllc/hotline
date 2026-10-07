@@ -36,6 +36,19 @@ export interface VpnPanelClientDTO {
   limitHwid: number;
 }
 
+export interface VpnPanelClientSummary {
+  email: string;
+  subId: string;
+  /** 0 — без ограничения. */
+  limitHwid: number;
+  enable: boolean;
+  /** Накопительные счётчики, байты. */
+  up: number;
+  down: number;
+  /** Последний запрос подписки, мс Unix; null — не запрашивалась. */
+  lastSubFetch: number | null;
+}
+
 /** Устройство клиента на панели (HWID), как его отдаёт POST /clients/hwids/{email}.
  * Время — миллисекунды Unix. */
 export interface VpnPanelDeviceDTO {
@@ -126,6 +139,36 @@ export class VpnPanelService {
   /** Удаляет одно устройство, освобождая место под лимитом (DELETE …/hwids/{email}/{id}). */
   async deleteDevice(email: string, deviceId: number): Promise<void> {
     await this.call("DELETE", `/clients/hwids/${encodeURIComponent(email)}/${deviceId}`);
+  }
+
+  /** Все клиенты панели одним запросом (GET /clients/list) — со счётчиками трафика.
+   * Раздел VPN администратора и ночные снимки (vpnUsageService) берут данные отсюда,
+   * а не запросом на каждого сотрудника. Секретные поля клиента сюда не попадают. */
+  async listAllClients(): Promise<VpnPanelClientSummary[]> {
+    const items = await this.call<
+      {
+        email: string;
+        subId: string;
+        limitHwid?: number;
+        enable: boolean;
+        traffic?: { up?: number; down?: number; lastSubFetch?: number; lastOnline?: number } | null;
+      }[]
+    >("GET", "/clients/list");
+    return (items ?? []).map((c) => ({
+      email: c.email,
+      subId: c.subId,
+      limitHwid: c.limitHwid ?? 0,
+      enable: c.enable,
+      up: c.traffic?.up ?? 0,
+      down: c.traffic?.down ?? 0,
+      lastSubFetch: c.traffic?.lastSubFetch || null,
+    }));
+  }
+
+  /** Лимит устройств клиента (POST /clients/bulkAdjust {emails, limitHwid}) — меняет
+   * только лимит, без полной перезаписи клиента (clients/update требует весь объект). */
+  async setDeviceLimit(email: string, limitHwid: number): Promise<void> {
+    await this.call("POST", "/clients/bulkAdjust", { emails: [email], limitHwid });
   }
 
   /** Массовые операции для бэкфилла (scripts/backfillVpnAwg.ts): по OpenAPI панели

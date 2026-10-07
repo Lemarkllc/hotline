@@ -26,6 +26,12 @@ export const VPN_STANDARD_INBOUND_IDS = [1, 881, 882, 883, 884, 885, 886, 906, 9
  * такого поля ни у clients, ни у inbounds/nodes. */
 export const VPN_PROFILE_HWID_LIMIT = 2;
 
+/** Лимит устройств, который может задать администратор (раздел VPN), и потолок числа
+ * ключей AmneziaWG: слот 1 — основной клиент, слоты 2…5 — вспомогательные (решение
+ * пользователя 2026-10-07: ключей столько же, сколько устройств, но не больше 5). */
+export const VPN_MAX_DEVICE_LIMIT = 5;
+export const VPN_AWG_MAX_SLOTS = 5;
+
 /** AmneziaWG-inbound'ы на панели, оба выдаются каждому сотруднику (решение 2026-10-06):
  * 917 «🇩🇪 AMN-DE» (UDP 47823, выход через Германию — правило Xray in-47823-udp → GER+HYST)
  * и 916 «🇫🇷 AMN-FR» (UDP 49156, выход через Францию, настроен коллегой вручную).
@@ -87,3 +93,7 @@ export const VPN_AWG_FORCE_TUNNEL_CIDRS = [
   "185.76.151.0/24",
   "62.210.70.253/32",
 ] as const;
+
+/** Ссылки на INCY для письма с доступом (templates/vpnAccess.ts). */
+export const VPN_INCY_APP_STORE_URL = "https://apps.apple.com/app/incy/id6756943388";
+export const VPN_INCY_GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=llc.itdev.incy";

@@ -10,6 +10,7 @@ import { NotificationsPage } from "@/pages/NotificationsPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { ReportsPage } from "@/pages/ReportsPage";
 import { UsersPage } from "@/pages/UsersPage";
+import { VpnAdminPage } from "@/pages/VpnAdminPage";
 import { LeadsPage } from "@/pages/LeadsPage";
 import { SlaLeadsPage } from "@/pages/SlaLeadsPage";
 import { ManagerRatingPage } from "@/pages/ManagerRatingPage";
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
             children: [
               { path: "/users", element: <UsersPage /> },
               { path: "/directories", element: <DirectoriesPage /> },
+              { path: "/vpn-admin", element: <VpnAdminPage /> },
             ],
           },
           {

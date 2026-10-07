@@ -6,6 +6,7 @@ import { emailLeadRepository } from "@/repositories/EmailLeadRepository.js";
 import { renderLeadConfirmationHtml } from "@/templates/leadConfirmation.js";
 import { renderLeadReplyHtml } from "@/templates/leadReply.js";
 import { renderTemporaryPasswordHtml } from "@/templates/temporaryPassword.js";
+import { renderVpnAccessHtml } from "@/templates/vpnAccess.js";
 
 /** Автоответ клиенту только при создании НОВОЙ заявки (PLAN.md, решение №7) — вызывается
  * из emailIngestService ровно один раз на лид, не на каждое доливаемое письмо. */
@@ -97,6 +98,26 @@ export class EmailSendService {
       return true;
     } catch (error) {
       logger.error({ err: error, toEmail }, "emailSendService: temporary password send failed");
+      return false;
+    }
+  }
+
+  /** Письмо с доступом к VPN (раздел «VPN» Администратора) — systemFromAddress.
+   * false — SMTP не настроен или отправка не удалась (ошибка в логе без ссылки). */
+  async sendVpnAccess(toEmail: string, params: { fullName: string; subscriptionUrl: string; deviceLimit: number }): Promise<boolean> {
+    const transporter = this.getTransporter();
+    if (!transporter) return false;
+
+    try {
+      await transporter.sendMail({
+        from: config.email.systemFromAddress,
+        to: toEmail,
+        subject: "Доступ к VPN",
+        html: renderVpnAccessHtml(params),
+      });
+      return true;
+    } catch (error) {
+      logger.error({ err: error, toEmail }, "emailSendService: VPN access send failed");
       return false;
     }
   }

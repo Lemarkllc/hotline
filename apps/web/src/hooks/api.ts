@@ -1098,3 +1098,101 @@ export function useMarkNotificationRead() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }
+
+// --- VPN (раздел Администратора, user.manage) ---
+
+export type AdminVpnState = "ACTIVE" | "NONE" | "STALE" | "DISABLED";
+
+export interface AdminVpnRow {
+  userId: string;
+  fullName: string;
+  telegramId: string;
+  email: string | null;
+  state: AdminVpnState;
+  panelEmail: string | null;
+  deviceLimit: number | null;
+  /** Из последнего ночного снимка; null — снимка ещё нет. */
+  devices: { count: number; at: string } | null;
+  traffic30: { bytes: number; days: number; since: string | null; full: boolean };
+  trafficTotal: number | null;
+}
+
+export interface AdminVpnDevice {
+  id: number;
+  app: string;
+  os: string | null;
+  model: string | null;
+  lastSeen: string;
+}
+
+export interface AdminVpnCard {
+  row: AdminVpnRow;
+  subscriptionUrl: string | null;
+  connectorUrl: string | null;
+  liveDevices: AdminVpnDevice[] | null;
+}
+
+export function useAdminVpnList() {
+  return useQuery({
+    queryKey: ["admin-vpn"],
+    queryFn: () => apiRequest<{ rows: AdminVpnRow[]; panelAvailable: boolean }>("/admin/vpn"),
+  });
+}
+
+export function useAdminVpnCard(userId: string | null) {
+  return useQuery({
+    queryKey: ["admin-vpn", userId],
+    queryFn: () => apiRequest<AdminVpnCard>(`/admin/vpn/${userId}`),
+    enabled: Boolean(userId),
+  });
+}
+
+/** Все действия раздела меняют и список, и карточку — обновляем оба. */
+function useAdminVpnMutation<TInput, TResult = { ok: true }>(fn: (input: TInput) => Promise<TResult>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSettled: () => void qc.invalidateQueries({ queryKey: ["admin-vpn"] }),
+  });
+}
+
+export function useAddVpnEmployee() {
+  return useAdminVpnMutation((input: { telegramId: string; fullName: string; email?: string; deviceLimit: number }) =>
+    apiRequest<{ userId: string; outcome: "created" | "approved" | "reactivated" | "already_active" }>("/admin/vpn/employees", {
+      method: "POST",
+      body: input,
+    }),
+  );
+}
+
+export function useCreateVpn() {
+  return useAdminVpnMutation(({ userId, deviceLimit }: { userId: string; deviceLimit?: number }) =>
+    apiRequest<{ ok: true }>(`/admin/vpn/${userId}/create`, { method: "POST", body: { deviceLimit } }),
+  );
+}
+
+export function useReissueVpn() {
+  return useAdminVpnMutation((userId: string) => apiRequest<{ ok: true }>(`/admin/vpn/${userId}/reissue`, { method: "POST" }));
+}
+
+export function useDisableVpn() {
+  return useAdminVpnMutation((userId: string) => apiRequest<{ ok: true }>(`/admin/vpn/${userId}/disable`, { method: "POST" }));
+}
+
+export function useSetVpnDeviceLimit() {
+  return useAdminVpnMutation(({ userId, deviceLimit }: { userId: string; deviceLimit: number }) =>
+    apiRequest<{ ok: true }>(`/admin/vpn/${userId}/limit`, { method: "POST", body: { deviceLimit } }),
+  );
+}
+
+export function useDeleteVpnDevice() {
+  return useAdminVpnMutation(({ userId, deviceId }: { userId: string; deviceId: number }) =>
+    apiRequest<{ ok: true }>(`/admin/vpn/${userId}/devices/delete`, { method: "POST", body: { deviceId } }),
+  );
+}
+
+export function useSendVpnEmail() {
+  return useAdminVpnMutation(({ userId, email }: { userId: string; email?: string }) =>
+    apiRequest<{ email: string }>(`/admin/vpn/${userId}/email`, { method: "POST", body: { email } }),
+  );
+}

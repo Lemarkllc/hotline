@@ -35,6 +35,11 @@ export class VpnAwgSlotRepository {
     });
   }
 
+  /** Слоты выше нового числа ключей (лимит устройств понизили) — освобождаются. */
+  deleteAbove(profileId: string, maxSlot: number): Promise<Prisma.BatchPayload> {
+    return prisma.vpnAwgSlot.deleteMany({ where: { profileId, slot: { gt: maxSlot } } });
+  }
+
   deleteAllForProfile(profileId: string): Promise<Prisma.BatchPayload> {
     return prisma.vpnAwgSlot.deleteMany({ where: { profileId } });
   }

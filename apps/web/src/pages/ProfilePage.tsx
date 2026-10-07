@@ -24,6 +24,7 @@ export function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const canApproveAccess = useCanApproveAccess();
+  const canManageVpn = useAuthStore((s) => s.hasPermission("user.manage"));
   const { data: accessRequests } = useAccessRequests(canApproveAccess);
   const pendingAccessCount = accessRequests?.length ?? 0;
   const [pushStatus, setPushStatus] = useState<string | null>(null);
@@ -72,6 +73,15 @@ export function ProfilePage() {
                 </span>
               )}
             </span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </button>
+        )}
+        {canManageVpn && (
+          <button
+            onClick={() => navigate("/vpn-admin")}
+            className="flex w-full items-center justify-between px-4 py-4 text-left text-[15px] text-foreground"
+          >
+            VPN-доступы
             <ChevronRight className="size-4 text-muted-foreground" />
           </button>
         )}

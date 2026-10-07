@@ -13,6 +13,7 @@ import {
   UserCheck,
   Users,
   type LucideIcon,
+  ShieldCheck,
 } from "lucide-react";
 import type { Permission } from "@hotline/shared";
 import { cn, initials } from "@/lib/utils";
@@ -81,6 +82,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/users", label: "Пользователи", icon: Users, permissions: ["user.manage"] },
       { to: "/directories", label: "Справочники", icon: BookOpen, permissions: ["user.manage"] },
+      { to: "/vpn-admin", label: "VPN", icon: ShieldCheck, permissions: ["user.manage"] },
       { to: "/audit", label: "Аудит", icon: History, permissions: ["audit.read"] },
     ],
   },

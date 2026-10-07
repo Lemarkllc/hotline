@@ -1,8 +1,16 @@
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
-import { VPN_AWG_INBOUND_IDS, VPN_AWG_PERSISTENT_KEEPALIVE_SEC, VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
+import {
+  VPN_AWG_INBOUND_IDS,
+  VPN_AWG_MAX_SLOTS,
+  VPN_AWG_PERSISTENT_KEEPALIVE_SEC,
+  VPN_PROFILE_HWID_LIMIT,
+  VPN_STANDARD_INBOUND_IDS,
+} from "@/config/vpnConfig.js";
+import { vpnAwgAuxClientRepository } from "@/repositories/VpnAwgAuxClientRepository.js";
+import { awgSlotCount, planAwgAuxSync } from "@/utils/awgSlotChoice.js";
 import { vpnAwgSlotRepository } from "@/repositories/VpnAwgSlotRepository.js";
-import { MERGE_FETCHER_UA, vpnPanelService, type VpnPanelClientDTO, type VpnPanelDeviceDTO } from "@/services/vpnPanelService.js";
+import { generateSubId, MERGE_FETCHER_UA, vpnPanelService, type VpnPanelClientDTO, type VpnPanelDeviceDTO } from "@/services/vpnPanelService.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { transliterateToLogin } from "@/utils/transliterate.js";
@@ -16,7 +24,7 @@ import {
 } from "@/utils/amneziaWgSubscription.js";
 import { AwgUnavailableError, vpnAwgSlotService } from "@/services/vpnAwgSlotService.js";
 import { vpnAwgRoutingService } from "@/services/vpnAwgRoutingService.js";
-import { ForbiddenError, NotFoundError } from "@/types/index.js";
+import { ForbiddenError, HttpError, NotFoundError } from "@/types/index.js";
 import { selectStaleDevices } from "@/utils/vpnStaleDevices.js";
 import type { VpnProfile } from "@prisma/client";
 
@@ -30,8 +38,9 @@ export interface VpnAccessDTO {
 /**
  * «Получить VPN» (боковое меню бота-сотрудника) — создаёт персональный профиль на
  * 3X-UI (vpnPanelService), даёт ссылку подписки. Отзыв — при увольнении
- * (userService.blockUser вызывает revokeProfile) — вместе с вспомогательным
- * AmneziaWG-клиентом слота 2. Для INCY подписка дополняется AmneziaWG с
+ * (userService.blockUser вызывает revokeProfile), перевыпуске и отключении
+ * Администратором (revokeProfileOrThrow) — вместе со всеми вспомогательными
+ * AmneziaWG-клиентами слотов 2…5. Для INCY подписка дополняется AmneziaWG с
  * раздельной маршрутизацией (withAmneziaWg, флаг VPN_AWG_ENABLED).
  */
 /** Ответ upstream-панели на /sub/<subId>, который проксируем как есть, кроме
@@ -65,7 +74,7 @@ function appName(userAgent: string | undefined): string {
   return ua.split("/")[0]?.trim() || "Неизвестное приложение";
 }
 
-function toDeviceView(d: VpnPanelDeviceDTO): VpnDeviceView {
+export function toDeviceView(d: VpnPanelDeviceDTO): VpnDeviceView {
   const os = [d.deviceOs, d.osVersion].filter(Boolean).join(" ") || null;
   return {
     id: d.id,
@@ -151,8 +160,8 @@ export class VpnService {
   ): Promise<ArrayBuffer> {
     try {
       const json: unknown = JSON.parse(Buffer.from(body).toString("utf-8"));
-      const slot = await vpnAwgSlotService.assignSlot(profile.id, hwid, VPN_PROFILE_HWID_LIMIT);
-      const slotSubId = slot === 1 ? profile.subId : slot === 2 ? profile.awgAuxSubId : null;
+      const slot = await vpnAwgSlotService.assignSlot(profile.id, hwid, awgSlotCount(profile.deviceLimit, VPN_AWG_MAX_SLOTS));
+      const slotSubId = slot === 1 ? profile.subId : (await vpnAwgAuxClientRepository.findBySlot(profile.id, slot))?.subId;
       if (!slotSubId) throw new AwgUnavailableError(`слот ${slot}: вспомогательный клиент ещё не создан`);
 
       // X-HWID нужен только основному клиенту (слот 1, под лимитом устройств).
@@ -212,10 +221,16 @@ export class VpnService {
     if (!user || user.status !== "ACTIVE") {
       throw new ForbiddenError("VPN доступен только подтверждённым сотрудникам");
     }
+    if (user.vpnDisabledAt) throw new ForbiddenError("VPN отключён администратором");
     return this.getOrCreateProfile({ id: user.id, fullName: user.fullName, telegramId: user.telegramId! });
   }
 
-  async getOrCreateProfile(user: { id: string; fullName: string; telegramId: bigint }): Promise<VpnAccessDTO> {
+  /** deviceLimit — только для нового профиля (Администратор задаёт 1…5); у уже
+   * выданного лимит меняется отдельно (setDeviceLimit). */
+  async getOrCreateProfile(
+    user: { id: string; fullName: string; telegramId: bigint },
+    deviceLimit: number = VPN_PROFILE_HWID_LIMIT,
+  ): Promise<VpnAccessDTO> {
     const existing = await vpnProfileRepository.findActiveByUserId(user.id);
     if (existing) {
       // Профиль считается активным локально, но панель могла смениться (как при
@@ -239,7 +254,10 @@ export class VpnService {
       );
       // Только локально: клиент на панели либо отсутствует, либо принадлежит другому сотруднику.
       await vpnAwgSlotRepository.deleteAllForProfile(existing.id);
+      await vpnAwgAuxClientRepository.deleteAllForProfile(existing.id);
       await vpnProfileRepository.revoke(existing.id);
+      // Лимит, заданный Администратором, переживает самовосстановление.
+      deviceLimit = existing.deviceLimit;
     }
 
     const baseEmail = transliterateToLogin(user.fullName);
@@ -248,43 +266,81 @@ export class VpnService {
     const { subId } = await vpnPanelService.createClient({
       email: panelEmail,
       tgId: Number(user.telegramId),
-      limitHwid: VPN_PROFILE_HWID_LIMIT,
+      limitHwid: deviceLimit,
       inboundIds: VPN_STANDARD_INBOUND_IDS,
     });
 
-    const profile = await vpnProfileRepository.create({ userId: user.id, panelEmail, subId });
-    await this.ensureAwgAuxClient(profile, Number(user.telegramId));
+    const profile = await vpnProfileRepository.create({ userId: user.id, panelEmail, subId, deviceLimit });
+    // Best-effort: без вспомогательных клиентов VPN рабочий, просто у устройств 2…N не
+    // будет AmneziaWG; бэкфилл (scripts/backfillVpnAwg.ts) или смена лимита досоздадут.
+    try {
+      await this.syncAwgAuxClients(profile, Number(user.telegramId));
+    } catch (error) {
+      logger.error({ err: error, profileId: profile.id }, "vpnService: не удалось создать вспомогательных AmneziaWG-клиентов");
+    }
 
     return { subscriptionUrl: this.getSubscriptionUrl(subId), alreadyExisted: false };
   }
 
-  /** Вспомогательный клиент слота 2 AmneziaWG ("<panelEmail>-AWG2", см. VpnProfile.awgAuxSubId):
-   * второе устройство сотрудника не может делить WireGuard-ключ с первым. Только
-   * AmneziaWG-inbound'ы (VPN_AWG_INBOUND_IDS), limitHwid 0 — его подписку запрашивает лишь наш сервер.
-   * Best-effort: сбой не должен ломать выдачу VPN — без него просто не будет AmneziaWG
-   * на втором устройстве, бэкфилл (scripts/backfillVpnAwg.ts) досоздаст. Возвращает
-   * true, если клиент есть (уже был или создан). */
-  async ensureAwgAuxClient(profile: VpnProfile, tgId: number): Promise<boolean> {
-    if (profile.awgAuxSubId) return true;
-    const auxEmail = `${profile.panelEmail}-AWG2`;
+  /** Вспомогательные клиенты AmneziaWG "<panelEmail>-AWG<N>" для слотов 2…min(лимит, 5):
+   * разные устройства сотрудника не могут делить один WireGuard-ключ. Только
+   * AmneziaWG-inbound'ы, limitHwid 0 — их подписку запрашивает лишь наш сервер.
+   * Недостающих создаёт одним bulkCreate (один перезапуск Xray), лишних удаляет с
+   * панели вместе с их слотами. Клиент с нужным email уже на панели (прошлый сбой
+   * между панелью и БД) — подхватывается, не создаётся второй раз. Сбой — исключение. */
+  async syncAwgAuxClients(profile: Pick<VpnProfile, "id" | "panelEmail" | "deviceLimit">, tgId: number): Promise<void> {
+    const slotCount = awgSlotCount(profile.deviceLimit, VPN_AWG_MAX_SLOTS);
+    const existing = await vpnAwgAuxClientRepository.listByProfile(profile.id);
+    const plan = planAwgAuxSync(
+      existing.map((a) => a.slot),
+      slotCount,
+    );
+
+    const toCreate: { slot: number; email: string; subId: string }[] = [];
+    for (const slot of plan.create) {
+      const email = `${profile.panelEmail}-AWG${slot}`;
+      const onPanel = await vpnPanelService.getByEmail(email);
+      if (onPanel) {
+        await vpnAwgAuxClientRepository.create({ profileId: profile.id, slot, panelEmail: email, subId: onPanel.subId });
+      } else {
+        toCreate.push({ slot, email, subId: generateSubId() });
+      }
+    }
+    if (toCreate.length > 0) {
+      const result = await vpnPanelService.bulkCreate(
+        toCreate.map((c) => ({
+          email: c.email,
+          subId: c.subId,
+          tgId,
+          limitHwid: 0,
+          inboundIds: VPN_AWG_INBOUND_IDS,
+          comment: `HotLine: AmneziaWG слот ${c.slot}, скрытый — не выдавать сотруднику`,
+        })),
+      );
+      const skipped = new Set(result.skipped.map((x) => x.email));
+      for (const c of toCreate) {
+        if (skipped.has(c.email)) continue;
+        await vpnAwgAuxClientRepository.create({ profileId: profile.id, slot: c.slot, panelEmail: c.email, subId: c.subId });
+      }
+      if (skipped.size > 0) {
+        throw new HttpError(502, `VPN-панель не создала вспомогательных клиентов: ${[...skipped].join(", ")}`);
+      }
+    }
+
+    for (const aux of existing.filter((a) => plan.remove.includes(a.slot))) {
+      await this.deletePanelClient(aux.panelEmail);
+      await vpnAwgAuxClientRepository.delete(aux.id);
+    }
+    if (plan.remove.length > 0) await vpnAwgSlotRepository.deleteAbove(profile.id, slotCount);
+  }
+
+  /** Удаление клиента панели; «его уже нет» (удалён руками, сменилась панель) — тоже успех. */
+  private async deletePanelClient(panelEmail: string): Promise<void> {
     try {
-      const existing = await vpnPanelService.getByEmail(auxEmail);
-      const auxSubId = existing
-        ? existing.subId
-        : (
-            await vpnPanelService.createClient({
-              email: auxEmail,
-              tgId,
-              limitHwid: 0,
-              inboundIds: [...VPN_AWG_INBOUND_IDS],
-              comment: "HotLine: AmneziaWG слот 2, скрытый — не выдавать сотруднику",
-            })
-          ).subId;
-      await vpnProfileRepository.setAwgAux(profile.id, auxEmail, auxSubId);
-      return true;
+      await vpnPanelService.deleteClient(panelEmail);
     } catch (error) {
-      logger.error({ err: error, profileId: profile.id, auxEmail }, "vpnService: не удалось создать AmneziaWG-клиента слота 2");
-      return false;
+      if (!(await vpnPanelService.getByEmail(panelEmail))) return;
+      throw error;
     }
   }
 
@@ -343,19 +399,32 @@ export class VpnService {
     return result;
   }
 
-  /** Best-effort, тем же принципом, что и остальные вторичные внешние вызовы в этой
-   * кодовой базе (см. leadService.forwardAttachmentsToBitrix) — сбой удаления в
-   * панели не должен блокировать остальной процесс увольнения (userService.blockUser),
-   * но и помечать профиль отозванным при неудаче нельзя: это скрыло бы то, что
-   * доступ по факту ещё жив. Ошибка остаётся в логах для ручной проверки. */
+  /** Увольнение (userService.blockUser): best-effort, тем же принципом, что и остальные
+   * вторичные внешние вызовы в этой кодовой базе (см. leadService.forwardAttachmentsToBitrix) —
+   * сбой удаления в панели не должен блокировать остальной процесс увольнения, но и
+   * помечать профиль отозванным при неудаче нельзя: это скрыло бы то, что доступ по
+   * факту ещё жив. Ошибка остаётся в логах для ручной проверки. */
   async revokeProfile(userId: string): Promise<void> {
+    try {
+      await this.revokeProfileOrThrow(userId);
+    } catch {
+      // Уже в логе (revokeProfileOrThrow).
+    }
+  }
+
+  /** Отзыв — один путь для увольнения, перевыпуска и отключения Администратором.
+   * Удаляет на панели основного и всех вспомогательных клиентов, слоты, помечает
+   * профиль отозванным. Сбой удаления любого клиента — профиль не трогаем, ошибка
+   * в лог и наверх (Администратор видит её, перевыпуск не создаёт новый профиль).
+   * Возвращает false, если активного профиля не было. */
+  async revokeProfileOrThrow(userId: string): Promise<boolean> {
     const profile = await vpnProfileRepository.findActiveByUserId(userId);
-    if (!profile) return;
+    if (!profile) return false;
 
     // Удаляем на панели, только если основной клиент — действительно ЭТОГО профиля
     // (subId совпадает). Иначе профиль устаревший (панель сменилась, логин занял другой
     // сотрудник — см. getOrCreateProfile): удаление по email снесло бы VPN чужому
-    // человеку, в том числе его -AWG2. Такой профиль отзываем только у себя.
+    // человеку, в том числе его -AWG<N>. Такой профиль отзываем только у себя.
     const onPanel = await vpnPanelService.getByEmail(profile.panelEmail);
     const ownsPanelClient = !!onPanel && onPanel.subId === profile.subId;
     if (onPanel && !ownsPanelClient) {
@@ -365,25 +434,24 @@ export class VpnService {
       );
     }
 
-    // Вспомогательный AmneziaWG-клиент (слот 2) — тоже рабочий ключ, удаляем первым:
-    // иначе у уволенного остался бы доступ со второго устройства.
-    const emails = ownsPanelClient ? [profile.awgAuxPanelEmail, profile.panelEmail].filter((e): e is string => !!e) : [];
-    for (const panelEmail of emails) {
-      try {
-        await vpnPanelService.deleteClient(panelEmail);
-      } catch (error) {
-        // Клиента на панели уже нет (удалён руками, сменилась панель) — цель достигнута.
-        if (!(await vpnPanelService.getByEmail(panelEmail))) continue;
-        logger.error(
-          { err: error, userId, panelEmail },
-          "vpnService: не удалось удалить VPN-профиль при увольнении — требуется ручная проверка",
-        );
-        return;
+    // Вспомогательные AmneziaWG-клиенты — тоже рабочие ключи, удаляем первыми:
+    // иначе у сотрудника остался бы доступ с устройств 2…N.
+    if (ownsPanelClient) {
+      const aux = await vpnAwgAuxClientRepository.listByProfile(profile.id);
+      for (const panelEmail of [...aux.map((a) => a.panelEmail), profile.panelEmail]) {
+        try {
+          await this.deletePanelClient(panelEmail);
+        } catch (error) {
+          logger.error({ err: error, userId, panelEmail }, "vpnService: не удалось удалить VPN-профиль — требуется ручная проверка");
+          throw new HttpError(502, `Не удалось удалить клиента VPN-панели ${panelEmail} — профиль не изменён`);
+        }
       }
     }
 
     await vpnAwgSlotRepository.deleteAllForProfile(profile.id);
+    await vpnAwgAuxClientRepository.deleteAllForProfile(profile.id);
     await vpnProfileRepository.revoke(profile.id);
+    return true;
   }
 }
 

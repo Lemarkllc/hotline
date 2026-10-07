@@ -14,6 +14,7 @@ const { managerLeadRatingService } = await import("@/services/managerLeadRatingS
 const { weeklyManagerDigestService } = await import("@/services/weeklyManagerDigestService.js");
 const { vpnService } = await import("@/services/vpnService.js");
 const { userService } = await import("@/services/userService.js");
+const { vpnUsageService } = await import("@/services/vpnUsageService.js");
 const { ensureBucketExists } = await import("@/lib/storage.js");
 const { initRealtime } = await import("@/lib/realtime.js");
 
@@ -82,6 +83,12 @@ const vpnStaleDevicesInterval = setInterval(() => {
   vpnService.cleanupStaleDevices().catch((error) => logger.error({ err: error }, "vpn stale devices cleanup failed"));
 }, 24 * 60 * 60 * 1000);
 
+// Суточный снимок трафика VPN (vpnUsageService) для раздела «VPN» Администратора:
+// проверка раз в час, сам снимок — один раз за московские сутки после 03:00.
+const vpnUsageSnapshotInterval = setInterval(() => {
+  vpnUsageService.takeDailySnapshotIfDue().catch((error) => logger.error({ err: error }, "vpn usage snapshot failed"));
+}, 60 * 60 * 1000);
+
 // «Подтвердить данные» (userService.processDataConfirmationDeadlines): напоминание за
 // 5 ч и блокировка по истечении 2 дней — 10 минут дают точность, которой достаточно.
 const dataConfirmationInterval = setInterval(() => {
@@ -95,6 +102,7 @@ const dataConfirmationInterval = setInterval(() => {
 
 function shutdown(): void {
   clearInterval(dataConfirmationInterval);
+  clearInterval(vpnUsageSnapshotInterval);
   clearInterval(vpnStaleDevicesInterval);
   clearInterval(cleanupInterval);
   clearInterval(emailPollInterval);

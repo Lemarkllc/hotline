@@ -1,4 +1,4 @@
-import type { User, VpnProfile } from "@prisma/client";
+import type { User, VpnAwgAuxClient, VpnProfile } from "@prisma/client";
 import { prisma } from "@/lib/prisma.js";
 
 export class VpnProfileRepository {
@@ -16,17 +16,20 @@ export class VpnProfileRepository {
     return prisma.vpnProfile.findFirst({ where: { subId, revokedAt: null }, include: { user: true } });
   }
 
-  create(data: { userId: string; panelEmail: string; subId: string }): Promise<VpnProfile> {
+  create(data: { userId: string; panelEmail: string; subId: string; deviceLimit: number }): Promise<VpnProfile> {
     return prisma.vpnProfile.create({ data });
   }
 
-  setAwgAux(id: string, awgAuxPanelEmail: string, awgAuxSubId: string): Promise<VpnProfile> {
-    return prisma.vpnProfile.update({ where: { id }, data: { awgAuxPanelEmail, awgAuxSubId } });
+  setDeviceLimit(id: string, deviceLimit: number): Promise<VpnProfile> {
+    return prisma.vpnProfile.update({ where: { id }, data: { deviceLimit } });
   }
 
-  /** Для бэкфилла AmneziaWG (scripts/backfillVpnAwg.ts) — с владельцем ради tgId. */
-  findAllActive(): Promise<(VpnProfile & { user: User })[]> {
-    return prisma.vpnProfile.findMany({ where: { revokedAt: null }, include: { user: true } });
+  /** Бэкфилл, ночные снимки, раздел администратора — с владельцем и aux-клиентами. */
+  findAllActive(): Promise<(VpnProfile & { user: User; awgAuxClients: VpnAwgAuxClient[] })[]> {
+    return prisma.vpnProfile.findMany({
+      where: { revokedAt: null },
+      include: { user: true, awgAuxClients: { orderBy: { slot: "asc" } } },
+    });
   }
 
   revoke(id: string): Promise<VpnProfile> {

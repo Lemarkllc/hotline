@@ -38,6 +38,33 @@ export class UserRepository {
     });
   }
 
+  /** «Добавить сотрудника» в разделе VPN администратора — сразу активный, без заявки
+   * (канал EMPLOYEE выдаётся отдельно, как при одобрении заявки). */
+  createTelegramEmployee(data: { telegramId: bigint; fullName: string; email?: string | null }): Promise<User> {
+    return prisma.user.create({
+      data: { telegramId: data.telegramId, fullName: data.fullName, email: data.email ?? null, status: "ACTIVE" },
+    });
+  }
+
+  setVpnDisabled(id: string, disabledById: string | null): Promise<User> {
+    return prisma.user.update({
+      where: { id },
+      data: disabledById ? { vpnDisabledAt: new Date(), vpnDisabledById: disabledById } : { vpnDisabledAt: null, vpnDisabledById: null },
+    });
+  }
+
+  setEmail(id: string, email: string): Promise<User> {
+    return prisma.user.update({ where: { id }, data: { email } });
+  }
+
+  /** Активные сотрудники с Telegram — список раздела VPN администратора. */
+  listActiveTelegramUsers(): Promise<User[]> {
+    return prisma.user.findMany({
+      where: { deletedAt: null, status: "ACTIVE", telegramId: { not: null } },
+      orderBy: { fullName: "asc" },
+    });
+  }
+
   createWebAccount(data: {
     email: string;
     passwordHash: string;
