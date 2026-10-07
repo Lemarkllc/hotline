@@ -49,7 +49,15 @@ describe("vpnService: мои устройства", () => {
   it("список своей подписки — приложение, ОС, модель, лимит", async () => {
     const result = await vpnService.listOwnDevices(1n);
     expect(result.limit).toBe(2);
-    expect(result.devices[0]).toEqual({ id: 70, app: "Happ", os: "iOS 18", model: "iPhone", lastSeen: new Date(HAPP.lastSeen).toISOString() });
+    expect(result.devices[0]).toEqual({
+      id: 70,
+      kind: "phone",
+      app: "Happ",
+      appVersion: "4.12.0",
+      os: "iOS 18",
+      model: "iPhone",
+      lastSeen: new Date(HAPP.lastSeen).toISOString(),
+    });
     expect(result.devices[1]).toMatchObject({ id: 71, app: "INCY", os: null, model: null });
   });
 
