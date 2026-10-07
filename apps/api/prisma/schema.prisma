@@ -123,6 +123,11 @@ model User {
   /// Кто запросил проверку — ему уходит итог (подтвердил / заблокирован по сроку).
   dataConfirmationRequestedById String?
 
+  /// «Отключить VPN» в разделе администратора: пока задано, бот на «Получить VPN»
+  /// отвечает «VPN отключён администратором». Снимает «Создать VPN» в разделе.
+  vpnDisabledAt   DateTime?
+  vpnDisabledById String?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -924,38 +929,37 @@ model BusinessTripRequest {
 /// профиль на сотрудника (решение пользователя 2026-09-22: повторное "Получить VPN"
 /// просто показывает существующую ссылку, не создаёт второй профиль).
 model VpnProfile {
-  id         String    @id @default(uuid())
+  id          String    @id @default(uuid())
   /// Не @unique: один пользователь может иметь НЕСКОЛЬКО строк за свою историю —
   /// старая отзывается (revokedAt) и создаётся новая, если панель сменилась
   /// (миграция сервера) и старый профиль на ней больше не найден — самовосстановление,
   /// см. vpnService.getOrCreateProfile. "Активный" профиль — только один за раз,
   /// это гарантируется на уровне запроса (findActiveByUserId: revokedAt IS NULL),
   /// не схемой.
-  userId     String
+  userId      String
   /// Email-идентификатор клиента в 3X-UI ("и.фамилия" транслитом) — не наш email,
   /// см. utils/transliterate.ts. Не @unique по той же причине, что и userId: после
   /// самовосстановления (см. выше) новый активный профиль может занять тот же
   /// email, что уже держит отозванная историческая строка — актуальную занятость
   /// email проверяем на живой панели (findFreePanelEmail), не по этой таблице.
-  panelEmail String
+  panelEmail  String
   /// 3X-UI subId — из него строится ссылка подписки (config.vpn.subBaseUrl + subId),
   /// см. vpnService.getSubscriptionUrl.
-  subId      String    @unique
-  createdAt  DateTime  @default(now())
+  subId       String    @unique
+  createdAt   DateTime  @default(now())
   /// Отзыв при увольнении (userService.blockUser) — профиль в 3X-UI удаляется по-
   /// настоящему (не отключается), эта запись остаётся как исторический след с
   /// revokedAt, а не удаляется физически — тот же принцип audit-трейла, что и у
   /// остальных подобных решений в этой кодовой базе.
-  revokedAt  DateTime?
-  /// Вспомогательный клиент панели для слота 2 AmneziaWG ("<panelEmail>-AWG2", только
-  /// AmneziaWG-inbound, limitHwid 0): один WireGuard-ключ нельзя делить между двумя
-  /// устройствами. subId скрытый — сотруднику не показывается, его запрашивает
-  /// только наш сервер (vpnService.proxySubscription). Null — ещё не создан (бэкфилл).
-  awgAuxPanelEmail String?
-  awgAuxSubId      String?
+  revokedAt   DateTime?
+  /// Лимит устройств подписки (HWID на панели) — источник правды у нас, на панель
+  /// применяется через bulkAdjust. Число ключей AmneziaWG = min(deviceLimit, 5).
+  deviceLimit Int       @default(2)
 
-  user     User         @relation(fields: [userId], references: [id])
-  awgSlots VpnAwgSlot[]
+  user           User               @relation(fields: [userId], references: [id])
+  awgSlots       VpnAwgSlot[]
+  awgAuxClients  VpnAwgAuxClient[]
+  usageSnapshots VpnUsageSnapshot[]
 
   @@index([userId])
   @@map("vpn_profiles")
@@ -965,6 +969,43 @@ model VpnProfile {
 /// основной клиент, слот 2 — вспомогательный (VpnProfile.awgAuxSubId). У панели нет
 /// удобного способа сопоставить свои HWID с нашими слотами, поэтому храним сами;
 /// сам HWID не храним — только SHA-256 (как и incy_merge.py).
+/// Вспомогательный клиент панели для слота 2…5 AmneziaWG ("<panelEmail>-AWG<slot>",
+/// только AmneziaWG-подключения, limitHwid 0): один WireGuard-ключ нельзя делить
+/// между устройствами. subId скрытый — сотруднику не показывается, его запрашивает
+/// только наш сервер (vpnService.proxySubscription). Число строк = min(deviceLimit, 5) − 1,
+/// синхронизирует vpnService.syncAwgAuxClients.
+model VpnAwgAuxClient {
+  id         String   @id @default(uuid())
+  profileId  String
+  slot       Int
+  panelEmail String
+  subId      String   @unique
+  createdAt  DateTime @default(now())
+
+  profile VpnProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, slot])
+  @@map("vpn_awg_aux_clients")
+}
+
+/// Суточный снимок счётчиков панели по профилю (основной + все вспомогательные
+/// клиенты) — панель хранит только накопительный итог, «трафик за 30 дней» считаем
+/// сами по ряду снимков (utils/vpnUsage.ts). day — дата по МСК, один снимок в сутки.
+model VpnUsageSnapshot {
+  id          String   @id @default(uuid())
+  profileId   String
+  day         DateTime @db.Date
+  upBytes     BigInt
+  downBytes   BigInt
+  deviceCount Int
+  takenAt     DateTime @default(now())
+
+  profile VpnProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, day])
+  @@map("vpn_usage_snapshots")
+}
+
 model VpnAwgSlot {
   id         String   @id @default(uuid())
   profileId  String

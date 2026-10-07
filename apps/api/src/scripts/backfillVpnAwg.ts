@@ -7,6 +7,11 @@
  * Массовыми вызовами панели (bulkAttach/bulkCreate) — каждый перезапускает Xray один
  * раз, а не на каждого сотрудника (иначе десятки обрывов соединений у всех).
  *
+ * Второй проход (openspec admin-vpn-management): лимит устройств с панели (limitHwid)
+ * записывается в VpnProfile.deviceLimit, и для лимитов > 2 досоздаются
+ * вспомогательные клиенты -AWG3…-AWG5 (vpnService.syncAwgAuxClients). У кого лимит 2 —
+ * ничего не меняется.
+ *
  * Идемпотентен: уже привязанный inbound и уже созданный вспомогательный клиент
  * пропускаются, повторный запуск ничего не меняет. Ссылка подписки сотрудника не меняется.
  *
@@ -17,39 +22,47 @@
  */
 import "dotenv/config";
 import { prisma } from "@/lib/prisma.js";
-import { VPN_AWG_INBOUND_IDS } from "@/config/vpnConfig.js";
+import { VPN_AWG_INBOUND_IDS, VPN_AWG_MAX_SLOTS, VPN_MAX_DEVICE_LIMIT } from "@/config/vpnConfig.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
-import { generateSubId, vpnPanelService } from "@/services/vpnPanelService.js";
+import { vpnPanelService } from "@/services/vpnPanelService.js";
+import { vpnService } from "@/services/vpnService.js";
+import { awgSlotCount, planAwgAuxSync } from "@/utils/awgSlotChoice.js";
 
 const dryRun = process.argv.includes("--dry-run");
-const AUX_COMMENT = "HotLine: AmneziaWG слот 2, скрытый — не выдавать сотруднику";
 
 async function main(): Promise<void> {
   const profiles = await vpnProfileRepository.findAllActive();
   const toAttach = new Map<number, string[]>(VPN_AWG_INBOUND_IDS.map((id) => [id, []]));
-  const toCreate: { profileId: string; email: string; subId: string; tgId: number }[] = [];
+  const toSync: { profile: (typeof profiles)[number]; deviceLimit: number; tgId: number }[] = [];
   let missingOnPanel = 0;
 
   for (const profile of profiles) {
     const main = await vpnPanelService.getByEmail(profile.panelEmail);
-    if (!main) {
+    if (!main || main.subId !== profile.subId) {
       missingOnPanel++;
       console.log(`[нет на панели] ${profile.panelEmail} — пропуск (самовосстановится при следующем «Получить VPN»)`);
       continue;
     }
     for (const id of VPN_AWG_INBOUND_IDS) if (!main.inboundIds.includes(id)) toAttach.get(id)!.push(profile.panelEmail);
-    if (!profile.awgAuxSubId) {
-      toCreate.push({
-        profileId: profile.id,
-        email: `${profile.panelEmail}-AWG2`,
-        subId: generateSubId(),
-        tgId: Number(profile.user.telegramId ?? main.tgId ?? 0),
-      });
+
+    // limitHwid 0 на панели = без ограничения — у нас это потолок (5).
+    const deviceLimit = main.limitHwid > 0 ? Math.min(main.limitHwid, VPN_MAX_DEVICE_LIMIT) : VPN_MAX_DEVICE_LIMIT;
+    const plan = planAwgAuxSync(
+      profile.awgAuxClients.map((a) => a.slot),
+      awgSlotCount(deviceLimit, VPN_AWG_MAX_SLOTS),
+    );
+    if (deviceLimit !== profile.deviceLimit || plan.create.length > 0 || plan.remove.length > 0) {
+      console.log(
+        `${profile.panelEmail}: лимит ${profile.deviceLimit} → ${deviceLimit} (панель ${main.limitHwid}), создать слоты [${plan.create.join(", ")}], удалить [${plan.remove.join(", ")}]`,
+      );
+      toSync.push({ profile, deviceLimit, tgId: Number(profile.user.telegramId ?? main.tgId ?? 0) });
     }
   }
 
   const attachSummary = [...toAttach].map(([id, emails]) => `${id}: ${emails.length}`).join(", ");
-  console.log(`${dryRun ? "[dry-run] " : ""}профилей: ${profiles.length}, нет на панели: ${missingOnPanel}, привязать AmneziaWG (${attachSummary}), создать -AWG2: ${toCreate.length}`);
+  console.log(
+    `${dryRun ? "[dry-run] " : ""}профилей: ${profiles.length}, нет на панели: ${missingOnPanel}, привязать AmneziaWG (${attachSummary}), изменить лимит/ключи: ${toSync.length}`,
+  );
   if (dryRun) return;
 
   for (const [id, emails] of toAttach) {
@@ -59,26 +72,17 @@ async function main(): Promise<void> {
     for (const error of result.errors) console.error("[ошибка attach]", error);
   }
 
-  if (toCreate.length > 0) {
-    const result = await vpnPanelService.bulkCreate(
-      toCreate.map((c) => ({ email: c.email, subId: c.subId, tgId: c.tgId, limitHwid: 0, comment: AUX_COMMENT, inboundIds: [...VPN_AWG_INBOUND_IDS] })),
-    );
-    console.log(`bulkCreate: создано ${result.created}, пропущено ${result.skipped.length}`);
-    const skipped = new Map(result.skipped.map((s) => [s.email, s.reason]));
-
-    let saved = 0;
-    for (const item of toCreate) {
-      // Уже существовал на панели (прошлый прерванный запуск) — берём его настоящий subId.
-      const subId = skipped.has(item.email) ? (await vpnPanelService.getByEmail(item.email))?.subId : item.subId;
-      if (!subId) {
-        console.error(`[ошибка] ${item.email}: ${skipped.get(item.email) ?? "не создан"}`);
-        continue;
-      }
-      await vpnProfileRepository.setAwgAux(item.profileId, item.email, subId);
-      saved++;
+  let synced = 0;
+  for (const item of toSync) {
+    try {
+      const updated = await vpnProfileRepository.setDeviceLimit(item.profile.id, item.deviceLimit);
+      await vpnService.syncAwgAuxClients(updated, item.tgId);
+      synced++;
+    } catch (error) {
+      console.error(`[ошибка] ${item.profile.panelEmail}:`, error instanceof Error ? error.message : error);
     }
-    console.log(`-AWG2 сохранено в профилях: ${saved} из ${toCreate.length}`);
   }
+  console.log(`лимит/ключи обновлены: ${synced} из ${toSync.length}`);
 }
 
 main()
