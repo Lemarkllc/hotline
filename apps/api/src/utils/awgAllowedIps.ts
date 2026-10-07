@@ -63,3 +63,22 @@ export function applyAllowedIps(conf: string, allowedIps: readonly string[]): st
   }
   return conf.replace(pattern, (_line, prefix: string) => `${prefix}${allowedIps.join(", ")}`);
 }
+
+/** Добавляет `PersistentKeepalive = <seconds>` в секцию [Peer], если такой строки там
+ * нет (решение 2026-10-07). Мобильные операторы держат соединения за общим NAT и через
+ * минуту-две тишины забывают их — без регулярного пакета VPN после паузы «просыпается»
+ * с задержкой. Уже заданное значение не трогаем. Нет секции [Peer] — ошибка: конфиг
+ * неожиданного формата не выдаём (как и applyAllowedIps). */
+export function ensurePersistentKeepalive(conf: string, seconds: number): string {
+  const lines = conf.split(/\r?\n/);
+  const peer = lines.findIndex((l) => /^\s*\[Peer\]\s*$/i.test(l));
+  if (peer === -1) throw new Error("в конфиге AmneziaWG нет секции [Peer]");
+  const nextSection = lines.findIndex((l, i) => i > peer && /^\s*\[.+\]\s*$/.test(l));
+  const end = nextSection === -1 ? lines.length : nextSection;
+  if (lines.slice(peer + 1, end).some((l) => /^\s*PersistentKeepalive\s*=/i.test(l))) return conf;
+  // Вставляем после последней непустой строки секции, чтобы не уйти за хвостовой перевод строки.
+  let insertAt = end;
+  while (insertAt > peer + 1 && lines[insertAt - 1]!.trim() === "") insertAt--;
+  lines.splice(insertAt, 0, `PersistentKeepalive = ${seconds}`);
+  return lines.join("\n");
+}

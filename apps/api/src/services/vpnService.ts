@@ -1,13 +1,13 @@
 import { config } from "@/config/unifiedConfig.js";
 import { logger } from "@/lib/logger.js";
-import { VPN_AWG_INBOUND_IDS, VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
+import { VPN_AWG_INBOUND_IDS, VPN_AWG_PERSISTENT_KEEPALIVE_SEC, VPN_PROFILE_HWID_LIMIT, VPN_STANDARD_INBOUND_IDS } from "@/config/vpnConfig.js";
 import { vpnAwgSlotRepository } from "@/repositories/VpnAwgSlotRepository.js";
 import { MERGE_FETCHER_UA, vpnPanelService, type VpnPanelClientDTO, type VpnPanelDeviceDTO } from "@/services/vpnPanelService.js";
 import { vpnProfileRepository } from "@/repositories/VpnProfileRepository.js";
 import { userRepository } from "@/repositories/UserRepository.js";
 import { transliterateToLogin } from "@/utils/transliterate.js";
 import { rewriteHappRoutingHeader } from "@/utils/happRouting.js";
-import { applyAllowedIps } from "@/utils/awgAllowedIps.js";
+import { applyAllowedIps, ensurePersistentKeepalive } from "@/utils/awgAllowedIps.js";
 import {
   appendAmneziaWgElement,
   buildAmneziaWgServers,
@@ -164,7 +164,7 @@ export class VpnService {
       if (configs.length === 0) throw new AwgUnavailableError(`слот ${slot}: в подписке нет AmneziaWG`);
 
       const allowedIps = await vpnAwgRoutingService.getAllowedIps();
-      const servers = buildAmneziaWgServers(configs.map((c) => ({ name: c.name, conf: applyAllowedIps(c.conf, allowedIps) })));
+      const servers = buildAmneziaWgServers(configs.map((c) => ({ name: c.name, conf: ensurePersistentKeepalive(applyAllowedIps(c.conf, allowedIps), VPN_AWG_PERSISTENT_KEEPALIVE_SEC) })));
       const merged = Buffer.from(JSON.stringify(appendAmneziaWgElement(json, servers)), "utf-8");
       return merged.buffer.slice(merged.byteOffset, merged.byteOffset + merged.byteLength) as ArrayBuffer;
     } catch (error) {
