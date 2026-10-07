@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronRight, Copy, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronRight, Copy, Plus, Trash2 } from "lucide-react";
 import { FULL_NAME_FORMAT_HINT, isValidFullName } from "@hotline/shared";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -455,14 +455,45 @@ function EmployeeCard({ userId }: { userId: string }) {
   );
 }
 
-type SortKey = "name" | "devices" | "traffic30" | "trafficTotal";
+type SortKey = "name" | "state" | "devices" | "traffic30" | "trafficTotal";
 
+/** Порядок состояний при сортировке «по VPN»: сначала то, что требует действия. */
+const STATE_ORDER: AdminVpnState[] = ["STALE", "NONE", "DISABLED", "ACTIVE"];
+
+/** Сравнение по возрастанию; направление применяет страница. Нет данных — всегда в конце. */
 const SORTERS: Record<SortKey, (a: AdminVpnRow, b: AdminVpnRow) => number> = {
   name: (a, b) => a.fullName.localeCompare(b.fullName, "ru"),
-  devices: (a, b) => (b.devices?.count ?? -1) - (a.devices?.count ?? -1),
-  traffic30: (a, b) => b.traffic30.bytes - a.traffic30.bytes,
-  trafficTotal: (a, b) => (b.trafficTotal ?? -1) - (a.trafficTotal ?? -1),
+  state: (a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state),
+  devices: (a, b) => (a.devices?.count ?? -1) - (b.devices?.count ?? -1),
+  traffic30: (a, b) => a.traffic30.bytes - b.traffic30.bytes,
+  trafficTotal: (a, b) => (a.trafficTotal ?? -1) - (b.trafficTotal ?? -1),
 };
+
+/** Текст и числа — по возрастанию, объёмы и устройства — сначала самые большие. */
+const DEFAULT_DESC: Record<SortKey, boolean> = { name: false, state: false, devices: true, traffic30: true, trafficTotal: true };
+
+const SORT_LABELS: Record<SortKey, string> = {
+  name: "По ФИО",
+  state: "По состоянию VPN",
+  devices: "По устройствам",
+  traffic30: "По трафику за 30 дней",
+  trafficTotal: "По трафику всего",
+};
+
+type StateFilter = "ALL" | AdminVpnState;
+
+function SortHead({ label, sortKey, sort, desc, onSort }: { label: string; sortKey: SortKey; sort: SortKey; desc: boolean; onSort: (key: SortKey) => void }) {
+  const active = sort === sortKey;
+  const Icon = !active ? ArrowUpDown : desc ? ArrowDown : ArrowUp;
+  return (
+    <TableHead>
+      <button type="button" onClick={() => onSort(sortKey)} className={active ? "inline-flex items-center gap-1 text-text-1" : "inline-flex items-center gap-1"}>
+        {label}
+        <Icon className="size-3.5" />
+      </button>
+    </TableHead>
+  );
+}
 
 /** Раздел «VPN» (Администратор, user.manage): десктоп — таблица, PWA — карточки
  * (пункт «VPN-доступы» в Профиле). openspec admin-vpn-management. */
@@ -471,14 +502,39 @@ export function VpnAdminPage() {
   const { data, isLoading, error } = useAdminVpnList();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
+  const [desc, setDesc] = useState(false);
+  const [stateFilter, setStateFilter] = useState<StateFilter>("ALL");
   const [selected, setSelected] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = (data?.rows ?? []).filter((r) => !q || r.fullName.toLowerCase().includes(q) || r.telegramId.includes(q));
-    return [...filtered].sort(SORTERS[sort]);
-  }, [data, query, sort]);
+    const filtered = (data?.rows ?? []).filter(
+      (r) => (stateFilter === "ALL" || r.state === stateFilter) && (!q || r.fullName.toLowerCase().includes(q) || r.telegramId.includes(q)),
+    );
+    const compare = SORTERS[sort];
+    // Вторичный ключ — ФИО, чтобы при равных значениях порядок не прыгал.
+    return [...filtered].sort((a, b) => (desc ? -compare(a, b) : compare(a, b)) || SORTERS.name(a, b));
+  }, [data, query, sort, desc, stateFilter]);
+
+  const stateCounts = useMemo(() => {
+    const counts: Record<StateFilter, number> = { ALL: 0, ACTIVE: 0, NONE: 0, STALE: 0, DISABLED: 0 };
+    for (const r of data?.rows ?? []) {
+      counts.ALL++;
+      counts[r.state]++;
+    }
+    return counts;
+  }, [data]);
+
+  /** Клик по той же колонке меняет направление, по новой — её направление по умолчанию. */
+  function handleSort(key: SortKey) {
+    if (key === sort) {
+      setDesc((d) => !d);
+    } else {
+      setSort(key);
+      setDesc(DEFAULT_DESC[key]);
+    }
+  }
 
   const lastSnapshotAt = useMemo(() => {
     const times = (data?.rows ?? []).map((r) => r.devices?.at).filter((t): t is string => Boolean(t));
@@ -499,17 +555,52 @@ export function VpnAdminPage() {
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input placeholder="Поиск по ФИО или Telegram ID" value={query} onChange={(e) => setQuery(e.target.value)} className="sm:max-w-xs" />
-        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-          <SelectTrigger className="sm:w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="name">По ФИО</SelectItem>
-            <SelectItem value="devices">По устройствам</SelectItem>
-            <SelectItem value="traffic30">По трафику за 30 дней</SelectItem>
-            <SelectItem value="trafficTotal">По трафику всего</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select
+            value={sort}
+            onValueChange={(v) => {
+              setSort(v as SortKey);
+              setDesc(DEFAULT_DESC[v as SortKey]);
+            }}
+          >
+            <SelectTrigger className="flex-1 sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {SORT_LABELS[k]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            aria-label={desc ? "По убыванию" : "По возрастанию"}
+            title={desc ? "По убыванию" : "По возрастанию"}
+            onClick={() => setDesc((d) => !d)}
+          >
+            {desc ? <ArrowDown /> : <ArrowUp />}
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {(["ALL", "STALE", "NONE", "DISABLED", "ACTIVE"] as StateFilter[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setStateFilter(f)}
+            className={
+              stateFilter === f
+                ? "rounded-full bg-primary px-3 py-1 text-meta font-semibold text-primary-foreground"
+                : "rounded-full border border-rule px-3 py-1 text-meta text-text-2"
+            }
+          >
+            {f === "ALL" ? "Все" : STATE_LABELS[f]} · {stateCounts[f]}
+          </button>
+        ))}
       </div>
 
       {data && !data.panelAvailable && (
@@ -537,13 +628,13 @@ export function VpnAdminPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ФИО</TableHead>
+              <SortHead label="ФИО" sortKey="name" sort={sort} desc={desc} onSort={handleSort} />
               <TableHead>Telegram ID</TableHead>
               <TableHead>Логин VPN</TableHead>
-              <TableHead>VPN</TableHead>
-              <TableHead>Устройства</TableHead>
-              <TableHead>За 30 дней</TableHead>
-              <TableHead>Всего</TableHead>
+              <SortHead label="VPN" sortKey="state" sort={sort} desc={desc} onSort={handleSort} />
+              <SortHead label="Устройства" sortKey="devices" sort={sort} desc={desc} onSort={handleSort} />
+              <SortHead label="За 30 дней" sortKey="traffic30" sort={sort} desc={desc} onSort={handleSort} />
+              <SortHead label="Всего" sortKey="trafficTotal" sort={sort} desc={desc} onSort={handleSort} />
             </TableRow>
           </TableHeader>
           <TableBody>
