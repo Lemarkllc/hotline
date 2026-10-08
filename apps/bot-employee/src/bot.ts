@@ -124,6 +124,23 @@ export function createBot(): Bot<BotContext> {
   });
 
   bot.use(conversations());
+
+  // Любая команда или кнопка главного меню закрывает открытый диалог. Плагин диалогов
+  // по умолчанию молча выбрасывает апдейты, которых текущий шаг не ждёт: сотрудник,
+  // бросивший заявку на шаге с кнопками (или очистивший историю чата вместе с кнопкой
+  // «Отменить»), застревал навсегда — /start, /new и даже /cancel пропадали без ответа
+  // до перезапуска бота (найдено 2026-10-08 у сотрудника на заявке на отпуск).
+  bot.use(async (ctx, next) => {
+    const isCommand = ctx.message?.entities?.some((e) => e.type === "bot_command" && e.offset === 0) ?? false;
+    const isMenuButton = ctx.callbackQuery?.data?.startsWith("menu:") ?? false;
+    if ((isCommand || isMenuButton) && Object.keys(ctx.conversation.active()).length > 0) {
+      await ctx.conversation.exitAll();
+      // Брошенный сбор вложений newAppeal: иначе следующие фото уходили бы в никуда.
+      ctx.session.draftAttachmentIds = undefined;
+    }
+    await next();
+  });
+
   bot.use(createConversation(registration));
   bot.use(createConversation(newAppeal));
   bot.use(createConversation(vacation));
